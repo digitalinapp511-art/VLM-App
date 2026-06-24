@@ -6,9 +6,21 @@ import { PATHS } from "@/routes/paths";
 export default function SplashPage() {
   const navigate = useNavigate();
 
+  // ── DEV MODE BYPASS ─────────────────────────────────────
+  // Set to false before merging to production!
+  const DEV_BYPASS_LOGIN = true;
+  // ─────────────────────────────────────────────────────────
+
   useEffect(() => {
     const timer = setTimeout(() => {
-      navigate(PATHS.ROLE_SELECT, { replace: true });
+      if (DEV_BYPASS_LOGIN) {
+        // Inject a mock token and role so auth checks pass
+        localStorage.setItem("vlm_token", "dev-mock-token");
+        localStorage.setItem("vlm_role", "teacher");
+        navigate(PATHS.TEACHER_DASHBOARD, { replace: true });
+      } else {
+        navigate(PATHS.ROLE_SELECT, { replace: true });
+      }
     }, 2800);
     return () => clearTimeout(timer);
   }, [navigate]);
