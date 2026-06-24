@@ -2,7 +2,7 @@ import React from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import {
-  ChevronLeft, ChevronRight, Atom, Users, Play, Star,
+  ChevronRight, Atom, Users, Play, Star,
   Home, BookOpen, Wallet, Library, User as UserIcon
 } from "lucide-react";
 import { bgCss } from "@/helper/CssHelper";

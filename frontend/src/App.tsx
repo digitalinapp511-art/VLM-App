@@ -58,6 +58,7 @@ import EarningsHistory from "./pages/teacher/EarningsHistory";
 import TeachSessionHistory from "./pages/teacher/TeachSessionHistory";
 import RequestsPage from "./pages/teacher/RequestsPage";
 import CreateLiveClassRequest from "./pages/teacher/CreateLiveClassRequest";
+import RecordingLibrary from "./pages/teacher/RecordingLibrary";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -136,6 +137,7 @@ export default function App() {
         <Route path={PATHS.TEACHER_SESSION_HISTORY} element={<TeachSessionHistory />} />
         <Route path={PATHS.TEACHER_REQUESTS} element={<RequestsPage />} />
         <Route path={PATHS.TEACHER_CLASSES} element={<CreateLiveClassRequest />} />
+        <Route path={PATHS.TEACHER_LIBRARY} element={<RecordingLibrary />} />
         
           {/* Parent Module */} 
             <Route path={PATHS.ADD_CHILD} element={<AddChild />} />

@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import { bgCss } from "@/helper/CssHelper";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { teacherApi } from "@/lib/teacher-api";
 import StatsCard from "@/components/basic/teacher/StatsCard";
 import { LiveClassCard, NotificationItem, ReviewItem } from "@/components/basic/teacher/DashboardWidgets";
@@ -12,24 +12,13 @@ import ReferralCard from "@/components/basic/teacher/ReferralCard";
 import { PATHS } from "@/routes/paths";
 import { useNavigate } from "react-router-dom";
 import DirectRequestDialog from "@/components/basic/teacher/DirectRequestDialog";
-import { toast } from "sonner";
+
 
 const Dashboard: React.FC = () => {
-  const queryClient = useQueryClient();
+
   const { data, isLoading } = useQuery({
     queryKey: ["teacherDashboard"],
     queryFn: teacherApi.getDashboard,
-  });
-
-  const toggleStatusMutation = useMutation({
-    mutationFn: (status: "online" | "offline") => teacherApi.updateAvailability(status),
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["teacherDashboard"] });
-      toast.success(`Status updated to ${variables}`);
-    },
-    onError: () => {
-      toast.error("Failed to update status");
-    }
   });
 
   const [showRequest, setShowRequest] = React.useState(false);
@@ -71,10 +60,6 @@ const Dashboard: React.FC = () => {
       window.removeEventListener("storage", sync);
     };
   }, [teacher?.availabilityStatus]);
-
-  const handleToggle = () => {
-    navigate(PATHS.AVAILABILITY_STATUS);
-  };
 
   return (
     <div className={cn("min-h-screen p-4 pb-28 flex flex-col items-center", bgCss)}>
@@ -258,7 +243,7 @@ const Dashboard: React.FC = () => {
         <NavItem icon={<Home />} label="Home" active onClick={() => navigate(PATHS.TEACHER_DASHBOARD)} />
         <NavItem icon={<BookOpen />} label="Classes" onClick={() => navigate(PATHS.TEACHER_CLASSES)} />
         <NavItem icon={<Wallet />} label="Wallet" onClick={() => navigate(PATHS.TEACHER_WALLET)} />
-        <NavItem icon={<Library />} label="Library" />
+        <NavItem icon={<Library />} label="Library" onClick={() => navigate(PATHS.TEACHER_LIBRARY)} />
         <NavItem icon={<User />} label="Profile" onClick={() => navigate(PATHS.PROFILE_REVIEW)} />
       </nav>
     </div>

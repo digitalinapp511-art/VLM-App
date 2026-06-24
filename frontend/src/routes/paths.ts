@@ -47,6 +47,7 @@ export const PATHS = {
     TEACHER_SESSION_HISTORY: "/teacher-session-history",
     TEACHER_REQUESTS: "/teacher-requests",
     TEACHER_CLASSES: "/teacher-classes",
+    TEACHER_LIBRARY: "/teacher-library",
 
   // Student flows
   VIDEO_UPLOAD: "/video-upload",
