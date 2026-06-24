@@ -42,6 +42,7 @@ import TeacherClassSelection from "./pages/teacher/stepper/TeacherClassSelection
 import AddChild from "./pages/Parent/Addchild";
 import LiveActivity from "./pages/Parent/LiveActivity";
 import DoubtHistory from "./pages/Parent/DoubtHistory";
+import ParentDashboardPage from "./pages/Parent/ParentDashboardPage";
 import BoardSelection from "./pages/teacher/stepper/BoardSelection";
 import LanguageSelection from "./pages/teacher/stepper/LanguageSelection";
 import DocumentUpload from "./pages/teacher/stepper/DocumentUpload";
@@ -141,7 +142,7 @@ export default function App() {
         
           {/* Parent Module */} 
             <Route path={PATHS.ADD_CHILD} element={<AddChild />} />
-            <Route path={PATHS.PARENT_DASHBOARD} element={<DashboardPage/>} />
+            <Route path={PATHS.PARENT_DASHBOARD} element={<ParentDashboardPage/>} />
             <Route path={PATHS.PARENT_LIVEACTIVITY} element={<LiveActivity/>} />
             <Route path={PATHS.PARENT_DOUBTHISTORY} element={<DoubtHistory/>} />
             

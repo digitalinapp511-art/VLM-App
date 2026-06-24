@@ -198,8 +198,10 @@ export default function LoginPage() {
                   <Button
                     type="button"
                     onClick={() => {
-                      // Skip backend — go directly to onboarding for teacher, dashboard for others
-                      navigate(role === "teacher" ? PATHS.TEACHER_REGISTRATION : PATHS.STUDENT_DASHBOARD);
+                      // Skip backend — route by role
+                      if (role === "teacher") navigate(PATHS.TEACHER_REGISTRATION);
+                      else if (role === "parent") navigate(PATHS.PARENT_DASHBOARD);
+                      else navigate(PATHS.STUDENT_DASHBOARD);
                     }}
                     className="relative text-white w-full h-16 rounded-2xl text-lg tracking-wide border border-blue-500/50 shadow-[inset_0_1px_1px_rgba(255,255,255,0.2)] transition-all active:scale-[0.98] hover:brightness-110"
                     style={{ background: "linear-gradient(180deg, #1e3a8e 0%, #0f172a 100%)" }}
@@ -216,7 +218,9 @@ export default function LoginPage() {
                       localStorage.setItem("vlm_token", "dev-bypass-token");
                       localStorage.setItem("dev_bypass_auth", "true");
                       sessionStorage.setItem("vlm_role", role);
-                      navigate(role === "student" ? PATHS.STUDENT_DASHBOARD : PATHS.TEACHER_DASHBOARD);
+                      if (role === "teacher") navigate(PATHS.TEACHER_DASHBOARD);
+                      else if (role === "parent") navigate(PATHS.PARENT_DASHBOARD);
+                      else navigate(PATHS.STUDENT_DASHBOARD);
                     }}
                     variant="outline"
                     className="w-full h-12 rounded-2xl border-dashed border-amber-500/50 text-amber-400 bg-amber-500/5 hover:bg-amber-500/10 hover:text-amber-300 transition-all"
