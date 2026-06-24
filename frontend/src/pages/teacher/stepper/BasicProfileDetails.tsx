@@ -74,35 +74,9 @@ const BasicProfileDetails: React.FC = () => {
     setPhotoPreview(URL.createObjectURL(file));
   };
 
-  const mutation = useMutation({
-    mutationFn: async () => {
-      let profilePhoto = profile?.profilePhoto || "";
-
-      if (photoFile) {
-        const uploadRes = await teacherApi.uploadProfilePhoto(photoFile);
-        profilePhoto = uploadRes.url || uploadRes.profilePhoto || "";
-      }
-
-      return teacherApi.updateProfile({
-        fullName: form.fullName,
-        gender: form.gender,
-        dob: form.dob || null,
-        address: form.address,
-        city: form.city,
-        state: form.state,
-        pincode: form.pincode,
-        profilePhoto,
-      });
-    },
-    onSuccess: () => {
-      toast.success("Basic details saved");
-      navigate(PATHS.EXPERIENCE_DETAILS);
-    },
-    onError: (error) => {
-      console.error(error);
-      toast.error("Failed to save details");
-    },
-  });
+  const handleContinue = () => {
+    navigate(PATHS.EXPERIENCE_DETAILS);
+  };
 
   const email = profile?.user?.email ?? "—";
   const mobile = profile?.user?.mobile ?? "—";
@@ -253,22 +227,14 @@ const BasicProfileDetails: React.FC = () => {
 
         <div className="mt-10">
           <Button
-            onClick={() => mutation.mutate()}
-            disabled={mutation.isPending}
+            onClick={handleContinue}
             className={cn(
               "w-full h-14 rounded-full text-lg font-bold transition-all",
               "bg-gradient-to-r from-[#2b4b9b] to-[#1a2e5d] hover:brightness-110",
               "border border-blue-400/20 shadow-[0_0_20px_rgba(37,99,235,0.15)] text-white flex items-center justify-center gap-2"
             )}
           >
-            {mutation.isPending ? (
-              "Saving..."
-            ) : (
-              <>
-                Continue to document{" "}
-                <ChevronRight className="font-light text-xl opacity-80" />
-              </>
-            )}
+            Continue to document <ChevronRight className="font-light text-xl opacity-80" />
           </Button>
         </div>
       </motion.div>

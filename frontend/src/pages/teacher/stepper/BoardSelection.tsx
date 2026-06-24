@@ -42,11 +42,7 @@ const BoardSelection: React.FC = () => {
     setSelectedBoards(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
   };
 
-  const mutation = useMutation({
-    mutationFn: () => teacherApi.updateProfile({ boards: selectedBoards }),
-    onSuccess: () => { toast.success("Boards saved"); navigate(PATHS.LANGUAGE_SELECTION); },
-    onError: () => toast.error("Failed to save boards"),
-  });
+  const handleContinue = () => navigate(PATHS.LANGUAGE_SELECTION);
 
   return (
     <div className={cn("min-h-screen flex flex-col items-center p-6 pb-32 relative overflow-hidden", bgCss)}>
@@ -101,15 +97,14 @@ const BoardSelection: React.FC = () => {
           className="w-full max-w-sm pointer-events-auto"
         >
           <Button
-            onClick={() => mutation.mutate()}
-            disabled={mutation.isPending}
+            onClick={handleContinue}
             className={cn(
               "w-full h-16 rounded-full text-xl font-bold transition-all flex items-center justify-center gap-4",
               "bg-gradient-to-r from-[#2b4b9b] to-[#1a2e5d] hover:brightness-110",
               "border border-white/10 shadow-2xl text-white group"
             )}
           >
-            {mutation.isPending ? "Saving..." : "CONTINUE"}
+            CONTINUE
             <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center group-hover:bg-white/20 transition-colors">
               <ChevronRight size={24} className="opacity-90" />
             </div>

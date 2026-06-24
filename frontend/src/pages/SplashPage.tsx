@@ -7,8 +7,8 @@ export default function SplashPage() {
   const navigate = useNavigate();
 
   // ── DEV MODE BYPASS ─────────────────────────────────────
-  // Set to false before merging to production!
-  const DEV_BYPASS_LOGIN = true;
+  // Set to true to skip login during development
+  const DEV_BYPASS_LOGIN = false;
   // ─────────────────────────────────────────────────────────
 
   useEffect(() => {

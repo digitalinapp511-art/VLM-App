@@ -196,13 +196,15 @@ export default function LoginPage() {
                   <div className="absolute inset-x-0 bottom-0 top-2 bg-blue-600/30 blur-2xl rounded-2xl" />
 
                   <Button
-                    type="submit"
-                    onClick={onSubmit}
-                    disabled={loginMutation.isPending}
+                    type="button"
+                    onClick={() => {
+                      // Skip backend — go directly to onboarding for teacher, dashboard for others
+                      navigate(role === "teacher" ? PATHS.TEACHER_REGISTRATION : PATHS.STUDENT_DASHBOARD);
+                    }}
                     className="relative text-white w-full h-16 rounded-2xl text-lg tracking-wide border border-blue-500/50 shadow-[inset_0_1px_1px_rgba(255,255,255,0.2)] transition-all active:scale-[0.98] hover:brightness-110"
                     style={{ background: "linear-gradient(180deg, #1e3a8e 0%, #0f172a 100%)" }}
                   >
-                    {loginMutation.isPending ? "Authenticating..." : "Login to Dashboard"}
+                    Login to Dashboard
                   </Button>
                 </div>
 

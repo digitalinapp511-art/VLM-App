@@ -24,12 +24,7 @@ const TeacherQualificationDetails: React.FC = () => {
     teachingCertification: "NET",
   });
 
-  const mutation = useMutation({
-    mutationFn: () => teacherApi.updateProfile({ ...form, hasBEd, passingYear: parseInt(form.passingYear) }),
-    onSuccess: () => { toast.success("Qualifications saved"); navigate(PATHS.BASICPROFILE_DETAILS
-    ); },
-    onError: () => toast.error("Failed to save qualifications"),
-  });
+  const handleContinue = () => navigate(PATHS.BASICPROFILE_DETAILS);
 
   return (
     <div className={cn("min-h-screen flex flex-col items-center justify-center p-4", bgCss)}>
@@ -62,11 +57,10 @@ const TeacherQualificationDetails: React.FC = () => {
           </div>
           <CertificateGrid />
           <Button
-            onClick={() => mutation.mutate()}
-            disabled={mutation.isPending}
+            onClick={handleContinue}
             className="w-full h-14 rounded-full font-bold bg-gradient-to-r from-[#2b4b9b] to-[#1a2e5d] border border-blue-400/20 text-white mt-4"
           >
-            {mutation.isPending ? "Saving..." : "Save & Continue →"}
+            Save &amp; Continue →
           </Button>
         </div>
       </motion.div>

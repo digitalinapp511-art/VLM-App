@@ -23,17 +23,7 @@ const TeacherExperienceDetails: React.FC = () => {
   const [type, setType] = useState("school");
   const [summary, setSummary] = useState("");
 
-  const mutation = useMutation({
-    mutationFn: () => teacherApi.updateProfile({
-      experience: years,
-      experienceMonths: months,
-      teachingMode: mode,
-      experienceType: type,
-      experienceSummary: summary,
-    }),
-    onSuccess: () => { toast.success("Experience details saved"); navigate(PATHS.SUBJECT_SELECTION); },
-    onError: () => toast.error("Failed to save experience"),
-  });
+  const handleContinue = () => navigate(PATHS.TEACHERCLASS_SELECTION);
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -147,15 +137,14 @@ const TeacherExperienceDetails: React.FC = () => {
             <motion.div initial={{ width: 0 }} animate={{ width: "45%" }} className="h-full bg-yellow-500 shadow-[0_0_10px_rgba(234,179,8,0.5)]" />
           </div>
           <Button
-            onClick={() => mutation.mutate()}
-            disabled={mutation.isPending}
+            onClick={handleContinue}
             className={cn(
               "w-full h-16 rounded-[20px] text-xl font-bold uppercase tracking-tight transition-all",
               "bg-gradient-to-r from-[#2b4b9b] to-[#1a2e5d] hover:brightness-110",
               "border border-white/10 shadow-2xl text-white flex items-center justify-center gap-2"
             )}
           >
-            {mutation.isPending ? "Saving..." : <>{`Save & Continue`} <ChevronRight size={22} className="ml-1" /></>}
+            Save & Continue <ChevronRight size={22} className="ml-1" />
           </Button>
         </motion.div>
       </motion.div>
