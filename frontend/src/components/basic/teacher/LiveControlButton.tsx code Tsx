@@ -1,0 +1,46 @@
+import React from "react";
+import { cn } from "@/lib/utils";
+import { motion } from "framer-motion";
+
+interface LiveControlButtonProps {
+  icon: React.ReactNode;
+  label: string;
+  active?: boolean;
+  variant?: "default" | "danger";
+  onClick?: () => void;
+}
+
+const LiveControlButton: React.FC<LiveControlButtonProps> = ({
+  icon,
+  label,
+  active = false,
+  variant = "default",
+  onClick,
+}) => {
+  return (
+    <div className="flex flex-col items-center gap-2">
+      <motion.button
+        whileTap={{ scale: 0.92 }}
+        onClick={onClick}
+        className={cn(
+          "w-14 h-14 rounded-[20px] flex items-center justify-center border transition-all duration-300",
+          variant === "default" && !active && "bg-zinc-800/50 border-white/5 text-zinc-400",
+          variant === "default" && active && "bg-blue-600 border-blue-400 shadow-[0_0_20px_rgba(37,99,235,0.4)] text-white",
+          variant === "danger" && "bg-rose-500 border-rose-400 shadow-[0_0_20px_rgba(244,63,94,0.4)] text-white"
+        )}
+      >
+        {React.cloneElement(icon as React.ReactElement, { size: 24, strokeWidth: 2 })}
+      </motion.button>
+      <span className="text-[9px] font-black uppercase tracking-widest text-zinc-500 text-center leading-tight">
+        {label.split(" ").map((word, i) => (
+          <React.Fragment key={i}>
+            {word}
+            <br />
+          </React.Fragment>
+        ))}
+      </span>
+    </div>
+  );
+};
+
+export default LiveControlButton;

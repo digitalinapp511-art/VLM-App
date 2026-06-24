@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+
+    <!--
+      Android WebView + mobile safe viewport:
+      - width=device-width: fills the WebView correctly
+      - initial-scale=1: no zoom
+      - viewport-fit=cover: honours notch / safe areas on Android 9+
+    -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover"
+    />
+
+    <!-- Prevent text-size-adjust on Android WebView -->
+    <meta name="format-detection" content="telephone=no" />
+
+    <title>VLM Academy</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

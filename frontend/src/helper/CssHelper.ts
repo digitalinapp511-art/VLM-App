@@ -1,0 +1,1 @@
+export const bgCss:string=`bg-linear-to-br/srgb from-teal-900 from-0% via-black via-50% to-purple-950 to-100%`

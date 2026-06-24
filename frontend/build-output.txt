@@ -1,0 +1,40 @@
+﻿
+> vlm new frontend@0.0.1 build
+> tsc -b && vite build
+
+src/components/basic/teacher/LiveControlButton.tsx(34,60): error TS2769: No overload matches this call.
+  The last overload gave the following error.
+    Object literal may only specify known properties, and 'size' does not exist in type 'Partial<unknown> & Attributes'.
+src/components/basic/teacher/RecordingInfoBadges.tsx(24,59): error TS2769: No overload matches this call.
+  The last overload gave the following error.
+    Object literal may only specify known properties, and 'size' does not exist in type 'Partial<unknown> & Attributes'.
+src/pages/teacher/ApplicationRejected.tsx(19,9): error TS6133: 'status' is declared but its value is never read.
+src/pages/teacher/BasicProfileDetails.tsx(102,17): error TS2322: Type '{ icon: Element; label: string; placeholder: string; value: any; onChange: (e: any) => void; }' is not assignable to type 'IntrinsicAttributes & RegistrationFieldProps'.
+  Property 'onChange' does not exist on type 'IntrinsicAttributes & RegistrationFieldProps'.
+src/pages/teacher/BasicProfileDetails.tsx(111,17): error TS2322: Type '{ icon: Element; label: string; placeholder: string; isSelect: true; iconColor: string; value: any; onChange: (e: any) => void; }' is not assignable to type 'IntrinsicAttributes & RegistrationFieldProps'.
+  Property 'onChange' does not exist on type 'IntrinsicAttributes & RegistrationFieldProps'.
+src/pages/teacher/BasicProfileDetails.tsx(118,17): error TS2322: Type '{ icon: Element; label: string; placeholder: string; value: string; onChange: (e: any) => void; }' is not assignable to type 'IntrinsicAttributes & RegistrationFieldProps'.
+  Property 'onChange' does not exist on type 'IntrinsicAttributes & RegistrationFieldProps'.
+src/pages/teacher/BasicProfileDetails.tsx(128,13): error TS2322: Type '{ icon: Element; label: string; placeholder: string; value: any; onChange: (e: any) => void; }' is not assignable to type 'IntrinsicAttributes & RegistrationFieldProps'.
+  Property 'onChange' does not exist on type 'IntrinsicAttributes & RegistrationFieldProps'.
+src/pages/teacher/BasicProfileDetails.tsx(161,15): error TS2322: Type '{ className: string; icon: Element; label: string; placeholder: string; value: any; onChange: (e: any) => void; }' is not assignable to type 'IntrinsicAttributes & RegistrationFieldProps'.
+  Property 'onChange' does not exist on type 'IntrinsicAttributes & RegistrationFieldProps'.
+src/pages/teacher/BasicProfileDetails.tsx(166,74): error TS2322: Type '{ icon: Element; label: string; value: any; readOnly: true; }' is not assignable to type 'IntrinsicAttributes & RegistrationFieldProps'.
+  Property 'readOnly' does not exist on type 'IntrinsicAttributes & RegistrationFieldProps'.
+src/pages/teacher/BasicProfileDetails.tsx(167,108): error TS2322: Type '{ icon: Element; label: string; value: any; iconColor: string; readOnly: true; }' is not assignable to type 'IntrinsicAttributes & RegistrationFieldProps'.
+  Property 'readOnly' does not exist on type 'IntrinsicAttributes & RegistrationFieldProps'.
+src/pages/teacher/ProfileReview.tsx(5,30): error TS6133: 'Calculator' is declared but its value is never read.
+src/pages/teacher/ProfileReview.tsx(5,48): error TS6133: 'Orbit' is declared but its value is never read.
+src/pages/teacher/TeacherDemoVideo.tsx(61,27): error TS2322: Type '{ onFileSelect: (file: File) => void; }' is not assignable to type 'IntrinsicAttributes'.
+  Property 'onFileSelect' does not exist on type 'IntrinsicAttributes'.
+src/pages/teacher/TeacherQualificationDetails.tsx(55,120): error TS2322: Type '{ label: string; icon: Element; value: string; isSelect: true; onChange: (v: string) => void; }' is not assignable to type 'IntrinsicAttributes & QualificationFieldProps'.
+  Property 'onChange' does not exist on type 'IntrinsicAttributes & QualificationFieldProps'.
+src/pages/teacher/TeacherQualificationDetails.tsx(56,101): error TS2322: Type '{ label: string; icon: Element; value: string; onChange: (v: string) => void; }' is not assignable to type 'IntrinsicAttributes & QualificationFieldProps'.
+  Property 'onChange' does not exist on type 'IntrinsicAttributes & QualificationFieldProps'.
+src/pages/teacher/TeacherQualificationDetails.tsx(57,97): error TS2322: Type '{ label: string; icon: Element; value: string; onChange: (v: string) => void; }' is not assignable to type 'IntrinsicAttributes & QualificationFieldProps'.
+  Property 'onChange' does not exist on type 'IntrinsicAttributes & QualificationFieldProps'.
+src/pages/teacher/TeacherQualificationDetails.tsx(58,126): error TS2322: Type '{ label: string; icon: Element; value: string; isSelect: true; onChange: (v: string) => void; }' is not assignable to type 'IntrinsicAttributes & QualificationFieldProps'.
+  Property 'onChange' does not exist on type 'IntrinsicAttributes & QualificationFieldProps'.
+src/pages/teacher/TeacherSession.tsx(6,20): error TS6133: 'useMutation' is declared but its value is never read.
+src/pages/teacher/TeacherSession.tsx(16,9): error TS6133: 'sessionId' is declared but its value is never read.
+src/pages/teacher/TimeSlotAvailability.tsx(16,7): error TS6133: 'DAY_MAP' is declared but its value is never read.
