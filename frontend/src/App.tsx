@@ -18,6 +18,7 @@ import Mcq from "./pages/student/Mcq";
 import Spinner from "./pages/student/Spinner";
 import LiveClasses from "./pages/student/LiveClasses";
 import VideoUpload from "./pages/student/VideoUpload";
+import StudentNotifications from "./pages/student/Notifications";
 import ReferEarn from "./pages/ReferEarn";
 import ReferralHistory from "./pages/student/ReferralHistory";
 import LiveSession from "./pages/student/LiveSession";
@@ -25,6 +26,7 @@ import SessionFeedback from "./pages/student/SessionFeedBack";
 import SessionHistory from "./pages/student/SessionHistory";
 import ShortLiveSessions from "./pages/student/ShortLiveSession";
 import SubjectSelection from "./pages/SubjectSelection";
+import OnboardingSlides from "./pages/OnboardingSlides";
 import PlanScreen from "./pages/student/PlanScreen";
 import PaymentFailed from "./pages/student/PaymentFailed";
 import DoubtSubmitted from "./pages/student/DoubtSubmitted";
@@ -85,35 +87,42 @@ export default function App() {
           <Route path={PATHS.OTP} element={<OtpPage />} />
           <Route path={PATHS.COMING_SOON} element={<ComingSoonPage />} />
 
-          {/* Onboarding STUDENT */}
-          <Route path={PATHS.CREATE_PROFILE} element={<CreateProfile />} />
-          <Route path={PATHS.SUBJECT_SELECTION} element={<SubjectSelection />} />
-          <Route path={PATHS.LEARNING_PLAN} element={<LearningPlan />} />
-          <Route path={PATHS.COUPON} element={<Coupon />} />
-          <Route path={PATHS.PLAN_SCREEN} element={<PlanScreen />} />
-          <Route path={PATHS.PAYMENT_FAILED} element={<PaymentFailed />} />
-          {/* Student tabs */}
-          <Route element={<StudentLayout />}>
-            <Route path={PATHS.STUDENT_DASHBOARD} element={<StudentDashboard />} />
-            <Route path={PATHS.ASK_DOUBT} element={<AskDoubt />} />
-            <Route path={PATHS.MCQ} element={<Mcq />} />
-            <Route path={PATHS.LIVE_CLASSES} element={<LiveClasses />} />
-            <Route path={PATHS.PROFILE} element={<EditProfile />} />
-            <Route path={PATHS.VIDEO_UPLOAD} element={<VideoUpload />} />
-            <Route path={PATHS.REFERRAL_REWARD} element={<ReferralReward />} />
-          </Route>
+          {/* Protected Student Module */}
+          <Route element={<ProtectedRoute />}>
+            {/* Onboarding STUDENT */}
+            <Route path={PATHS.CREATE_PROFILE} element={<CreateProfile />} />
+            <Route path={PATHS.STUDENT_PROFILE_SETUP} element={<CreateProfile />} />
+            <Route path={PATHS.ONBOARDING_SLIDES} element={<OnboardingSlides />} />
+            <Route path={PATHS.SUBJECT_SELECTION} element={<SubjectSelection />} />
+            <Route path={PATHS.LEARNING_PLAN} element={<LearningPlan />} />
+            <Route path={PATHS.COUPON} element={<Coupon />} />
+            <Route path={PATHS.PLAN_SCREEN} element={<PlanScreen />} />
+            <Route path={PATHS.PAYMENT_FAILED} element={<PaymentFailed />} />
+            
+            {/* Student tabs */}
+            <Route element={<StudentLayout />}>
+              <Route path={PATHS.STUDENT_DASHBOARD} element={<StudentDashboard />} />
+              <Route path={PATHS.STUDENT_NOTIFICATIONS} element={<StudentNotifications />} />
+              <Route path={PATHS.ASK_DOUBT} element={<AskDoubt />} />
+              <Route path={PATHS.MCQ} element={<Mcq />} />
+              <Route path={PATHS.LIVE_CLASSES} element={<LiveClasses />} />
+              <Route path={PATHS.PROFILE} element={<EditProfile />} />
+              <Route path={PATHS.VIDEO_UPLOAD} element={<VideoUpload />} />
+              <Route path={PATHS.REFERRAL_REWARD} element={<ReferralReward />} />
+            </Route>
 
-          {/* Student flows (immersive) */}
-          <Route path={PATHS.AUDIO_CALL} element={<AudioCall />} />
-          <Route path={PATHS.LIVE_SESSION} element={<LiveSession />} />
-          <Route path={PATHS.SHORT_LIVE_SESSION} element={<ShortLiveSessions />} />
-          <Route path={PATHS.SESSION_FEEDBACK} element={<SessionFeedback />} />
-          <Route path={PATHS.SESSION_HISTORY} element={<SessionHistory />} />
-          <Route path={PATHS.DOUBT_SUBMITTED} element={<DoubtSubmitted />} />
-          <Route path={PATHS.SPINNER} element={<Spinner />} />
-          <Route path={PATHS.REFER_EARN} element={<ReferEarn />} />
-          <Route path={PATHS.REFERRAL_HISTORY} element={<ReferralHistory />} />
-          <Route path={PATHS.PLAN_UPGRADE} element={<PlanUpgrade />} />
+            {/* Student flows (immersive) */}
+            <Route path={PATHS.AUDIO_CALL} element={<AudioCall />} />
+            <Route path={PATHS.LIVE_SESSION} element={<LiveSession />} />
+            <Route path={PATHS.SHORT_LIVE_SESSION} element={<ShortLiveSessions />} />
+            <Route path={PATHS.SESSION_FEEDBACK} element={<SessionFeedback />} />
+            <Route path={PATHS.SESSION_HISTORY} element={<SessionHistory />} />
+            <Route path={PATHS.DOUBT_SUBMITTED} element={<DoubtSubmitted />} />
+            <Route path={PATHS.SPINNER} element={<Spinner />} />
+            <Route path={PATHS.REFER_EARN} element={<ReferEarn />} />
+            <Route path={PATHS.REFERRAL_HISTORY} element={<ReferralHistory />} />
+            <Route path={PATHS.PLAN_UPGRADE} element={<PlanUpgrade />} />
+          </Route>
 
           {/* Onboarding TEACHER */}
           <Route path={PATHS.TEACHER_REGISTRATION} element={<TeacherRegistration />} />

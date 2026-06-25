@@ -30,7 +30,11 @@ import { studentApi } from "@/lib/student-api";
 
 const fetchSessionHistory = async () => {
   try {
-    const { sessions } = await studentApi.getMySessions();
+    const response = await studentApi.getMySessions();
+    const sessions = response?.data || response?.sessions || response || [];
+    
+    if (!Array.isArray(sessions)) return [];
+
     return sessions.map((s: any) => ({
       id: s.id,
       name: s.teacher?.fullName ?? "AI Tutor",

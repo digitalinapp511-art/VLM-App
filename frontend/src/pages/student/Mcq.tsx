@@ -80,7 +80,7 @@ export default function Mcq() {
     if (selected && currentQuestion.id) {
       try {
         const dbAnswer = currentQuestion.options.find((o: McqOption) => o.id === selected)?.text;
-        if (dbAnswer) await studentApi.submitMcqAttempt(String(currentQuestion.id), dbAnswer);
+        if (dbAnswer) await studentApi.submitMcq(String(currentQuestion.id), dbAnswer);
       } catch { /* non-blocking */ }
     }
     if (currentIndex < totalQuestions - 1) {

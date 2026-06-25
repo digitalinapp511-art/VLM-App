@@ -25,7 +25,7 @@ function resolvePostOtpPath(role: Role, isNewUser: boolean): string {
   }
 
   return isNewUser
-    ? PATHS.CREATE_PROFILE
+    ? PATHS.STUDENT_PROFILE_SETUP
     : PATHS.STUDENT_DASHBOARD;
 }
 

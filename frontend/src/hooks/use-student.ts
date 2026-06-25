@@ -76,10 +76,10 @@ export function useLiveClasses<T = any>() {
   });
 }
 
-export function usePlans() {
+export function usePlans(classQuery?: string) {
   return useQuery<Plan[]>({
-    queryKey: ["plans"],
-    queryFn: studentApi.getPlans,
+    queryKey: ["plans", classQuery],
+    queryFn: () => studentApi.getPlans(classQuery),
   });
 }
 
@@ -101,5 +101,13 @@ export function useMySubscription() {
   return useQuery<Subscription>({
     queryKey: ["mySubscription"],
     queryFn: studentApi.getMySubscription,
+  });
+}
+
+export function useSessionMessages(sessionId?: string) {
+  return useQuery<any[]>({
+    queryKey: ["sessionMessages", sessionId],
+    queryFn: () => studentApi.getSessionMessages(sessionId ?? ""),
+    enabled: Boolean(sessionId),
   });
 }

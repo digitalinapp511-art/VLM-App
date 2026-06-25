@@ -56,11 +56,12 @@ export default function EditProfile() {
 
   useEffect(() => {
     if (profile) {
+      const p = (profile as any).data ?? profile;
       setFormData({
-        name: (profile as any).fullName ?? "",
-        nickname: (profile as any).nickname ?? "",
-        class: (profile as any).className ? `Class ${(profile as any).className}th` : "Class 10th",
-        city: (profile as any).city ?? "",
+        name: p.fullName ?? "",
+        nickname: p.nickname ?? "",
+        class: (p.class || p.className) ? `Class ${p.class || p.className}th` : "Class 10th",
+        city: p.city ?? "",
       });
     }
   }, [profile]);
@@ -211,7 +212,7 @@ export default function EditProfile() {
             onClick={() => mutation.mutate({
               fullName: formData.name,
               nickname: formData.nickname,
-              className: formData.class.replace("Class ", "").replace("th", ""),
+              class: formData.class.replace("Class ", "").replace("th", ""),
               city: formData.city,
             })}
             disabled={mutation.isPending}

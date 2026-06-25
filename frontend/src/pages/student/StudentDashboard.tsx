@@ -8,17 +8,58 @@ import {
   Bell, GraduationCap, MessageSquare, Bot, Users,
   ClipboardCheck, Trophy, Coins, Clock,
 } from "lucide-react";
+import { useState, useEffect } from "react";
+import { apiClient } from "@/lib/api-client";
 
 // Shadcn Components
 import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 
-import { useDashboard } from "@/hooks/use-student";
-
 export default function StudentDashboard() {
   const navigate = useNavigate();
-  const { data, isLoading } = useDashboard();
+  const [dashboard, setDashboard] = useState<any>(null);
+  const [profile, setProfile] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    fetchProfile();
+    fetchDashboard();
+  }, []);
+
+  const fetchProfile = async () => {
+    try {
+      const res = await apiClient.get("/student/profile");
+      const profileData = res.data?.data ?? res.data;
+      setProfile(profileData);
+      const isIncomplete =
+        !profileData?.fullName ||
+        !(profileData?.className || profileData?.class) ||
+        !profileData?.board ||
+        !profileData?.nickname;
+      if (isIncomplete) {
+        navigate(PATHS.STUDENT_PROFILE_SETUP, { replace: true });
+      }
+    } catch (err: any) {
+      // If profile doesn't exist at all (404), redirect to setup
+      if (err?.response?.status === 404) {
+        navigate(PATHS.STUDENT_PROFILE_SETUP, { replace: true });
+      } else {
+        console.error("Error fetching profile:", err);
+      }
+    }
+  };
+
+  const fetchDashboard = async () => {
+    try {
+      const res = await apiClient.get("/student/dashboard");
+      setDashboard(res.data);
+    } catch (err) {
+      console.error("Error fetching dashboard:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   if (isLoading) return <DashboardLoading />;
 
@@ -30,7 +71,10 @@ export default function StudentDashboard() {
         {/* ── HEADER ── */}
         <header className="flex items-center justify-between px-6 pt-10 pb-6">
           <GraduationCap className="text-white/80 h-7 w-7" />
-          <div className="relative">
+          <div 
+            className="relative cursor-pointer"
+            onClick={() => navigate(PATHS.STUDENT_NOTIFICATIONS)}
+          >
             <Bell className="text-white/80 h-7 w-7" />
             <span className="absolute top-0 right-0 h-2 w-2 bg-red-500 rounded-full border border-black" />
           </div>
@@ -40,7 +84,7 @@ export default function StudentDashboard() {
           {/* Welcome Text */}
           <div className="animate-in fade-in slide-in-from-left duration-700">
             <h1 className="text-3xl font-bold flex items-center gap-2">
-              Hi {data?.user.name} <span className="animate-bounce">👋</span>
+              Hi {profile?.nickname || profile?.fullName || dashboard?.user?.name || "Student"} <span className="animate-bounce">👋</span>
             </h1>
           </div>
 
@@ -72,14 +116,14 @@ export default function StudentDashboard() {
               icon={<ClipboardCheck className="text-emerald-400" />}
               title="DAILY MCQ TASK"
               bg="bg-emerald-500/10"
-              desc={`Completed: ${data?.mcq.completed}/${data?.mcq.total}`}
+              desc={`Completed: ${dashboard?.mcq?.completed || 0}/${dashboard?.mcq?.total || 0}`}
               glow="shadow-[0_0_15px_rgba(52,211,153,0.2)] border-emerald-500/20"
               to={PATHS.MCQ}
             />
             <FeatureCard
               icon={<Trophy className="text-red-500" />}
               title="LEADERBOARD RANK"
-              desc={`Your Rank: ${data?.user.rank}`}
+              desc={`Your Rank: ${dashboard?.user?.rank || "N/A"}`}
               subDesc="↑ +3 Positions"
               bg="bg-red-500/10"
               glow="shadow-[0_0_15px_rgba(239,68,68,0.2)] border-red-500/20"
@@ -88,7 +132,7 @@ export default function StudentDashboard() {
               icon={<Coins className="text-yellow-500" />}
               title="REWARD POINTS"
               bg="bg-yellow-500/10"
-              desc={`Total: ${data?.user.points} pts`}
+              desc={`Total: ${dashboard?.user?.points || 0} pts`}
               glow="shadow-[0_0_15px_rgba(234,179,8,0.2)] border-yellow-500/20"
               to={PATHS.REFER_EARN}
             />
@@ -116,29 +160,29 @@ export default function StudentDashboard() {
               <div className="space-y-4">
                 <div className="space-y-1">
                   <h3 className="text-xs font-bold tracking-widest text-white/80 uppercase">Upcoming Live Class</h3>
-                  <p className="text-xs text-white/50 leading-snug">Topic: <span className="text-white">{data?.liveClass.topic}</span></p>
-                  <p className="text-[10px] text-white/40 italic">Time: {data?.liveClass.time}</p>
+                  <p className="text-xs text-white/50 leading-snug">Topic: <span className="text-white">{dashboard?.liveClass?.topic || "No Class Scheduled"}</span></p>
+                  <p className="text-[10px] text-white/40 italic">Time: {dashboard?.liveClass?.time || "N/A"}</p>
                 </div>
                 <div className="flex items-center gap-3">
                   <Avatar className="h-10 w-10 border border-white/10">
                     <AvatarImage src="https://github.com/shadcn.png" />
                     <AvatarFallback>DR</AvatarFallback>
                   </Avatar>
-                  <span className="text-xs font-bold">{data?.liveClass.teacher}</span>
+                  <span className="text-xs font-bold">{dashboard?.liveClass?.teacher || "Tutor"}</span>
                 </div>
                 <Button
-                  onClick={() => navigate(PATHS.LIVE_SESSION, { state: { sessionId: data?.liveClass.sessionId } })}
+                  onClick={() => navigate(PATHS.LIVE_SESSION, { state: { sessionId: dashboard?.liveClass?.sessionId } })}
                   className="w-full h-12 rounded-2xl bg-[#1e3a8e] border border-blue-400/30 text-white font-bold shadow-[0_0_20px_rgba(37,99,235,0.3)]"
                 >
-                  JOIN LIVE <span className="ml-2 font-mono text-[10px] opacity-70">{data?.liveClass.timer}</span>
+                  JOIN LIVE <span className="ml-2 font-mono text-[10px] opacity-70">{dashboard?.liveClass?.timer || "00:00"}</span>
                 </Button>
               </div>
             </Card>
           </div>
 
           {/* ── HORIZONTAL SCROLL SECTIONS ── */}
-          <HorizontalSection title="SHORT LIVE SESSIONS" viewAllTo={PATHS.SHORT_LIVE_SESSION} items={data?.shortLiveSessions} />
-          <HorizontalSection title="SHORT VIDEO FEED" isVideo viewAllTo={PATHS.VIDEO_UPLOAD} items={data?.shortLiveSessions} />
+          <HorizontalSection title="SHORT LIVE SESSIONS" viewAllTo={PATHS.SHORT_LIVE_SESSION} items={dashboard?.shortLiveSessions} />
+          <HorizontalSection title="SHORT VIDEO FEED" isVideo viewAllTo={PATHS.VIDEO_UPLOAD} items={dashboard?.shortLiveSessions} />
         </main>
 
         {/* ── BOTTOM NAVIGATION ── */}

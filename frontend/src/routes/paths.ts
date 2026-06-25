@@ -9,6 +9,7 @@ export const PATHS = {
 
   // Onboarding Student
   CREATE_PROFILE: "/create-profile",
+  ONBOARDING_SLIDES: "/onboarding",
   SUBJECT_SELECTION: "/subject-selection",
   LEARNING_PLAN: "/learning-plan",
   COUPON: "/coupon",
@@ -21,6 +22,8 @@ export const PATHS = {
   MCQ: "/mcq",
   LIVE_CLASSES: "/live-classes",
   PROFILE: "/profile",
+  STUDENT_PROFILE_SETUP: "/student/profile/setup",
+  STUDENT_NOTIFICATIONS: "/student-notifications",
 
   //Teacher Flow
   TEACHER_REGISTRATION:"/teacher-registration",

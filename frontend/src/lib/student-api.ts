@@ -58,8 +58,8 @@ export const studentApi = {
     return data;
   },
 
-  getPlans: async () => {
-    const { data } = await apiClient.get("/student/plans");
+  getPlans: async (classQuery?: string) => {
+    const { data } = await apiClient.get("/student/plans", { params: { class: classQuery || "10" } });
     return data;
   },
 
@@ -68,8 +68,8 @@ export const studentApi = {
     return data;
   },
 
-  submitMcqAttempt: async (questionId: string, answer: any) => {
-    const { data } = await apiClient.post("/student/mcq/attempt", { questionId, answer });
+  submitMcq: async (questionId: string, answer: any) => {
+    const { data } = await apiClient.post("/student/mcq/submit", { questionId, answer });
     return data;
   },
 
@@ -128,8 +128,47 @@ export const studentApi = {
     return data;
   },
 
+  createDoubt: async (payload: any) => {
+    const { data } = await apiClient.post("/student/doubt", payload);
+    return data;
+  },
+
   createProfile: async (payload: any) => {
-    const { data } = await apiClient.post("/student/profile", payload);
+    const { data } = await apiClient.put("/student/profile", payload);
+    return data;
+  },
+  getNotifications: async () => {
+    const { data } = await apiClient.get("/student/notifications");
+    return data;
+  },
+
+  markNotificationRead: async (id: string) => {
+    const { data } = await apiClient.put(`/student/notifications/${id}/read`);
+    return data;
+  },
+
+  getSessionMessages: async (sessionId: string) => {
+    const { data } = await apiClient.get(`/student/sessions/${sessionId}/messages`);
+    return data;
+  },
+
+  getLiveClasses: async () => {
+    const { data } = await apiClient.get("/student/live-classes");
+    return data;
+  },
+
+  getVideos: async () => {
+    const { data } = await apiClient.get("/student/videos");
+    return data;
+  },
+
+  getMyVideos: async () => {
+    const { data } = await apiClient.get("/student/videos/mine");
+    return data;
+  },
+
+  getReferral: async () => {
+    const { data } = await apiClient.get("/student/referral");
     return data;
   },
 };

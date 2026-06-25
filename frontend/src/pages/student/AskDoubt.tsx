@@ -17,6 +17,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { PATHS } from "@/routes/paths";
 
 import { studentApi } from "@/lib/student-api";
+import { useStudentProfile } from "@/hooks/use-student";
 
 type Chapter = { id?: string; name?: string } | string;
 
@@ -36,15 +37,27 @@ export default function AskDoubt() {
 
   const [selectedChapterId, setSelectedChapterId] = useState<string>("");
 
+  const { data: profile } = useStudentProfile();
+
   const handleConnect = async () => {
-    // Submit doubt to backend
+    // Map session type to backend expected values
+    const getSessionTypeString = (type: string) => {
+      if (type === "Human Chat") return "chat";
+      if (type === "Audio Call") return "audio";
+      if (type === "Video Call") return "video";
+      return "ai"; // AI Tutor
+    };
+
     try {
-      const doubt = await studentApi.submitDoubt({
-        subjectId: selectedSubjectId || undefined,
-        chapterId: selectedChapterId || undefined,
-        text: question,
-        sessionType,
+      const doubt = await studentApi.createDoubt({
+        subject: selectedSubjectName || "Math",
+        class: (profile as any)?.class || (profile as any)?.className || "10",
+        board: (profile as any)?.board || "CBSE",
+        language: "Hindi",
+        sessionType: getSessionTypeString(sessionType),
+        doubtText: question,
       });
+
       if (sessionType === "Audio Call") {
         navigate(PATHS.AUDIO_CALL, { state: { doubtId: doubt?.id } });
       } else if (sessionType === "Video Call") {
@@ -52,7 +65,8 @@ export default function AskDoubt() {
       } else {
         navigate(PATHS.DOUBT_SUBMITTED, { state: { doubtId: doubt?.id } });
       }
-    } catch {
+    } catch (err) {
+      console.error("Error submitting doubt:", err);
       // API error — stay on page
     }
   };
@@ -73,7 +87,12 @@ export default function AskDoubt() {
           <ChevronLeft  className="h-5 w-5" />
         </Button>
         <h1 className="text-xl font-bold tracking-tight">Ask Your Doubt</h1>
-        <Button variant="ghost" size="icon" className="relative text-white">
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          className="relative text-white"
+          onClick={() => navigate(PATHS.STUDENT_NOTIFICATIONS)}
+        >
           <Bell className="h-6 w-6" />
           <span className="absolute top-2 right-2 h-2 w-2 bg-red-500 rounded-full border border-black" />
         </Button>
