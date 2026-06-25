@@ -53,19 +53,26 @@ export default function LoginPage() {
 
   const roleLabel = role.charAt(0).toUpperCase() + role.slice(1);
   const onSubmit = async () => {
-    const emailVal = emailRef.current?.value;
-    const phoneVal = `+91${phoneRef.current?.value}`;
-    const payload = emailVal
-      ? { email: emailVal, role }
-      : { phone: phoneVal, role };
+    const emailVal = emailRef.current?.value || email;
+    if (!emailVal) return;
 
-    if (!emailVal) {
-      sessionStorage.setItem("vlm_phone", phoneVal);
-    }
+    sessionStorage.setItem("vlm_email", emailVal);
+    sessionStorage.setItem("vlm_role", role);
 
-    loginMutation.mutate(payload, {
-      onSuccess: () => navigate(PATHS.OTP),
-    });
+    loginMutation.mutate(
+      { email: emailVal, purpose: "login" },
+      {
+        onSuccess: (data: any) => {
+          const receivedOtp = data?.otp || data?.code || data?.data?.otp || data?.data?.code;
+          if (receivedOtp) {
+            sessionStorage.setItem("vlm_sent_otp", String(receivedOtp));
+          } else {
+            sessionStorage.removeItem("vlm_sent_otp");
+          }
+          navigate(PATHS.OTP);
+        },
+      }
+    );
   };
   return (
     <Container className="vlm-bg-navy">
@@ -197,12 +204,7 @@ export default function LoginPage() {
 
                   <Button
                     type="button"
-                    onClick={() => {
-                      // Skip backend — route by role
-                      if (role === "teacher") navigate(PATHS.TEACHER_REGISTRATION);
-                      else if (role === "parent") navigate(PATHS.PARENT_DASHBOARD);
-                      else navigate(PATHS.STUDENT_DASHBOARD);
-                    }}
+                    onClick={onSubmit}
                     className="relative text-white w-full h-16 rounded-2xl text-lg tracking-wide border border-blue-500/50 shadow-[inset_0_1px_1px_rgba(255,255,255,0.2)] transition-all active:scale-[0.98] hover:brightness-110"
                     style={{ background: "linear-gradient(180deg, #1e3a8e 0%, #0f172a 100%)" }}
                   >

@@ -29,7 +29,7 @@ export default function ParentLayout({ children }: { children: ReactNode }) {
       </main>
 
       {/* BOTTOM NAVIGATION */}
-      <nav className="fixed bottom-0 w-full max-w-xl bg-black/80 backdrop-blur-xl border-t border-white/5 px-6 py-3 flex justify-between items-center z-50">
+      <nav className="fixed bottom-0 left-0 w-full bg-black/80 backdrop-blur-xl border-t border-white/5 px-6 py-3 flex justify-between md:justify-around items-center z-50">
         <NavItem icon={LayoutDashboard} label="Dashboard" active />
         <NavItem icon={BookOpen} label="Learning" />
         <NavItem icon={Calendar} label="Planning" />

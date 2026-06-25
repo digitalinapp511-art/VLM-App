@@ -1,15 +1,27 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
 import { Phone, Mail, Lock, Eye, EyeOff, ChevronDown } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { bgCss } from "@/helper/CssHelper";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
 import { LoginInput, LoginDivider } from "@/components/basic/teacher/LoginComponents";
 import OTPField from "@/components/basic/teacher/OTPField";
+import { PATHS } from "@/routes/paths";
 
 const TeacherLogin: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
+  const [step, setStep] = useState<"phone" | "otp">("phone");
+  const navigate = useNavigate();
+
+  const handleGetOtp = () => {
+    setStep("otp");
+  };
+
+  const handleVerify = () => {
+    navigate(PATHS.TEACHER_REGISTRATION);
+  };
 
   return (
     <div className={cn("min-h-screen flex flex-col items-center bg-black p-4 md:p-8", bgCss)}>
@@ -60,16 +72,25 @@ const TeacherLogin: React.FC = () => {
               />
             </div>
 
-            <Button className="w-full h-14 rounded-2xl bg-transparent border border-blue-500/50 text-blue-400 hover:bg-blue-500/5 font-black uppercase tracking-widest shadow-[0_0_20px_rgba(37,99,235,0.15)]">
-              Get OTP
-            </Button>
+            {step === "phone" ? (
+              <Button 
+                onClick={handleGetOtp}
+                className="w-full h-14 rounded-2xl bg-transparent border border-blue-500/50 text-blue-400 hover:bg-blue-500/5 font-black uppercase tracking-widest shadow-[0_0_20px_rgba(37,99,235,0.15)]"
+              >
+                Get OTP
+              </Button>
+            ) : (
+              <>
+                <OTPField />
+                <Button 
+                  onClick={handleVerify}
+                  className="w-full h-14 rounded-full border border-purple-500/40 bg-zinc-950/60 text-white font-black uppercase tracking-widest hover:bg-zinc-900 shadow-xl"
+                >
+                  Verify & Login
+                </Button>
+              </>
+            )}
           </div>
-
-          <OTPField />
-
-          <Button className="w-full h-14 rounded-full border border-purple-500/40 bg-zinc-950/60 text-white font-black uppercase tracking-widest hover:bg-zinc-900 shadow-xl">
-            Verify & Login
-          </Button>
 
           <LoginDivider text="or log in with" />
 

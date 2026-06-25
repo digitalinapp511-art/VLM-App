@@ -1,52 +1,55 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
-import { 
-  Calculator, 
-  Atom, 
-  Orbit, 
-  FlaskConical, 
-  Sprout, 
-  Book, 
-  Globe, 
-  BookText, 
-  LineChart, 
-  Monitor, 
+import {
+  Calculator,
+  Atom,
+  Orbit,
+  FlaskConical,
+  Sprout,
+  Book,
+  Globe,
+  BookText,
+  LineChart,
+  Monitor,
   Star,
   ChevronRight
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { bgCss } from "@/helper/CssHelper";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import SubjectCard from "@/components/basic/teacher/SubjectCard";
 import RegistrationStepper from "@/components/basic/teacher/RegistrationStepper";
+import { PATHS } from "@/routes/paths";
 
 interface Subject {
   id: string;
   label: string;
   icon: React.ReactNode;
-  color: "blue" | "purple" | "gold" | "zinc";
+  color: "blue" | "purple" | "gold" | "zinc" | "green" | "cyan" | "pink" | "orange" | "rose";
 }
 
 const subjects: Subject[] = [
   { id: "maths", label: "Maths", icon: <Calculator />, color: "blue" },
-  { id: "science", label: "Science", icon: <Atom />, color: "zinc" },
+  { id: "science", label: "Science", icon: <Atom />, color: "cyan" },
   { id: "physics", label: "Physics", icon: <Orbit />, color: "purple" },
   { id: "chemistry", label: "Chemistry", icon: <FlaskConical />, color: "gold" },
-  { id: "biology", label: "Biology", icon: <Sprout />, color: "zinc" },
-  { id: "english", label: "English", icon: <Book />, color: "zinc" },
-  { id: "hindi", label: "Hindi", icon: <span className="text-3xl font-bold font-serif leading-none">श्र</span>, color: "zinc" },
-  { id: "sst", label: "SST", icon: <Globe />, color: "zinc" },
-  { id: "accounts", label: "Accounts", icon: <BookText />, color: "zinc" },
-  { id: "economics", label: "Economics", icon: <LineChart />, color: "zinc" },
-  { id: "computer", label: "Computer", icon: <Monitor />, color: "zinc" },
+  { id: "biology", label: "Biology", icon: <Sprout />, color: "green" },
+  { id: "english", label: "English", icon: <Book />, color: "pink" },
+  { id: "hindi", label: "Hindi", icon: <span className="text-3xl font-bold font-serif leading-none">श्र</span>, color: "orange" },
+  { id: "sst", label: "SST", icon: <Globe />, color: "rose" },
+  { id: "accounts", label: "Accounts", icon: <BookText />, color: "blue" },
+  { id: "economics", label: "Economics", icon: <LineChart />, color: "gold" },
+  { id: "computer", label: "Computer", icon: <Monitor />, color: "cyan" },
   { id: "others", label: "Others", icon: <Star />, color: "zinc" },
 ];
 
 const TeacherSubjectSelection: React.FC = () => {
+  const navigate = useNavigate();
   const [selectedIds, setSelectedIds] = useState<string[]>(["maths", "physics", "chemistry"]);
 
   const toggleSubject = (id: string) => {
-    setSelectedIds(prev => 
+    setSelectedIds(prev =>
       prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
     );
   };
@@ -60,9 +63,9 @@ const TeacherSubjectSelection: React.FC = () => {
   };
 
   return (
-    <div className={cn("min-h-screen flex flex-col items-center p-6 pb-24", bgCss)}>
+    <div className={cn("min-h-screen flex flex-col items-center p-6 pb-36", bgCss)}>
       <RegistrationStepper currentStep={3} />
-      <motion.header 
+      <motion.header
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         className="mt-8 mb-12 text-center"
@@ -72,7 +75,7 @@ const TeacherSubjectSelection: React.FC = () => {
         </h1>
       </motion.header>
 
-      <motion.div 
+      <motion.div
         variants={containerVariants}
         initial="hidden"
         animate="visible"
@@ -92,12 +95,13 @@ const TeacherSubjectSelection: React.FC = () => {
 
       {/* Action Footer */}
       <div className="fixed bottom-0 left-0 w-full p-6 flex justify-center bg-gradient-to-t from-black/80 to-transparent backdrop-blur-sm pointer-events-none">
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           className="w-full max-w-xl pointer-events-auto"
         >
-          <Button 
+          <Button
+            onClick={() => navigate(PATHS.TEACHERCLASS_SELECTION)}
             className={cn(
               "w-full h-16 rounded-full text-lg font-bold transition-all flex items-center justify-center gap-3",
               "bg-gradient-to-r from-[#2b4b9b] to-[#1a2e5d] hover:brightness-110",

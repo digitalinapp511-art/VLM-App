@@ -109,28 +109,28 @@ const DocumentUpload: React.FC = () => {
       </motion.div>
 
       {/* Footer Navigation Bar */}
-      <div className="fixed bottom-0 left-0 w-full p-8 flex items-center justify-center bg-gradient-to-t from-black/80 to-transparent backdrop-blur-[2px] pointer-events-none">
+      <div className="fixed bottom-0 left-0 w-full p-4 md:p-8 flex items-center justify-center bg-gradient-to-t from-black/80 to-transparent backdrop-blur-[2px] pointer-events-none">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="w-full max-w-xl flex items-center gap-4 pointer-events-auto"
+          className="w-full max-w-xl flex items-center gap-2 md:gap-4 pointer-events-auto"
         >
           {/* Help Button */}
           <Button
             variant="ghost"
             size="icon"
-            className="w-14 h-14 rounded-full border border-white/10 bg-zinc-900/40 text-zinc-400 hover:text-white"
+            className="w-12 h-12 md:w-14 md:h-14 rounded-full border border-white/10 bg-zinc-900/40 text-zinc-400 hover:text-white shrink-0"
           >
-            <HelpCircle size={28} strokeWidth={1.5} />
+            <HelpCircle size={24} strokeWidth={1.5} className="md:w-7 md:h-7" />
           </Button>
 
           {/* Submit Button */}
           <Button
             onClick={() => navigate(PATHS.INTERVIEW_SCHEDULE)}
             className={cn(
-              "flex-1 h-16 rounded-full text-lg font-bold transition-all uppercase tracking-tight",
+              "flex-1 h-14 md:h-16 rounded-full text-[13px] sm:text-sm md:text-lg font-bold transition-all uppercase tracking-tight",
               "bg-gradient-to-r from-[#2b4b9b] to-[#1a2e5d] hover:brightness-110",
-              "border border-blue-400/20 shadow-2xl text-white"
+              "border border-blue-400/20 shadow-2xl text-white whitespace-nowrap"
             )}
           >
             Submit for Verification
@@ -140,9 +140,9 @@ const DocumentUpload: React.FC = () => {
           <Button
             variant="ghost"
             size="icon"
-            className="w-14 h-14 rounded-full border border-white/10 bg-zinc-900/40 text-zinc-400 hover:text-white"
+            className="w-12 h-12 md:w-14 md:h-14 rounded-full border border-white/10 bg-zinc-900/40 text-zinc-400 hover:text-white shrink-0"
           >
-            <ChevronRight size={28} strokeWidth={1.5} />
+            <ChevronRight size={24} strokeWidth={1.5} className="md:w-7 md:h-7" />
           </Button>
         </motion.div>
       </div>

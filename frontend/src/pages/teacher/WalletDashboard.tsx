@@ -87,10 +87,10 @@ const WalletDashboard: React.FC = () => {
       {/* Bottom Nav */}
       <nav className="fixed bottom-0 left-0 w-full bg-[#0a0a0a]/95 border-t border-white/5 backdrop-blur-lg px-6 py-4 flex items-center justify-between z-50">
         <NavItem icon={<Home />} label="Home" onClick={() => navigate(PATHS.TEACHER_DASHBOARD)} />
-        <NavItem icon={<BookOpen />} label="Classes" />
+        <NavItem icon={<BookOpen />} label="Classes" onClick={() => navigate(PATHS.TEACHER_CLASSES)} />
         <NavItem icon={<Wallet />} label="Wallet" active onClick={() => navigate(PATHS.TEACHER_WALLET)} />
-        <NavItem icon={<Library />} label="Library" />
-        <NavItem icon={<User />} label="Profile" onClick={() => navigate(PATHS.PROFILE_REVIEW)} />
+        <NavItem icon={<Library />} label="Library" onClick={() => navigate(PATHS.TEACHER_LIBRARY)} />
+        <NavItem icon={<User />} label="Profile" onClick={() => navigate(PATHS.TEACHER_PROFILE)} />
       </nav>
     </div>
   );

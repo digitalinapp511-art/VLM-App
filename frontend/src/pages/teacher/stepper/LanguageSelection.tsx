@@ -42,7 +42,7 @@ const LanguageSelection: React.FC = () => {
   const handleContinue = () => navigate(PATHS.DOCUMENT_UPLOAD);
 
   return (
-    <div className={cn("min-h-screen flex flex-col items-center p-6 pb-32 relative overflow-hidden", bgCss)}>
+    <div className={cn("min-h-screen flex flex-col items-center p-6 pb-40 relative overflow-hidden", bgCss)}>
       <RegistrationStepper currentStep={6} />
       {/* Decorative Star/Glows */}
       <div className="absolute top-16 right-8 text-purple-500/40 blur-[1px]">

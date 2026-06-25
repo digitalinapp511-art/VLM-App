@@ -120,7 +120,7 @@ const Dashboard: React.FC = () => {
             </button>
             <div
               className="flex flex-col items-center cursor-pointer hover:opacity-80 active:scale-95 transition-all"
-              onClick={() => navigate(PATHS.PROFILE_REVIEW)}
+              onClick={() => navigate(PATHS.TEACHER_PROFILE)}
             >
               <Avatar className="w-10 h-10 border-2 border-white/10 bg-zinc-800">
                 <AvatarImage src={teacher?.profilePhoto ?? `https://api.dicebear.com/7.x/avataaars/svg?seed=${firstName}`} />
@@ -244,7 +244,7 @@ const Dashboard: React.FC = () => {
         <NavItem icon={<BookOpen />} label="Classes" onClick={() => navigate(PATHS.TEACHER_CLASSES)} />
         <NavItem icon={<Wallet />} label="Wallet" onClick={() => navigate(PATHS.TEACHER_WALLET)} />
         <NavItem icon={<Library />} label="Library" onClick={() => navigate(PATHS.TEACHER_LIBRARY)} />
-        <NavItem icon={<User />} label="Profile" onClick={() => navigate(PATHS.PROFILE_REVIEW)} />
+        <NavItem icon={<User />} label="Profile" onClick={() => navigate(PATHS.TEACHER_PROFILE)} />
       </nav>
     </div>
   );

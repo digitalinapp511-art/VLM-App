@@ -4,14 +4,15 @@ import type { LoginPayload, Role } from "@/types";
 
 export function useSendOtp() {
   return useMutation({
-    mutationFn: (payload: LoginPayload) => authApi.sendOtp(payload),
+    mutationFn: ({ email, purpose = "login" }: { email: string; purpose?: string }) =>
+      authApi.sendOtp(email, purpose),
   });
 }
 
 export function useVerifyOtp() {
   return useMutation({
-    mutationFn: ({ identifier, otp }: { identifier: string; otp: string }) =>
-      authApi.verifyOtp(identifier, otp),
+    mutationFn: ({ email, otp, role }: { email: string; otp: string; role: Role }) =>
+      authApi.verifyOtp(email, otp, role),
     onSuccess: (data) => {
       localStorage.setItem("vlm_token", data.token);
     },

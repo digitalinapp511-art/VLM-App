@@ -17,8 +17,11 @@ import type { Role, VerifyOtpResponse } from "@/types";
 import { authApi } from "@/lib/auth-api";
 
 function resolvePostOtpPath(role: Role, isNewUser: boolean): string {
-  if (role === "parent" || role === "teacher") {
+  if (role === "teacher") {
     return PATHS.TEACHER_REGISTRATION;
+  }
+  if (role === "parent") {
+    return PATHS.PARENT_DASHBOARD;
   }
 
   return isNewUser
@@ -29,6 +32,9 @@ function resolvePostOtpPath(role: Role, isNewUser: boolean): string {
 export default function OtpVerificationPage() {
   const [otpValue, setOtpValue] = useState("");
   const [timer, setTimer] = useState(58);
+  const [sentOtp, setSentOtp] = useState<string | null>(
+    sessionStorage.getItem("vlm_sent_otp")
+  );
 
   const navigate = useNavigate();
   const verifyMutation = useVerifyOtp();
@@ -36,12 +42,12 @@ export default function OtpVerificationPage() {
   const role = (sessionStorage.getItem("vlm_role") ??
     "student") as Role;
 
-  const phone =
-    sessionStorage.getItem("vlm_phone") || "";
-  const maskedPhone = phone
-    ? phone.replace(
-        /(\+91)(\d{2})\d{4}(\d{4})/,
-        "$1 $2****$3"
+  const email =
+    sessionStorage.getItem("vlm_email") || "";
+  const maskedEmail = email
+    ? email.replace(
+        /(.{2})(.*)(@.*)/,
+        (_, p1, p2, p3) => p1 + "*".repeat(Math.min(p2.length, 5)) + p3
       )
     : "";
 
@@ -59,14 +65,10 @@ export default function OtpVerificationPage() {
   const handleVerify = () => {
     if (otpValue.length !== 6) return;
 
-    const phone =
-      sessionStorage.getItem("vlm_phone") ??
-      "+919999999999";
-
     verifyMutation.mutate(
-      {  identifier:phone,  otp: otpValue },
+      { email, otp: otpValue, role },
       {
-        onSuccess: (data: VerifyOtpResponse) => {
+        onSuccess: (data) => {
           navigate(resolvePostOtpPath(role, data.isNewUser), { replace: true });
         },
       }
@@ -85,8 +87,8 @@ export default function OtpVerificationPage() {
         </h2>
 
         <p className="text-white/50 text-[15px] leading-relaxed max-w-[280px] mx-auto">
-          We've sent a 6-digit code to your mobile
-          number.
+          We've sent a 6-digit code to your email
+          address.
         </p>
       </div>
 
@@ -94,12 +96,12 @@ export default function OtpVerificationPage() {
         <CardContent className="flex flex-col items-center">
           <div className="text-center space-y-1 mb-8">
             <h3 className="text-white/90 text-base font-medium">
-              Verify your Mobile
+              Verify your Email
             </h3>
 
             <div className="flex items-center justify-center gap-2">
               <span className="text-white text-xl font-bold tracking-tight">
-                {maskedPhone}
+                {maskedEmail}
               </span>
 
               <div className="bg-green-500 rounded-full p-0.5">
@@ -113,6 +115,13 @@ export default function OtpVerificationPage() {
             <p className="text-green-500 text-[10px] font-bold uppercase tracking-widest mt-1">
               verified
             </p>
+
+            {sentOtp && (
+              <div className="mt-4 px-4 py-2 bg-cyan-500/10 border border-cyan-500/20 rounded-2xl inline-flex flex-col items-center">
+                <span className="text-[10px] font-bold text-cyan-400 uppercase tracking-widest">Sent OTP (Testing)</span>
+                <span className="text-lg font-mono font-black text-white mt-0.5">{sentOtp}</span>
+              </div>
+            )}
           </div>
 
           <InputOTP
@@ -126,13 +135,21 @@ export default function OtpVerificationPage() {
                   key={i}
                   index={i}
                   className={cn(
-                    "h-14 w-14 rounded-2xl border-none bg-[#333]/50 text-xl font-bold text-white transition-all duration-300",
+                    "flex-1 h-12 sm:h-14 rounded-xl sm:rounded-2xl border-none bg-[#333]/50 text-lg sm:text-xl font-bold text-white transition-all duration-300",
                     "data-[active=true]:ring-2 data-[active=true]:ring-indigo-500/50"
                   )}
                 />
               ))}
             </InputOTPGroup>
           </InputOTP>
+
+          {verifyMutation.isError && (
+            <p className="text-rose-500 text-sm font-semibold mt-4 text-center animate-bounce">
+              {(verifyMutation.error as any)?.response?.data?.message || 
+               (verifyMutation.error as any)?.response?.data?.error || 
+               "Invalid OTP. Please try again."}
+            </p>
+          )}
 
           <div className="mt-6 flex items-center gap-2 bg-black/80 px-6 py-2.5 rounded-full border border-white/5 shadow-inner">
             <Clock
@@ -159,8 +176,19 @@ export default function OtpVerificationPage() {
             <Button
               variant="link"
               className="text-blue-400 font-medium p-0 h-auto underline underline-offset-4 hover:text-blue-300"
-              onClick={() => {
-                if (phone) authApi.sendOtp({ phone, role });
+              onClick={async () => {
+                if (email) {
+                  try {
+                    const data = await authApi.sendOtp(email, "login");
+                    const receivedOtp = data?.otp || data?.code || data?.data?.otp || data?.data?.code;
+                    if (receivedOtp) {
+                      sessionStorage.setItem("vlm_sent_otp", String(receivedOtp));
+                      setSentOtp(String(receivedOtp));
+                    }
+                  } catch (err) {
+                    console.error("Failed to resend OTP", err);
+                  }
+                }
                 setTimer(58);
               }}
             >
@@ -174,10 +202,7 @@ export default function OtpVerificationPage() {
         <div className="absolute inset-x-0 bottom-10 h-16 bg-blue-600/30 blur-[40px] rounded-full" />
 
         <Button
-          disabled={
-            otpValue.length !== 6 ||
-            verifyMutation.isPending
-          }
+          disabled={otpValue.length !== 6}
           onClick={handleVerify}
           className={cn(
             "relative w-full h-16 rounded-[2rem] text-lg font-bold tracking-wide transition-all active:scale-[0.98]",
@@ -185,9 +210,7 @@ export default function OtpVerificationPage() {
             "border border-blue-500/40 text-white shadow-xl"
           )}
         >
-          {verifyMutation.isPending
-            ? "Verifying..."
-            : "Verify & Continue"}
+          Verify & Continue
         </Button>
       </div>
     </div>

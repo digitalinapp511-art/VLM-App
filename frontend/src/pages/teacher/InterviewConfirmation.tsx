@@ -14,7 +14,7 @@ import { useNavigate } from "react-router";
 const InterviewConfirmation: React.FC = () => {
   const navigate = useNavigate();
   return (
-    <div className={cn("min-h-screen flex flex-col p-4 pb-20 relative overflow-hidden", bgCss)}>
+    <div className={cn("min-h-screen flex flex-col p-4 pb-40 relative overflow-hidden", bgCss)}>
       {/* Decorative Icons */}
       <div className="absolute top-1/4 -left-4 text-cyan-400/20 blur-[1px] rotate-45">
         <Star size={16} fill="currentColor" />
@@ -37,8 +37,8 @@ const InterviewConfirmation: React.FC = () => {
 
       <div className="max-w-xl  mx-auto w-full space-y-4">
         <ConfirmationStatus />
-<h2 className="text-lg font-bold text-white cursor-pointer" onClick={() => navigate(PATHS.TEACHER_DASHBOARD)}>
-          Goto Dashboard
+<h2 className="text-lg font-bold text-white cursor-pointer hover:text-cyan-400 transition-colors" onClick={() => navigate(PATHS.VERIFICATION_STATUS)}>
+          Check Verification Status &rarr;
         </h2>
         {/* Meeting Details */}
         <MeetingDetailsCard />

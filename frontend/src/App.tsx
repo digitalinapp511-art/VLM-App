@@ -38,7 +38,7 @@ import TeacherQualificationDetails from "./pages/teacher/TeacherQualificationDet
 import BasicProfileDetails from "./pages/teacher/stepper/BasicProfileDetails";
 import TeacherExperienceDetails from "./pages/teacher/stepper/TeacherExperienceDetails";
 import TeacherClassSelection from "./pages/teacher/stepper/TeacherClassSelection";
-//import TeacherSubjectSelection from "./pages/TeacherSubjectSelection";
+import TeacherSubjectSelection from "./pages/TeacherSubjectSelection";
 import AddChild from "./pages/Parent/Addchild";
 import LiveActivity from "./pages/Parent/LiveActivity";
 import DoubtHistory from "./pages/Parent/DoubtHistory";
@@ -50,7 +50,9 @@ import InterviewScheduling from "./pages/teacher/InterviewScheduling";
 import TeacherDemoVideo from "./pages/teacher/TeacherDemoVideo";
 import ProfileReview from "./pages/teacher/ProfileReview";
 import InterviewConfirmation from "./pages/teacher/InterviewConfirmation";
+import VerificationStatus from './pages/teacher/VerificationStatus';
 import Dashboard from "./pages/teacher/Dashboard";
+import TeacherProfile from "./pages/teacher/TeacherProfile";
 import AvailabilityStatus from "./pages/teacher/AvailabilityStatus";
 import DirectRequestNotification from "./pages/teacher/DirectRequestNotification";
 import TeacherNotifications from "./pages/teacher/Notifications";
@@ -118,6 +120,7 @@ export default function App() {
           <Route path={PATHS.QUALIFICATION_DETAILS} element={<TeacherQualificationDetails />} />
           <Route path={PATHS.BASICPROFILE_DETAILS} element={<BasicProfileDetails />} />
           <Route path={PATHS.EXPERIENCE_DETAILS} element={<TeacherExperienceDetails />} />
+          <Route path={PATHS.TEACHER_SUBJECT_SELECTION} element={<TeacherSubjectSelection />} />
           <Route path={PATHS.TEACHERCLASS_SELECTION} element={<TeacherClassSelection />} />
           <Route path={PATHS.BOARD_SELECTION} element={<BoardSelection />} />
           <Route path={PATHS.LANGUAGE_SELECTION} element={<LanguageSelection />} />
@@ -126,10 +129,12 @@ export default function App() {
           <Route path={PATHS.TEACHER_DEMO_VIDEO} element={<TeacherDemoVideo />} />
           <Route path={PATHS.PROFILE_REVIEW} element={<ProfileReview />} />
           <Route path={PATHS.INTERVIEW_CONFIRMATION} element={<InterviewConfirmation />} />
+          <Route path={PATHS.VERIFICATION_STATUS} element={<VerificationStatus />} />
           
 
         {/* Teacher flows */}
         <Route path={PATHS.TEACHER_DASHBOARD} element={<Dashboard />} />
+        <Route path={PATHS.TEACHER_PROFILE} element={<TeacherProfile />} />
         <Route path={PATHS.AVAILABILITY_STATUS} element={<AvailabilityStatus />} />
         <Route path={PATHS.DIRECT_REQUEST_NOTIFICATION} element={<DirectRequestNotification />} />
         <Route path={PATHS.TEACHER_NOTIFICATIONS} element={<TeacherNotifications />} />

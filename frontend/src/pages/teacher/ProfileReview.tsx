@@ -184,32 +184,11 @@ const ProfileReview: React.FC = () => {
         </div>
       </div>
 
-      {/* Bottom Nav */}
-      <nav className="fixed bottom-0 left-0 w-full bg-[#0a0a0a]/95 border-t border-white/5 backdrop-blur-lg px-6 py-4 flex items-center justify-between z-50">
-        <NavItem icon={<Home />} label="Home" onClick={() => navigate(PATHS.TEACHER_DASHBOARD)} />
-        <NavItem icon={<BookOpen />} label="Classes" />
-        <NavItem icon={<Wallet />} label="Wallet" onClick={() => navigate(PATHS.TEACHER_WALLET)} />
-        <NavItem icon={<Library />} label="Library" />
-        <NavItem icon={<UserIcon />} label="Profile" active onClick={() => navigate(PATHS.PROFILE_REVIEW)} />
-      </nav>
+
     </div>
   );
 };
 
-const NavItem = ({ icon, label, active = false, onClick }: { icon: any, label: string, active?: boolean, onClick?: () => void }) => (
-  <button 
-    onClick={onClick}
-    className={cn(
-      "flex flex-col items-center gap-1.5 transition-all duration-300",
-      active ? "text-cyan-400" : "text-zinc-600 hover:text-zinc-400"
-    )}
-  >
-    <div className={cn("relative", active && "drop-shadow-[0_0_8px_rgba(34,211,238,0.5)]")}>
-      {React.cloneElement(icon, { size: 24, strokeWidth: active ? 2.5 : 1.5 })}
-    </div>
-    <span className="text-[10px] font-bold uppercase tracking-widest">{label}</span>
-    {active && <motion.div layoutId="navDot" className="w-1 h-1 rounded-full bg-cyan-400" />}
-  </button>
-);
+
 
 export default ProfileReview;

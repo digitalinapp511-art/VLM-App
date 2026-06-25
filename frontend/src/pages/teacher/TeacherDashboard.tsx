@@ -11,9 +11,9 @@ import { LiveClassItem, ReviewCard, ReferralCard } from "@/components/basic/teac
 const TeacherDashboard: React.FC = () => {
   return (
     <div className={cn("min-h-screen flex flex-col items-center bg-black p-4 pb-12", bgCss)}>
-      {/* Container - Constrained for laptop readability */}
+
       <div className="w-full max-w-xl lg:max-w-4xl flex flex-col gap-6">
-        
+
         {/* Header */}
         <header className="flex justify-between items-center py-4 px-2">
           <div className="space-y-0.5">
@@ -42,24 +42,24 @@ const TeacherDashboard: React.FC = () => {
 
         {/* Secondary Stats Grid */}
         <div className="grid grid-cols-2 gap-3">
-          <StatCard 
-            title="Total Sessions" 
-            value="145" 
-            subValue="Sessions" 
-            icon={MessageSquare} 
-            variant="cyan" 
+          <StatCard
+            title="Total Sessions"
+            value="145"
+            subValue="Sessions"
+            icon={MessageSquare}
+            variant="cyan"
           />
-          <StatCard 
-            title="Missed Requests" 
-            value="3" 
-            subValue="Requests" 
-            icon={AlertTriangle} 
-            variant="purple" 
+          <StatCard
+            title="Missed Requests"
+            value="3"
+            subValue="Requests"
+            icon={AlertTriangle}
+            variant="purple"
           />
         </div>
 
         {/* Overall Rating Section */}
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           className="p-7 rounded-[32px] border border-white/5 bg-zinc-900/40 backdrop-blur-xl relative"
@@ -76,14 +76,14 @@ const TeacherDashboard: React.FC = () => {
               </div>
             </div>
             <div className="p-3 rounded-2xl bg-zinc-800/40 text-zinc-500">
-               <MessageSquare size={24} />
+              <MessageSquare size={24} />
             </div>
           </div>
         </motion.div>
 
         {/* Main Dashboard Body - Two Column Layout for Laptop (lg) */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-4">
-          
+
           {/* Left Side: Upcoming Classes */}
           <section className="space-y-5">
             <h3 className="text-lg font-black text-white uppercase tracking-wider px-1">Upcoming Live Classes</h3>
@@ -105,8 +105,8 @@ const TeacherDashboard: React.FC = () => {
               </div>
               <div className="flex items-center justify-between p-4 rounded-full bg-zinc-900/60 border border-white/5 text-zinc-400">
                 <div className="flex items-center gap-3">
-                   <Bell size={18} className="text-blue-400" />
-                   <span className="text-sm font-bold text-blue-400/80">Feed</span>
+                  <Bell size={18} className="text-blue-400" />
+                  <span className="text-sm font-bold text-blue-400/80">Feed</span>
                 </div>
                 <div className="flex gap-4">
                   <MessageSquare size={18} />
@@ -117,14 +117,14 @@ const TeacherDashboard: React.FC = () => {
 
             {/* Reviews */}
             <div className="space-y-4">
-               <h3 className="text-lg font-black text-white uppercase tracking-wider px-1">Recent Reviews</h3>
-               <ReviewCard />
+              <h3 className="text-lg font-black text-white uppercase tracking-wider px-1">Recent Reviews</h3>
+              <ReviewCard />
             </div>
 
             {/* Referral */}
             <div className="space-y-4">
-               <h3 className="text-lg font-black text-white uppercase tracking-wider px-1">Refer and Earn</h3>
-               <ReferralCard />
+              <h3 className="text-lg font-black text-white uppercase tracking-wider px-1">Refer and Earn</h3>
+              <ReferralCard />
             </div>
           </section>
         </div>

@@ -2,13 +2,13 @@ import { apiClient } from "@/lib/api-client";
 import type { LoginPayload, Role, VerifyOtpResponse } from "@/types";
 
 export const authApi = {
-  sendOtp: async (payload: LoginPayload) => {
-    const { data } = await apiClient.post("/auth/sent-otp", payload);
+  sendOtp: async (email: string, purpose: string = "login") => {
+    const { data } = await apiClient.post("/auth/send-otp", { email, purpose });
     return data;
   },
 
-  verifyOtp: async (phone: string, otp: string): Promise<VerifyOtpResponse> => {
-    const { data } = await apiClient.post<VerifyOtpResponse>("/auth/otp/verify", { phone, otp });
+  verifyOtp: async (email: string, otp: string, role: Role): Promise<VerifyOtpResponse> => {
+    const { data } = await apiClient.post<VerifyOtpResponse>("/auth/verify-otp", { email, otp, role });
     return data;
   },
 

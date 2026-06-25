@@ -23,24 +23,28 @@ const steps: Step[] = [
 
 const RegistrationStepper: React.FC<RegistrationStepperProps> = ({ currentStep }) => {
   return (
-    <div className="w-full py-8 px-2">
-      <div className="relative flex justify-between items-start">
+    <div className="w-full py-6 px-1 overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+      <div className="relative flex justify-between items-start min-w-[500px] md:min-w-full px-2">
         {/* Progress Line */}
-        <div className="absolute top-4 left-0 w-full h-[1px] bg-zinc-800 -z-10" />
-        
+        <div className="absolute top-[17px] left-8 right-8 h-[2px] bg-zinc-800 z-0">
+          <div 
+            className="h-full bg-blue-500 transition-all duration-500 shadow-[0_0_10px_rgba(59,130,246,0.5)]" 
+            style={{ width: `${((currentStep - 1) / (steps.length - 1)) * 100}%` }} 
+          />
+        </div>
         {steps.map((step) => {
           const isActive = step.id === currentStep;
           const isCompleted = step.id < currentStep;
 
           return (
-            <div key={step.id} className="flex flex-col items-center gap-2">
+            <div key={step.id} className="relative z-10 flex flex-col items-center gap-2">
               <div
                 className={cn(
                   "w-9 h-9 rounded-full flex items-center justify-center text-sm font-semibold transition-all duration-300",
                   isActive 
                     ? "bg-blue-600 text-white ring-4 ring-blue-600/20 shadow-[0_0_15px_rgba(37,99,235,0.5)]" 
                     : isCompleted 
-                    ? "bg-blue-900/40 text-blue-400 border border-blue-500/30" 
+                    ? "bg-[#0f172a] text-blue-400 border border-blue-500/30" 
                     : "bg-zinc-900 text-zinc-500 border border-white/5"
                 )}
               >

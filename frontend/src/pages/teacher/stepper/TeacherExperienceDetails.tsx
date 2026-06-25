@@ -23,7 +23,7 @@ const TeacherExperienceDetails: React.FC = () => {
   const [type, setType] = useState("school");
   const [summary, setSummary] = useState("");
 
-  const handleContinue = () => navigate(PATHS.TEACHERCLASS_SELECTION);
+  const handleContinue = () => navigate(PATHS.TEACHER_SUBJECT_SELECTION);
 
   const containerVariants = {
     hidden: { opacity: 0 },

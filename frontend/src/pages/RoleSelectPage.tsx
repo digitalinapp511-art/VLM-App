@@ -36,7 +36,7 @@ const Stack = ({ children, className }: { children: React.ReactNode; className?:
 const Typography = ({ variant, children, className }: { variant: 'h1' | 'p' | 'small'; children: React.ReactNode; className?: string }) => {
   const styles = {
     h1: "text-base  text-white leading-snug",
-    p: "text-sm text-white/50 leading-snug",
+    p: "text-xs md:text-sm text-white/50 leading-snug break-words whitespace-normal pr-8 md:pr-0",
     small: "text-center text-xs  tracking-[0.22em] text-white/60 uppercase mb-10",
   };
   const Tag = variant === 'small' ? 'span' : 'p';

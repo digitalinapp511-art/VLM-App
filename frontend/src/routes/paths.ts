@@ -27,7 +27,7 @@ export const PATHS = {
   QUALIFICATION_DETAILS:"/qualification-details",
   BASICPROFILE_DETAILS:"/basicprofile-details",
   EXPERIENCE_DETAILS:"/experience-details",
-  //TEACHERSUBJECT_SELECTION:"/subject-selection",
+  TEACHER_SUBJECT_SELECTION:"/teacher-subject-selection",
   TEACHERCLASS_SELECTION:"/class-selection",
   BOARD_SELECTION:"/board-selection",
   LANGUAGE_SELECTION:"/language-selection",
@@ -36,8 +36,9 @@ export const PATHS = {
   TEACHER_DEMO_VIDEO:"/teacher-demo-video",
   PROFILE_REVIEW:"/profile-review",
   INTERVIEW_CONFIRMATION:"/interview-confirmation",
+  VERIFICATION_STATUS:"/verification-status",
   TEACHER_DASHBOARD:"/teacher-dashboard",
-
+  TEACHER_PROFILE:"/teacher-profile",
 
     AVAILABILITY_STATUS: "/availability-status",
     DIRECT_REQUEST_NOTIFICATION: "/direct-request-notification",

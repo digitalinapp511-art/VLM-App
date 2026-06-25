@@ -8,7 +8,7 @@ interface SubjectCardProps {
   label: string;
   icon: React.ReactNode;
   isSelected: boolean;
-  activeColor?: "blue" | "purple" | "gold" | "zinc";
+  activeColor?: "blue" | "purple" | "gold" | "zinc" | "green" | "pink" | "orange" | "cyan" | "rose";
   onClick: () => void;
 }
 
@@ -33,6 +33,31 @@ const colorMap = {
     icon: "text-zinc-100",
     badge: "bg-zinc-400",
   },
+  green: {
+    border: "border-green-500 shadow-[0_0_15px_rgba(34,197,94,0.3)]",
+    icon: "text-green-400",
+    badge: "bg-green-500",
+  },
+  pink: {
+    border: "border-pink-500 shadow-[0_0_15px_rgba(236,72,153,0.3)]",
+    icon: "text-pink-400",
+    badge: "bg-pink-500",
+  },
+  orange: {
+    border: "border-orange-500 shadow-[0_0_15px_rgba(249,115,22,0.3)]",
+    icon: "text-orange-400",
+    badge: "bg-orange-500",
+  },
+  cyan: {
+    border: "border-cyan-500 shadow-[0_0_15px_rgba(6,182,212,0.3)]",
+    icon: "text-cyan-400",
+    badge: "bg-cyan-500",
+  },
+  rose: {
+    border: "border-rose-500 shadow-[0_0_15px_rgba(225,29,72,0.3)]",
+    icon: "text-rose-400",
+    badge: "bg-rose-500",
+  },
 };
 
 const SubjectCard: React.FC<SubjectCardProps> = ({
@@ -50,7 +75,7 @@ const SubjectCard: React.FC<SubjectCardProps> = ({
       whileTap={{ scale: 0.96 }}
       onClick={onClick}
       className={cn(
-        "relative flex flex-col items-center justify-center gap-3 p-4 aspect-square rounded-[24px] border transition-all duration-300",
+        "relative flex flex-col items-center justify-center gap-3 p-4 w-full h-full aspect-square rounded-[24px] border transition-all duration-300",
         "bg-[#1A1A1A] backdrop-blur-sm",
         isSelected 
           ? cn("bg-opacity-100", theme.border) 
