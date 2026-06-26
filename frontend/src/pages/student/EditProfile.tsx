@@ -196,6 +196,7 @@ export default function EditProfile() {
           <ProfileLink
             to={PATHS.SUBJECT_SELECTION}
             label="Edit Subjects"
+            state={{ fromProfile: true }}
           />
           <ProfileLink
             to={PATHS.SESSION_HISTORY}
@@ -234,13 +235,16 @@ export default function EditProfile() {
 function ProfileLink({
   to,
   label,
+  state,
 }: {
   to: string;
   label: string;
+  state?: any;
 }) {
   return (
     <Link
       to={to}
+      state={state}
       className="block w-full rounded-2xl border border-white/10 bg-white/5 px-5 py-3 text-sm font-bold text-white/80 hover:bg-white/10 transition-colors"
     >
       {label}

@@ -84,8 +84,8 @@ export function usePlans(classQuery?: string) {
 }
 
 export function useActivateTrial() {
-  return useMutation<any, Error, any>({
-    mutationFn: () => studentApi.activateTrial(),
+  return useMutation<any, Error, string>({
+    mutationFn: (planId) => studentApi.activateTrial(planId),
   });
 }
 

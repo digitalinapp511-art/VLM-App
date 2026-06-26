@@ -20,7 +20,7 @@ export default function StudentLayout() {
         <Outlet />
       </div>
 
-      <nav className="sticky bottom-0 left-0 max-w-xl m-auto rounded-xl w-full h-20 bg-slate-900 backdrop-blur-xl border-t border-white/9 px-6 flex items-center justify-between z-50">
+      <nav className="sticky bottom-0 left-0 max-w-xl md:max-w-full m-auto rounded-xl md:rounded-none w-full h-20 bg-slate-900 backdrop-blur-xl border-t border-white/9 px-6 md:px-12 lg:px-24 flex items-center justify-between z-50">
         {navItems.map((item) => (
           <NavItem
             key={item.path}

@@ -1,5 +1,16 @@
 import {studentApi} from "@/lib/student-api";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { useStudentProfile } from "@/hooks/use-student";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { PATHS } from "@/routes/paths";
@@ -31,24 +42,48 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 
 const fetchQuizData = async () => {
-  const { questions } = await studentApi.getDailyMcq();
-  return (questions ?? []).map((q: any) => ({
+  const response = await studentApi.getDailyMcq();
+  const questions = response?.data?.questions || response?.questions || [];
+  return questions.map((q: any) => ({
     id: q.id,
     question: q.question,
     options: (q.options as string[]).map((opt: string, i: number) => ({
       id: String.fromCharCode(65 + i),
       text: opt,
     })),
-    correctAnswer: String.fromCharCode(65 + (q.options as string[]).indexOf(q.answer)),
-    _dbAnswer: q.answer,
+    correctAnswer: String.fromCharCode(65 + (typeof q.correctAnswer === 'number' ? q.correctAnswer : (q.options as string[]).indexOf(q.answer || q.correctAnswer))),
+    _dbAnswer: q.answer || q.correctAnswer,
   }));
 };
 
 export default function Mcq() {
   const navigate = useNavigate();
+  const { data: profile } = useStudentProfile();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [userAnswers, setUserAnswers] = useState<Record<number, string>>({});
   const [isFinished, setIsFinished] = useState(false);
+  const [timeLeft, setTimeLeft] = useState(1200); // 20 minutes in seconds
+  const [showExitWarning, setShowExitWarning] = useState(false);
+
+  useEffect(() => {
+    if (isFinished || timeLeft <= 0) return;
+    const timer = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev <= 1) {
+          setIsFinished(true);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [isFinished, timeLeft]);
+
+  const formatTime = (seconds: number) => {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  };
 
   const { data: questions, isLoading } = useQuery<McqQuestion[]>({
     queryKey: ["quizQuestions"],
@@ -117,12 +152,12 @@ export default function Mcq() {
         <header className="w-full max-w-xl flex items-center justify-between mb-3">
           <div className="flex items-center gap-4">
             <Avatar className="h-10 w-10 border-2 border-yellow-500/50 shadow-[0_0_15px_rgba(245,166,35,0.3)]">
-              <AvatarImage src="https://api.dicebear.com/7.x/avataaars/svg?seed=Aryan" />
-              <AvatarFallback>AR</AvatarFallback>
+              <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${profile?.fullName || 'Student'}`} />
+              <AvatarFallback>{profile?.fullName?.[0] || 'S'}</AvatarFallback>
             </Avatar>
             <div>
               <p className="text-xs      text-white/50">Test Completed! 🎉</p>
-              <h1 className="text-lg    old tracking-tight">Well Done, Aryan!</h1>
+              <h1 className="text-lg    old tracking-tight">Well Done, {profile?.fullName?.split(' ')[0] || 'Student'}!</h1>
             </div>
           </div>
           <div className="bg-green-500/20 p-2 rounded-lg border border-green-500/50">
@@ -190,7 +225,7 @@ export default function Mcq() {
     <div className="bg-linear-to-br/srgb from-teal-900 from-0% via-black via-40% to-purple-600 to-210% relative flex min-h-svh w-full flex-col items-center px-6 pt-10 overflow-hidden text-white">
       <div className="max-w-lg w-full">
         <header className="relative z-10 flex w-full items-center justify-between mb-2">
-          <Button variant="outline" size="icon" onClick={() => currentIndex > 0 && setCurrentIndex(currentIndex - 1)} className="rounded-xl border-white/10 bg-white/5">
+          <Button variant="outline" size="icon" onClick={() => setShowExitWarning(true)} className="rounded-xl border-white/10 bg-white/5">
             <ChevronLeft size={20} />
           </Button>
           <div className="text-center">
@@ -198,7 +233,8 @@ export default function Mcq() {
             <p className="text-xs text-white/40 tracking-wider">QUESTION {currentIndex + 1} / {totalQuestions}</p>
           </div>
           <div className="flex items-center gap-1.5 text-white/80 font-mono text-sm">
-            <Clock size={16} className="text-white/40" /> 12:35
+            <Clock size={16} className={timeLeft < 60 ? "text-red-400" : "text-white/40"} /> 
+            <span className={timeLeft < 60 ? "text-red-400" : ""}>{formatTime(timeLeft)}</span>
           </div>
         </header>
 
@@ -237,6 +273,27 @@ export default function Mcq() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Exit Warning Dialog */}
+      <AlertDialog open={showExitWarning} onOpenChange={setShowExitWarning}>
+        <AlertDialogContent className="bg-zinc-900 border border-white/10 text-white w-[90%] rounded-2xl max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-xl font-serif">Exit MCQ Test?</AlertDialogTitle>
+            <AlertDialogDescription className="text-zinc-400">
+              Are you sure you want to return to the dashboard? Your answers will not be submitted and your progress will be lost.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="mt-4 gap-2 sm:gap-0">
+            <AlertDialogCancel className="bg-transparent border-white/10 text-white hover:bg-white/5 hover:text-white rounded-xl">Continue Test</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={() => navigate(PATHS.STUDENT_DASHBOARD)}
+              className="bg-red-500 hover:bg-red-600 text-white rounded-xl border-none"
+            >
+              Exit & Lose Progress
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

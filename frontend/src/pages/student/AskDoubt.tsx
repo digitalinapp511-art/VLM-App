@@ -21,9 +21,14 @@ import { useStudentProfile } from "@/hooks/use-student";
 
 type Chapter = { id?: string; name?: string } | string;
 
-const fetchSubjects = () => studentApi.getSubjectsWithIds();
-const fetchChapters = (subjectName: string) =>
-  studentApi.getChaptersBySubjectName(subjectName);
+const fetchSubjects = async () => {
+  const res = await studentApi.getSubjectsWithIds();
+  return res?.data || res || [];
+};
+const fetchChapters = async (subjectName: string) => {
+  const res = await studentApi.getChaptersBySubjectName(subjectName);
+  return res?.data || res || [];
+};
 
 export default function AskDoubt() {
   const [selectedSubjectId, setSelectedSubjectId] = useState<string>("");

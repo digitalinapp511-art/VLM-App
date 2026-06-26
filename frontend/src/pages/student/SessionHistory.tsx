@@ -36,7 +36,7 @@ const fetchSessionHistory = async () => {
     if (!Array.isArray(sessions)) return [];
 
     return sessions.map((s: any) => ({
-      id: s.id,
+      id: s._id || s.id,
       name: s.teacher?.fullName ?? "AI Tutor",
       subject: s.type,
       date: new Date(s.createdAt).toLocaleString('en-IN', {

@@ -54,13 +54,17 @@ export default function LoginPage() {
   const roleLabel = role.charAt(0).toUpperCase() + role.slice(1);
   const onSubmit = async () => {
     const emailVal = emailRef.current?.value || email;
-    if (!emailVal) return;
+    const phoneVal = phoneRef.current?.value || phone;
+    const identifier = emailVal || phoneVal;
+    
+    if (!identifier) return;
 
-    sessionStorage.setItem("vlm_email", emailVal);
+    sessionStorage.setItem("vlm_email", identifier);
+    sessionStorage.setItem("vlm_auth_email", identifier);
     sessionStorage.setItem("vlm_role", role);
 
     loginMutation.mutate(
-      { email: emailVal, purpose: "login" },
+      { email: identifier, purpose: "login" },
       {
         onSuccess: (data: any) => {
           const receivedOtp = data?.otp || data?.code || data?.data?.otp || data?.data?.code;
@@ -69,7 +73,7 @@ export default function LoginPage() {
           } else {
             sessionStorage.removeItem("vlm_sent_otp");
           }
-          navigate(PATHS.OTP);
+          navigate(PATHS.OTP, { state: { role, email: identifier } });
         },
       }
     );

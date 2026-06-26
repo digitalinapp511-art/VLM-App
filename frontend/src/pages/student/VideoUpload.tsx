@@ -28,7 +28,10 @@ export default function VideoUpload() {
 
   const { data: subjects } = useQuery({
     queryKey: ["uploadSubjects", selectedClass],
-    queryFn: () => studentApi.getSubjectsFull(selectedClass || undefined),
+    queryFn: async () => {
+      const response = await studentApi.getSubjectsFull(selectedClass || undefined);
+      return response?.data || response || [];
+    },
     enabled: !!selectedClass,
   });
 

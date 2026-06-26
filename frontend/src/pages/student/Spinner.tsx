@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { ChevronDown, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { studentApi } from "@/lib/student-api";
 
 const SEGMENTS = [
   { label: "50", sub: "POINTS", color: "#1a1a2e" },
@@ -47,12 +48,21 @@ export default function SpinnerPage() {
     setRotation(totalNewRotation);
 
     // After animation ends (5s)
-    setTimeout(() => {
+    setTimeout(async () => {
       setIsSpinning(false);
       const normalizedDegree = (totalNewRotation % 360);
       const stopAngle = (360 - normalizedDegree) % 360;
       const segmentIndex = Math.floor(stopAngle / (360 / SEGMENTS.length));
-      alert(`Winner: ${SEGMENTS[segmentIndex].label} ${SEGMENTS[segmentIndex].sub}`);
+      const reward = SEGMENTS[segmentIndex];
+      alert(`Winner: ${reward.label} ${reward.sub}`);
+      
+      if (reward.label !== "TRY" && reward.sub !== "OFF") {
+        try {
+           await studentApi.claimSpinReward({ rewardType: reward.sub, amount: parseInt(reward.label) });
+        } catch (e) {
+           console.error("Failed to claim spin reward", e);
+        }
+      }
     }, 5000);
   };
 

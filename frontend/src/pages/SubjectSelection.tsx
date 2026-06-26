@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { PATHS } from "@/routes/paths";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -17,28 +17,59 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { studentApi } from "@/lib/student-api";
 import RegistrationStepper from "@/components/basic/teacher/RegistrationStepper";
 
+const FALLBACK_SUBJECTS = [
+  { id: "math", name: "Mathematics" },
+  { id: "phy", name: "Physics" },
+  { id: "chem", name: "Chemistry" },
+  { id: "bio", name: "Biology" },
+  { id: "hist", name: "History" },
+  { id: "geo", name: "Geography" },
+  { id: "eng", name: "English" },
+  { id: "cs", name: "Computer Science" },
+  { id: "hin", name: "Hindi" },
+];
+
 // Fetch real subjects from backend and map to display format
 const fetchSubjects = async () => {
+  const iconMap: Record<string, any> = {
+    Mathematics: PlusSquare, Physics: Atom, Chemistry: FlaskConical,
+    Biology: Sprout, History: Globe, Geography: MapIcon,
+    English: Book, "Computer Science": Monitor, Hindi: Languages,
+  };
+
   try {
-    const subjects = await studentApi.getSubjectsFull();
-    const iconMap: Record<string, any> = {
-      Mathematics: PlusSquare, Physics: Atom, Chemistry: FlaskConical,
-      Biology: Sprout, History: Globe, Geography: MapIcon,
-      English: Book, "Computer Science": Monitor, Hindi: Languages,
-    };
-    return subjects.map((s: any) => ({
-      id: s.id,
-      label: s.name,
-      icon: iconMap[s.name] || Book,
-    }));
-  } catch {
-    return [];
-  }
+    const response = await studentApi.getSubjectsFull();
+    const subjectsArray = response?.data || response;
+    
+    if (Array.isArray(subjectsArray) && subjectsArray.length > 0) {
+      return subjectsArray.map((s: any) => ({
+        id: s.id,
+        label: s.name,
+        icon: iconMap[s.name] || Book,
+      }));
+    }
+  } catch {}
+
+  return FALLBACK_SUBJECTS.map((s: any) => ({
+    id: s.id,
+    label: s.name,
+    icon: iconMap[s.name] || Book,
+  }));
 };
 
 export default function SubjectSelection() {
   const navigate = useNavigate();
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const location = useLocation();
+  const fromProfile = location.state?.fromProfile;
+
+  const [selectedIds, setSelectedIds] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem("vlm_selected_subjects");
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
 
   // TanStack Query to fetch subjects
   const { data: subjects, isLoading } = useQuery({
@@ -65,8 +96,14 @@ console.log(role)
         <div className="absolute bottom-[10%] right-[-15%] h-80 w-80 bg-purple-900/10 blur-[120px] pointer-events-none" />
 
         {/* ── HEADER ── */}
-        <header className="relative z-10 flex w-full items-center justify-between mb-5">
-          <Button variant="outline" size="icon" className="h-12 w-12 rounded-2xl border-white/10 bg-white/5 text-white backdrop-blur-md" onClick={() => navigate(PATHS.CREATE_PROFILE)}>
+        <header className="relative z-10 flex w-full items-center justify-between mb-5 mt-4">
+          <Button variant="outline" size="icon" className="h-12 w-12 rounded-2xl border-white/10 bg-white/5 text-white backdrop-blur-md" onClick={() => {
+            if (fromProfile) {
+              navigate(-1);
+            } else {
+              navigate(PATHS.CREATE_PROFILE);
+            }
+          }}>
             <ChevronLeft size={24} />
           </Button>
           <h1 className="text-xl font-bold tracking-tight">Subject Selection</h1>
@@ -74,14 +111,14 @@ console.log(role)
         </header>
 
         {/* ── MAIN TITLE ── */}
-        <div className="relative z-10 text-center space-y-2 mb-2 animate-in fade-in duration-700">
-          <span className="font-black  uppercase text-white drop-shadow-sm">
+        <div className="relative z-10 text-center space-y-2 mb-6 mt-4 animate-in fade-in duration-700">
+          <span className="font-black text-lg uppercase text-white drop-shadow-sm">
             Choose Your Subjects
           </span>
         </div>
 
         {/* ── SUBJECTS GRID ── */}
-        <main className="relative z-10  max-w-xs grid grid-cols-3 gap-4 animate-in fade-in slide-in-from-bottom-4 duration-1000">
+        <main className="relative z-10 w-full max-w-sm grid grid-cols-3 gap-4 animate-in fade-in slide-in-from-bottom-4 duration-1000">
           {subjects?.map((subject: any) => {
             const isSelected = selectedIds.includes(subject.id);
             return (
@@ -123,14 +160,25 @@ console.log(role)
 
         {/* ── FIXED BOTTOM BUTTON ── */}
         <footer className="fixed bottom-0 left-0 w-full p-8 bg-gradient-to-t from-black via-black/80 to-transparent flex justify-center items-center z-50">
-          <div className="w-full max-w-xl relative group ">
+          <div className="w-full max-w-sm relative group ">
             {/* Blue Outer Glow */}
             <div className="absolute  inset-0 bg-blue-600/30 blur-3xl rounded-full opacity-80 group-hover:opacity-100 transition-opacity" />
 
             <Button
-              onClick={() =>role?.toLocaleLowerCase()=="student"? navigate(PATHS.LEARNING_PLAN):navigate(PATHS.TEACHERCLASS_SELECTION)}
+              onClick={() => {
+                localStorage.setItem("vlm_selected_subjects", JSON.stringify(selectedIds));
+                if (role?.toLocaleLowerCase() === "student") {
+                  if (fromProfile) {
+                    navigate(-1);
+                  } else {
+                    navigate(PATHS.LEARNING_PLAN);
+                  }
+                } else {
+                  navigate(PATHS.TEACHERCLASS_SELECTION);
+                }
+              }}
               className={cn(
-                "relative w-xs h-12 rounded-full font-black tracking-widest transition-all active:scale-[0.98]",
+                "relative w-full h-14 rounded-full font-black tracking-widest transition-all active:scale-[0.98]",
                 "bg-gradient-to-r from-[#1e3a8e] to-[#0f172a] border border-blue-400/40 text-white shadow-2xl"
               )}
             >

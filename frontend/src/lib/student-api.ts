@@ -3,7 +3,7 @@ import type { StudentProfile, Subscription, DashboardData, Session } from "@/typ
 
 export const studentApi = {
   getReferralData: async () => {
-    const { data } = await apiClient.get("/student/referral-data");
+    const { data } = await apiClient.get("/student/referral");
     return data;
   },
 
@@ -27,11 +27,13 @@ export const studentApi = {
   },
 
   submitDoubt: async (payload: any) => {
-    const { data } = await apiClient.post("/student/doubts", payload);
+    const { data } = await apiClient.post("/student/doubt", payload);
     return data;
   },
 
   submitDoubtWithImages: async (formData: FormData) => {
+    // Falls back to /student/doubts/upload if backend handles it separately. 
+    // Otherwise keep as is, if backend supports it.
     const { data } = await apiClient.post("/student/doubts/upload", formData, {
       headers: { "Content-Type": "multipart/form-data" },
     });
@@ -123,8 +125,8 @@ export const studentApi = {
     return data;
   },
 
-  activateTrial: async () => {
-    const { data } = await apiClient.post("/student/subscription/trial");
+  activateTrial: async (planId: string) => {
+    const { data } = await apiClient.post("/student/trial", { planId });
     return data;
   },
 
@@ -152,6 +154,48 @@ export const studentApi = {
     return data;
   },
 
+  sendMessage: async (sessionId: string, content: string) => {
+    const { data } = await apiClient.post(`/student/sessions/messages`, { sessionId, content });
+    return data;
+  },
+
+  resolveSession: async (sessionId: string) => {
+    const { data } = await apiClient.post(`/student/sessions/resolve`, { sessionId });
+    return data;
+  },
+
+  createTicket: async (payload: any) => {
+    const { data } = await apiClient.post("/student/tickets", payload);
+    return data;
+  },
+
+  getTickets: async () => {
+    const { data } = await apiClient.get("/student/tickets");
+    return data;
+  },
+
+  getTicket: async (id: string) => {
+    const { data } = await apiClient.get(`/student/tickets/${id}`);
+    return data;
+  },
+
+  replyTicket: async (id: string, message: string) => {
+    const { data } = await apiClient.post(`/student/tickets/${id}/reply`, { message });
+    return data;
+  },
+
+  toggleFavoriteTeacher: async (teacherId: string) => {
+    const { data } = await apiClient.post("/student/favorite-teacher", { teacherId });
+    return data;
+  },
+
+  uploadShortVideo: async (formData: FormData) => {
+    const { data } = await apiClient.post("/student/videos", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+    return data;
+  },
+
 
   getVideos: async () => {
     const { data } = await apiClient.get("/student/videos");
@@ -165,6 +209,10 @@ export const studentApi = {
 
   getReferral: async () => {
     const { data } = await apiClient.get("/student/referral");
+    return data;
+  },
+  claimSpinReward: async (payload: { rewardType: string; amount: number }) => {
+    const { data } = await apiClient.post("/student/spin", payload);
     return data;
   },
 };

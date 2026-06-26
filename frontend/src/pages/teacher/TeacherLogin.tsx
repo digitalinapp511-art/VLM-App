@@ -9,14 +9,35 @@ import { Button } from "@/components/ui/button";
 import { LoginInput, LoginDivider } from "@/components/basic/teacher/LoginComponents";
 import OTPField from "@/components/basic/teacher/OTPField";
 import { PATHS } from "@/routes/paths";
+import { useSendOtp } from "@/hooks/use-auth";
 
 const TeacherLogin: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [step, setStep] = useState<"phone" | "otp">("phone");
+  const [mobileNumber, setMobileNumber] = useState("");
   const navigate = useNavigate();
+  const sendOtpMutation = useSendOtp();
 
-  const handleGetOtp = () => {
-    setStep("otp");
+  const handleGetOtp = async () => {
+    if (!mobileNumber || mobileNumber.length < 10) return;
+    
+    sendOtpMutation.mutate(
+      { email: mobileNumber, purpose: "login" },
+      {
+        onSuccess: (data: any) => {
+          const receivedOtp = data?.otp || data?.code || data?.data?.otp || data?.data?.code;
+          if (receivedOtp) {
+            sessionStorage.setItem("vlm_sent_otp", String(receivedOtp));
+            sessionStorage.setItem("vlm_auth_email", mobileNumber);
+          }
+          setStep("otp");
+          navigate(PATHS.OTP, { state: { role: "teacher", email: mobileNumber } });
+        },
+        onError: (err) => {
+          console.error("Failed to send OTP", err);
+        }
+      }
+    );
   };
 
   const handleVerify = () => {
@@ -67,6 +88,8 @@ const TeacherLogin: React.FC = () => {
               </div>
               <input
                 type="tel"
+                value={mobileNumber}
+                onChange={(e) => setMobileNumber(e.target.value)}
                 placeholder="Mobile Number"
                 className="w-full h-14 pl-[105px] pr-6 rounded-2xl border border-white/10 bg-zinc-900/40 text-zinc-200 placeholder:text-zinc-700 focus:outline-none focus:border-white/20 transition-all"
               />
