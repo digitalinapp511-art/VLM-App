@@ -1,0 +1,28 @@
+# Dependencies
+node_modules/
+
+# Environment (NEVER commit secrets)
+.env
+.env.local
+.env.production
+.env.*.local
+
+# Uploads
+uploads/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Vercel
+.vercel
+
+# OS & IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Test coverage
+coverage/

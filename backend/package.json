@@ -1,0 +1,30 @@
+{
+  "name": "vlm-academy-backend",
+  "version": "1.0.0",
+  "description": "VLM Academy API - Student, Teacher, Parent",
+  "main": "src/server.js",
+  "type": "module",
+  "engines": {
+    "node": "24.x"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "build": "node --check src/app.js && node --check api/_handler.js && node --check api/index.js && echo Backend build OK",
+    "seed": "node src/seed/seedData.js"
+  },
+  "dependencies": {
+    "@vercel/node": "^3.2.0",
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.0",
+    "express-validator": "^7.2.0",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.7.0",
+    "multer": "^1.4.5-lts.1",
+    "serverless-http": "^3.2.0",
+    "socket.io": "^4.8.0",
+    "uuid": "^10.0.0"
+  }
+}
