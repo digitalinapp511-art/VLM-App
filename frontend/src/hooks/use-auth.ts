@@ -1,6 +1,6 @@
 import { useMutation } from "@tanstack/react-query";
 import { authApi } from "@/lib/auth-api";
-import type { LoginPayload, Role } from "@/types";
+import type { Role } from "@/types";
 
 export function useSendOtp() {
   return useMutation({

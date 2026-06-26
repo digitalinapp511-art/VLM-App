@@ -1,5 +1,5 @@
 import { apiClient } from "@/lib/api-client";
-import type { LoginPayload, Role, VerifyOtpResponse } from "@/types";
+import type { Role, VerifyOtpResponse } from "@/types";
 
 export const authApi = {
   sendOtp: async (email: string, purpose: string = "login") => {

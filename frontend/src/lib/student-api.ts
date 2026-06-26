@@ -152,10 +152,6 @@ export const studentApi = {
     return data;
   },
 
-  getLiveClasses: async () => {
-    const { data } = await apiClient.get("/student/live-classes");
-    return data;
-  },
 
   getVideos: async () => {
     const { data } = await apiClient.get("/student/videos");
