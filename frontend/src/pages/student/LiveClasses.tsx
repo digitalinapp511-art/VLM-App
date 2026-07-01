@@ -170,7 +170,7 @@ export default function LiveClasses() {
           <div className="space-y-4">
             <h2 className="text-xs font-black tracking-widest text-white/60 uppercase">Upcoming Classes</h2>
             <div className="space-y-4">
-              {upcoming.map((item) => (
+              {upcoming.map((item: any) => (
                 <Card key={item.id} className="bg-white/[0.03] border border-white/5 rounded-[1.5rem] transition-all hover:bg-white/[0.06]">
                   <CardContent className="p-4 flex items-center justify-between gap-4">
                     <div className="flex items-center gap-4 flex-1">

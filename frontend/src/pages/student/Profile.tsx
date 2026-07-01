@@ -16,7 +16,8 @@ export default function Profile() {
   const { data: walletHistory, isLoading: isHistoryLoading } = useStudentWalletHistory();
 
   const p = (profile as any)?.data ?? profile;
-  const historyList = Array.isArray(walletHistory?.data) ? walletHistory.data : (Array.isArray(walletHistory) ? walletHistory : []);
+  const wh = walletHistory as any;
+  const historyList = Array.isArray(wh?.data) ? wh.data : (Array.isArray(wh) ? wh : []);
   const isLoading = isProfileLoading || isHistoryLoading;
 
   // Calculate points and cash values

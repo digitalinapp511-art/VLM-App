@@ -84,7 +84,7 @@ export default function UseRecharge() {
       setTimeout(() => setErrorMsg(null), 5000);
       return;
     }
-    setPoints(prev => prev - voucher.cost);
+    setPoints((prev: any) => prev - voucher.cost);
     setRedeemedVoucher(voucher);
     // Generate a random mock coupon code
     const randCode = "VLM-" + Math.random().toString(36).substring(2, 8).toUpperCase() + "-" + Math.random().toString(36).substring(2, 6).toUpperCase();

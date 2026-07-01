@@ -176,7 +176,7 @@ export default function App() {
         <Route path={PATHS.REWARD_CENTER} element={<RewardCenter />} />
         <Route path={PATHS.REFER_STUDENT} element={<ReferStudentPortal />} />
         <Route path={PATHS.REFER_TEACHER} element={<ReferTeacherPortal />} />
-        <Route path={PATHS.REFERRAL_HISTORY} element={<TeacherReferralHistory />} />
+        <Route path={PATHS.TEACHER_REFERRAL_HISTORY} element={<TeacherReferralHistory />} />
         <Route path={PATHS.TEACHER_EARNINGS_HISTORY} element={<EarningsHistory />} />
         <Route path={PATHS.TEACHER_SESSION_HISTORY} element={<TeachSessionHistory />} />
         <Route path={PATHS.TEACHER_REQUESTS} element={<RequestsPage />} />

@@ -51,7 +51,7 @@ export const PATHS = {
   REWARD_CENTER: "/teacher/reward-center",
   REFER_STUDENT: "/teacher/refer-student",
   REFER_TEACHER: "/teacher/refer-teacher",
-  REFERRAL_HISTORY: "/teacher/referral-history",
+  TEACHER_REFERRAL_HISTORY: "/teacher/referral-history",
 
     AVAILABILITY_STATUS: "/availability-status",
     DIRECT_REQUEST_NOTIFICATION: "/direct-request-notification",

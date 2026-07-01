@@ -91,7 +91,7 @@ const RewardCenter: React.FC = () => {
            <div className="flex items-center justify-between ml-2">
               <h2 className="text-lg font-black text-white tracking-tight">Active Referral Links</h2>
               <button
-                onClick={() => navigate(PATHS.REFERRAL_HISTORY)}
+                onClick={() => navigate(PATHS.TEACHER_REFERRAL_HISTORY)}
                 className="text-xs font-bold text-cyan-400 hover:text-cyan-300 transition-colors flex items-center gap-1"
               >
                 <History size={14} />

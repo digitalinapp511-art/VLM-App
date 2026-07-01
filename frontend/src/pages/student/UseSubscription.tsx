@@ -55,7 +55,7 @@ export default function UseSubscription() {
       setTimeout(() => setErrorMsg(null), 5000);
       return;
     }
-    setPoints(prev => prev - cost);
+    setPoints((prev: any) => prev - cost);
     setRedeemedPlan(planName);
   };
 

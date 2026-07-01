@@ -36,7 +36,7 @@ export default function StudentDashboard() {
   const p = (profile as any)?.data ?? profile;
   const [secondsLeft, setSecondsLeft] = useState(0);
 
-  const lastSpinDateStr = profile?.lastSpinDate ?? dashboard?.data?.student?.lastSpinDate;
+  const lastSpinDateStr = (profile as any)?.lastSpinDate ?? dashboard?.data?.student?.lastSpinDate;
 
   useEffect(() => {
     if (profileError) {
