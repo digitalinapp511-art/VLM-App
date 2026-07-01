@@ -17,7 +17,7 @@ const studentSchema = new mongoose.Schema(
     subjects: [String],
     weakSubjects: [String],
     learningGoals: String,
-    preferredLanguage: { type: String, default: 'hindi' },
+    preferredLanguage: { type: String, default: 'english' },
     favoriteTeachers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Teacher' }],
     wallet: {
       totalPoints: { type: Number, default: 0 },
@@ -39,6 +39,9 @@ const studentSchema = new mongoose.Schema(
     lastActiveDate: Date,
     spinTimer: { type: Number, default: 0 },
     spinUnlocked: { type: Boolean, default: false },
+    lastSpinDate: Date,
+    studentReferralCode: { type: String, unique: true, sparse: true },
+    teacherReferralCode: { type: String, unique: true, sparse: true },
     leaderboardRank: { type: Number, default: 0 },
     totalPoints: { type: Number, default: 0 },
     onboardingCompleted: { type: Boolean, default: false },

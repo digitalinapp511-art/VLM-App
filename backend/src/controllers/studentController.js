@@ -2,10 +2,29 @@ import Student from '../models/Student.js';
 import Plan from '../models/Plan.js';
 import Session from '../models/Session.js';
 import DoubtRequest from '../models/DoubtRequest.js';
+import Teacher from '../models/Teacher.js';
 import McqTask from '../models/McqTask.js';
+import WalletTransaction from '../models/WalletTransaction.js';
+import Referral from '../models/Referral.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
 import { findMatchingTeachers } from '../services/matchingService.js';
 import { createNotification } from '../services/notificationService.js';
+
+const logStudentPointsTransaction = async (userId, points, type, description) => {
+  try {
+    await WalletTransaction.create({
+      userId,
+      role: 'student',
+      type: 'credit',
+      earningType: type,
+      points,
+      description,
+      status: 'credited'
+    });
+  } catch (err) {
+    console.error("Failed to log points transaction:", err);
+  }
+};
 
 export const createStudentProfile = asyncHandler(async (req, res) => {
   let student = await Student.findOne({ userId: req.user._id });
@@ -153,6 +172,147 @@ export const submitDoubt = asyncHandler(async (req, res) => {
   });
 });
 
+export const submitDoubtWithImages = asyncHandler(async (req, res) => {
+  const student = await Student.findOne({ userId: req.user._id });
+  const doubtText = req.body.text || req.body.doubtText || '';
+  const doubtImage = req.file ? `/uploads/${req.file.filename}` : (req.body.doubtImage || '');
+  const subject = req.body.subject || 'General';
+  const cls = req.body.class || student?.class || '10';
+  const board = req.body.board || student?.board || 'CBSE';
+  const language = req.body.language || student?.preferredLanguage || 'English';
+  const sessionType = req.body.sessionType || 'chat';
+  const topic = req.body.topic || '';
+  const preferredTeacherId = req.body.preferredTeacherId;
+
+  const session = await Session.create({
+    studentId: student?._id,
+    type: sessionType,
+    subject,
+    class: cls,
+    board,
+    language,
+    doubtText,
+    doubtImage,
+    topic,
+    status: 'searching',
+  });
+
+  const teachers = await findMatchingTeachers({
+    subject,
+    class: cls,
+    language,
+    board,
+    preferredTeacherId,
+  });
+
+  const timerSec = parseInt(process.env.REQUEST_RESPONSE_TIMER_SEC || '20', 10);
+  const timerExpiresAt = new Date(Date.now() + timerSec * 1000);
+
+  const doubtRequest = await DoubtRequest.create({
+    studentId: student?._id,
+    sessionId: session._id,
+    subject,
+    class: cls,
+    board,
+    language,
+    sessionType,
+    doubtText,
+    doubtImage,
+    topic,
+    preferredTeacherId,
+    routedTeachers: teachers.map((t) => ({
+      teacherId: t._id,
+      timerExpiresAt,
+    })),
+    status: 'searching',
+    timerExpiresAt,
+  });
+
+  session.routedTeachers = teachers.map((t) => t._id);
+  await session.save();
+
+  for (const teacher of teachers) {
+    await createNotification(
+      teacher.userId,
+      'new_request',
+      'New Doubt Request',
+      `${subject} - Class ${cls}`,
+      { sessionId: session._id, doubtRequestId: doubtRequest._id },
+      `/teacher/requests/${doubtRequest._id}`
+    );
+  }
+
+  res.json({
+    success: true,
+    data: { session, doubtRequest, teachersFound: teachers.length },
+    message: teachers.length ? 'Searching for teachers...' : 'No teachers available',
+  });
+});
+
+export const getDoubtById = asyncHandler(async (req, res) => {
+  const doubtRequest = await DoubtRequest.findById(req.params.id)
+    .populate('studentId')
+    .populate('sessionId')
+    .populate('assignedTeacherId');
+  
+  if (!doubtRequest) {
+    return res.status(404).json({ success: false, message: 'Doubt request not found' });
+  }
+
+  res.json({ success: true, data: doubtRequest });
+});
+
+export const getAvailableTeachers = asyncHandler(async (req, res) => {
+  const limit = parseInt(req.query.limit || '5', 10);
+  
+  const teachers = await Teacher.find({ applicationStatus: 'approved' })
+    .limit(limit);
+
+  if (!teachers.length) {
+    const mockTeachers = [
+      {
+        id: "mock-t-1",
+        fullName: "Prof. Priya Sharma",
+        rating: "4.9",
+        qualification: "PhD in Mathematics, IIT Delhi",
+        bio: "Fast Math, JEE prep expert."
+      },
+      {
+        id: "mock-t-2",
+        fullName: "Dr. Alan Grant",
+        rating: "4.8",
+        qualification: "M.Sc Physics, IISc Bangalore",
+        bio: "High-trust physics, IIT JEE focus."
+      },
+      {
+        id: "mock-t-3",
+        fullName: "Mrs. Iyer",
+        rating: "4.9",
+        qualification: "MA in English Literature, DU",
+        bio: "Instant English, perfect composition."
+      },
+      {
+        id: "mock-t-4",
+        fullName: "Emily Chen",
+        rating: "5.0",
+        qualification: "B.Tech Computer Science, Stanford",
+        bio: "Python Loop in 5 Minutes master."
+      }
+    ];
+    return res.json(mockTeachers);
+  }
+
+  const formattedTeachers = teachers.map(t => ({
+    id: t._id,
+    fullName: t.fullName,
+    rating: "4.9",
+    qualification: t.qualification?.highestQualification || "Expert Educator",
+    bio: t.bio || "Available for instant sessions"
+  }));
+
+  res.json(formattedTeachers);
+});
+
 export const getDailyMcq = asyncHandler(async (req, res) => {
   const student = await Student.findOne({ userId: req.user._id });
   const today = new Date();
@@ -205,7 +365,12 @@ export const submitMcq = asyncHandler(async (req, res) => {
   const student = await Student.findById(task.studentId);
   student.totalPoints += task.pointsEarned;
   student.wallet.totalPoints += task.pointsEarned;
+  student.markModified('wallet');
   await student.save();
+
+  if (task.pointsEarned > 0) {
+    await logStudentPointsTransaction(student.userId, task.pointsEarned, 'bonus', 'Daily MCQ Completion Bonus');
+  }
 
   res.json({ success: true, data: { score, total: task.questions.length, pointsEarned: task.pointsEarned } });
 });
@@ -257,14 +422,67 @@ export const claimSpinReward = asyncHandler(async (req, res) => {
     return res.status(404).json({ success: false, message: 'Student not found' });
   }
 
+  const now = new Date();
+  if (student.lastSpinDate) {
+    const timeDiff = now.getTime() - student.lastSpinDate.getTime();
+    const hoursDiff = timeDiff / (1000 * 3600);
+    if (hoursDiff < 24) {
+      const secondsRemaining = Math.ceil(24 * 3600 - (timeDiff / 1000));
+      return res.status(400).json({ 
+        success: false, 
+        message: 'You can only spin once every 24 hours',
+        secondsLeft: secondsRemaining 
+      });
+    }
+  }
+
+  student.lastSpinDate = now;
+
   if (rewardType === 'POINTS') {
     student.totalPoints += amount;
     student.wallet.totalPoints += amount;
     student.wallet.balance += amount;
+    await logStudentPointsTransaction(req.user._id, amount, 'bonus', 'Lucky Spin Wheel Reward');
   } else if (rewardType === 'CREDITS') {
     student.wallet.aiCredits += amount;
+    await logStudentPointsTransaction(req.user._id, amount, 'bonus', `Lucky Spin Wheel Reward (${amount} AI Credits)`);
   }
   
+  student.markModified('wallet');
   await student.save();
-  res.json({ success: true, message: `Successfully claimed ${amount} ${rewardType}` });
+  res.json({ success: true, message: `Successfully claimed ${amount} ${rewardType}`, data: student });
+});
+
+export const getStudentWalletHistory = asyncHandler(async (req, res) => {
+  const walletTx = await WalletTransaction.find({ userId: req.user._id, role: 'student' })
+    .sort({ createdAt: -1 })
+    .limit(50);
+
+  const referrals = await Referral.find({ referrerId: req.user._id, status: 'rewarded' })
+    .sort({ createdAt: -1 })
+    .limit(50);
+
+  const formattedTx = walletTx.map(tx => ({
+    id: tx._id,
+    title: tx.description || 'Reward Earned',
+    type: tx.earningType || 'bonus',
+    points: tx.points,
+    change: `+${tx.points} PTS`,
+    time: tx.createdAt,
+  }));
+
+  const formattedRef = referrals.map(ref => ({
+    id: ref._id,
+    title: `Referral Reward (${ref.refereeName || 'Friend Invited'})`,
+    type: 'referral',
+    points: ref.rewardPoints,
+    change: `+${ref.rewardPoints} PTS`,
+    time: ref.createdAt,
+  }));
+
+  const history = [...formattedTx, ...formattedRef]
+    .sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime())
+    .slice(0, 50);
+
+  res.json({ success: true, data: history });
 });

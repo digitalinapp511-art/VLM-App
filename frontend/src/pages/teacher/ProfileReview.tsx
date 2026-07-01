@@ -79,10 +79,10 @@ const ProfileReview: React.FC = () => {
         <ReviewSectionCard title="Qualifications" onEdit={() => navigate(PATHS.QUALIFICATION_DETAILS)}>
           <div className="space-y-2">
             <div>
-              <p className="text-zinc-100 font-bold text-[13px]">{p?.highestQualification ?? p?.qualification ?? "—"}</p>
-              <p className="text-[11px] opacity-80">Institution: {p?.instituteName ?? "—"}</p>
-              <p className="text-[11px] opacity-80">Passing year: {p?.passingYear ?? "—"}</p>
-              {p?.hasBEd && <p className="text-[11px] opacity-80">B.Ed</p>}
+              <p className="text-zinc-100 font-bold text-[13px]">{p?.qualification?.highestQualification ?? "—"}</p>
+              <p className="text-[11px] opacity-80">Institution: {p?.qualification?.instituteName ?? "—"}</p>
+              <p className="text-[11px] opacity-80">Passing year: {p?.qualification?.passingYear ?? "—"}</p>
+              {p?.qualification?.hasBEd && <p className="text-[11px] opacity-80">B.Ed</p>}
             </div>
           </div>
         </ReviewSectionCard>
@@ -133,9 +133,9 @@ const ProfileReview: React.FC = () => {
         <ReviewSectionCard title="Uploaded Documents" onEdit={() => navigate(PATHS.DOCUMENT_UPLOAD)}>
           <div className="space-y-3">
             {[
-              { label: "Aadhaar Card", url: p?.aadhaarUrl },
-              { label: "Qualification Cert", url: p?.qualificationDocUrl },
-              { label: "Experience Doc", url: p?.experienceDocUrl },
+              { label: "Aadhaar Card", url: p?.documents?.aadhaar },
+              { label: "Qualification Cert", url: p?.documents?.qualificationCert },
+              { label: "Experience Doc", url: p?.documents?.experienceProof },
             ].map((doc, i) => (
               <div key={i} className="flex items-center justify-between">
                 <p className="text-[11px] font-medium text-zinc-400">
@@ -169,7 +169,7 @@ const ProfileReview: React.FC = () => {
             className="w-full pointer-events-auto"
           >
              <Button
-              onClick={() => (submitMutation.mutate(), navigate(PATHS.INTERVIEW_CONFIRMATION))}
+              onClick={() => (submitMutation.mutate(), navigate(PATHS.TEACHER_DASHBOARD))}
               disabled={submitMutation.isPending}
               className="w-full h-16 rounded-full text-lg font-black tracking-tighter uppercase transition-all flex items-center justify-center gap-3 bg-[#1A2E5D] hover:bg-[#254185] border border-blue-400/20 shadow-2xl text-white group"
             >

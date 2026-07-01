@@ -24,7 +24,7 @@ const ClassSelectionCard: React.FC<ClassSelectionCardProps> = ({
       whileTap={{ scale: 0.98 }}
       onClick={onClick}
       className={cn(
-        "relative flex flex-col items-center justify-center gap-6 p-6 aspect-[4/5] rounded-[32px] border transition-all duration-300",
+        "relative flex flex-col items-center justify-between h-[240px] w-full p-6 rounded-[32px] border transition-all duration-300",
         "bg-[#1A1A1A]/80 backdrop-blur-md",
         isSelected 
           ? "border-yellow-500 shadow-[0_0_20px_rgba(234,179,8,0.2)]" 

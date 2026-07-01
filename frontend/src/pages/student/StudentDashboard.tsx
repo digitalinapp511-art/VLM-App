@@ -6,62 +6,88 @@ import DashboardLoading from "@/components/basic/DashboardLoading";
 import FeatureCard from "@/components/basic/student/FeatureCard";
 import {
   Bell, GraduationCap, MessageSquare, Bot, Users,
-  ClipboardCheck, Trophy, Coins, Clock,
+  ClipboardCheck, Trophy, Coins, Clock, BookOpen,
 } from "lucide-react";
 import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useStudentProfile } from "@/hooks/use-student";
+import { cn } from "@/lib/utils";
 import { apiClient } from "@/lib/api-client";
 
 // Shadcn Components
 import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { GoldCoinsIcon } from "@/components/basic/GoldCoinsIcon";
 
 export default function StudentDashboard() {
   const navigate = useNavigate();
-  const [dashboard, setDashboard] = useState<any>(null);
-  const [profile, setProfile] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(true);
+
+  const { data: profile, isLoading: isProfileLoading, error: profileError } = useStudentProfile();
+
+  const { data: dashboard, isLoading: isDashboardLoading } = useQuery({
+    queryKey: ["dashboard"],
+    queryFn: async () => {
+      const res = await apiClient.get("/student/dashboard");
+      return res.data;
+    }
+  });
+
+  const p = (profile as any)?.data ?? profile;
+  const [secondsLeft, setSecondsLeft] = useState(0);
+
+  const lastSpinDateStr = profile?.lastSpinDate ?? dashboard?.data?.student?.lastSpinDate;
 
   useEffect(() => {
-    fetchProfile();
-    fetchDashboard();
-  }, []);
+    if (profileError) {
+      const err = profileError as any;
+      if (err?.response?.status === 404) {
+        navigate(PATHS.STUDENT_PROFILE_SETUP, { replace: true });
+        return;
+      }
+    }
 
-  const fetchProfile = async () => {
-    try {
-      const res = await apiClient.get("/student/profile");
-      const profileData = res.data?.data ?? res.data;
-      setProfile(profileData);
+    if (profile && !isProfileLoading) {
       const isIncomplete =
-        !profileData?.fullName ||
-        !(profileData?.className || profileData?.class) ||
-        !profileData?.board ||
-        !profileData?.nickname;
+        !p?.fullName ||
+        !(p?.className || p?.class) ||
+        !p?.board ||
+        !p?.nickname;
       if (isIncomplete) {
         navigate(PATHS.STUDENT_PROFILE_SETUP, { replace: true });
       }
-    } catch (err: any) {
-      // If profile doesn't exist at all (404), redirect to setup
-      if (err?.response?.status === 404) {
-        navigate(PATHS.STUDENT_PROFILE_SETUP, { replace: true });
-      } else {
-        console.error("Error fetching profile:", err);
-      }
     }
+  }, [profile, isProfileLoading, profileError, navigate, p]);
+
+  // Sync Timer countdown
+  useEffect(() => {
+    if (lastSpinDateStr) {
+      const updateTimer = () => {
+        const lastSpin = new Date(lastSpinDateStr).getTime();
+        const diffMs = Date.now() - lastSpin;
+        const remainingMs = (24 * 3600 * 1000) - diffMs;
+        if (remainingMs > 0) {
+          setSecondsLeft(Math.ceil(remainingMs / 1000));
+        } else {
+          setSecondsLeft(0);
+        }
+      };
+      updateTimer();
+      const interval = setInterval(updateTimer, 1000);
+      return () => clearInterval(interval);
+    }
+  }, [lastSpinDateStr]);
+
+  const formatDuration = (totalSeconds: number) => {
+    const hrs = Math.floor(totalSeconds / 3600);
+    const mins = Math.floor((totalSeconds % 3600) / 60);
+    const secs = totalSeconds % 60;
+    return `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const fetchDashboard = async () => {
-    try {
-      const res = await apiClient.get("/student/dashboard");
-      setDashboard(res.data);
-    } catch (err) {
-      console.error("Error fetching dashboard:", err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const isLoading = isProfileLoading || isDashboardLoading;
 
-  if (isLoading) return <DashboardLoading />;
+  if (isLoading && !dashboard) return <DashboardLoading />;
 
   return (
     <div className={`${bgCss} min-h-svh w-full  text-white flex flex-col items-center pb-7 overflow-x-hidden`}>
@@ -71,7 +97,7 @@ export default function StudentDashboard() {
         {/* ── HEADER ── */}
         <header className="flex items-center justify-between px-6 pt-10 pb-6">
           <GraduationCap className="text-white/80 h-7 w-7" />
-          <div 
+          <div
             className="relative cursor-pointer"
             onClick={() => navigate(PATHS.STUDENT_NOTIFICATIONS)}
           >
@@ -84,7 +110,7 @@ export default function StudentDashboard() {
           {/* Welcome Text */}
           <div className="animate-in fade-in slide-in-from-left duration-700">
             <h1 className="text-3xl font-bold flex items-center gap-2">
-              Hi {profile?.nickname || profile?.fullName || dashboard?.user?.name || "Student"} <span className="animate-bounce">👋</span>
+              Hi {p?.nickname || p?.fullName || "Student"} <span className="animate-bounce">👋</span>
             </h1>
           </div>
 
@@ -102,7 +128,7 @@ export default function StudentDashboard() {
               title="AI TUTOR"
               bg="bg-purple-500/10"
               glow="shadow-[0_0_15px_rgba(168,85,247,0.2)] border-purple-500/20"
-              to={`${PATHS.ASK_DOUBT}?mode=ai`}
+              to={PATHS.AI_CHAT}
             />
             <FeatureCard
               icon={<Users className="text-yellow-500" />}
@@ -123,35 +149,66 @@ export default function StudentDashboard() {
             <FeatureCard
               icon={<Trophy className="text-red-500" />}
               title="LEADERBOARD RANK"
-              desc={`Your Rank: ${dashboard?.user?.rank || "N/A"}`}
+              desc={`Your Rank: ${p?.leaderboardRank ?? dashboard?.data?.student?.leaderboardRank ?? 4}`}
               subDesc="↑ +3 Positions"
               bg="bg-red-500/10"
               glow="shadow-[0_0_15px_rgba(239,68,68,0.2)] border-red-500/20"
+              to={PATHS.LEADERBOARD}
             />
             <FeatureCard
-              icon={<Coins className="text-yellow-500" />}
+              icon={<GoldCoinsIcon />}
               title="REWARD POINTS"
               bg="bg-yellow-500/10"
-              desc={`Total: ${dashboard?.user?.points || 0} pts`}
+              desc={`Total: ${(p?.totalPoints ?? p?.wallet?.totalPoints ?? dashboard?.data?.totalPoints ?? dashboard?.data?.student?.wallet?.totalPoints ?? 0).toLocaleString()} pts`}
               glow="shadow-[0_0_15px_rgba(234,179,8,0.2)] border-yellow-500/20"
-              to={PATHS.REFER_EARN}
+              to={PATHS.WALLET}
             />
           </div>
+
+          {/* Library Card Row */}
+          <Card
+            onClick={() => navigate(PATHS.LIBRARY)}
+            className="w-full bg-[#1a1a1a]/40 border border-cyan-500/20 rounded-[2rem] p-6 flex items-center justify-between cursor-pointer hover:bg-white/[0.03] hover:border-cyan-400/40 active:scale-[0.99] transition-all shadow-[0_0_20px_rgba(6,182,212,0.05)] text-left"
+          >
+            <div className="flex items-center gap-4">
+              <div className="h-12 w-12 rounded-2xl bg-cyan-500/10 flex items-center justify-center border border-cyan-500/20 shrink-0">
+                <BookOpen className="h-6 w-6 text-cyan-400" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-sm font-bold tracking-widest text-white/80 uppercase">Study Material Library</h3>
+                <p className="text-xs text-white/50 leading-snug">Access PDF notes, video lessons, and previous year papers</p>
+              </div>
+            </div>
+            <Button
+              size="sm"
+              onClick={(e) => { e.stopPropagation(); navigate(PATHS.LIBRARY); }}
+              className="h-9 px-5 rounded-full bg-cyan-400 text-black text-xs font-black tracking-wider hover:bg-cyan-300 transition-all shadow-md shrink-0 uppercase"
+            >
+              Explore
+            </Button>
+          </Card>
 
           {/* ── SPECIAL WIDGETS ── */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Spin & Win Card */}
             <Card className="bg-[#1a1a1a]/40 border-purple-500/20 rounded-[2rem] p-6 text-center">
               <h3 className="text-sm font-bold tracking-widest text-white/80">SPIN & WIN TIMER</h3>
-              <p className="text-[10px] text-white/40 mt-1">Next Spin in: 00:48:12</p>
+              <p className="text-[10px] text-white/40 mt-1">
+                {secondsLeft > 0 ? `Next Spin in: ${formatDuration(secondsLeft)}` : "Daily free spin!"}
+              </p>
               <div className="py-6 flex justify-center">
-                <Clock className="h-16 w-16 text-yellow-500 animate-pulse" strokeWidth={1.5} />
+                <Clock className={cn("h-16 w-16 text-yellow-500 animate-pulse", secondsLeft > 0 && "opacity-40")} strokeWidth={1.5} />
               </div>
               <Button
                 onClick={() => navigate(PATHS.SPINNER)}
-                className="w-full h-12 rounded-2xl bg-gradient-to-r from-yellow-400 to-orange-500 text-black font-black shadow-lg"
+                className={cn(
+                  "w-full h-12 rounded-2xl font-black shadow-lg transition-all",
+                  secondsLeft > 0
+                    ? "bg-neutral-800 text-white/40 border border-white/5 cursor-not-allowed hover:bg-neutral-800"
+                    : "bg-gradient-to-r from-yellow-400 to-orange-500 text-black active:scale-[0.98]"
+                )}
               >
-                SPIN NOW
+                {secondsLeft > 0 ? "SPIN TODAY" : "SPIN NOW"}
               </Button>
             </Card>
 
@@ -182,7 +239,7 @@ export default function StudentDashboard() {
 
           {/* ── HORIZONTAL SCROLL SECTIONS ── */}
           <HorizontalSection title="SHORT LIVE SESSIONS" viewAllTo={PATHS.SHORT_LIVE_SESSION} items={dashboard?.shortLiveSessions} />
-          <HorizontalSection title="SHORT VIDEO FEED" isVideo viewAllTo={PATHS.VIDEO_UPLOAD} items={dashboard?.shortLiveSessions} />
+          <HorizontalSection title="SHORT VIDEO FEED" isVideo viewAllTo={PATHS.SHORT_VIDEO_FEED} items={dashboard?.shortLiveSessions} />
         </main>
 
         {/* ── BOTTOM NAVIGATION ── */}

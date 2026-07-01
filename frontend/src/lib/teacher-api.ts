@@ -61,7 +61,7 @@ export const teacherApi = {
   // ── Dashboard ────────────────────────────────────────────────
   getDashboard: async () => {
     const { data } = await apiClient.get('/teacher/dashboard');
-    return data;
+    return data.data;
   },
 
   // ── Availability ─────────────────────────────────────────────
@@ -96,6 +96,11 @@ export const teacherApi = {
   markNotificationRead: async (id: string) => {
     const { data } = await apiClient.patch(`/teacher/notifications/${id}/read`);
     return data;
+  },
+
+  getWallet: async () => {
+    const { data } = await apiClient.get('/teacher/wallet');
+    return data.data;
   },
 
   // ── Sessions ─────────────────────────────────────────────────

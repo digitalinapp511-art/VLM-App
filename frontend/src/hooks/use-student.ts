@@ -1,10 +1,14 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { studentApi } from "@/lib/student-api";
 import type { StudentProfile, Subscription, DashboardData, Plan, Session } from "@/types";
 
 export function useCreateProfile() {
+  const queryClient = useQueryClient();
   return useMutation<any, Error, { fullName: string; nickname: string; className: string; board: string; city: string; state: string }>({
     mutationFn: (payload) => studentApi.createProfile(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["studentProfile"] });
+    },
   });
 }
 
@@ -15,9 +19,20 @@ export function useStudentProfile() {
   });
 }
 
+export function useStudentWalletHistory() {
+  return useQuery<any[]>({
+    queryKey: ["studentWalletHistory"],
+    queryFn: studentApi.getWalletHistory,
+  });
+}
+
 export function useUpdateProfile() {
+  const queryClient = useQueryClient();
   return useMutation<any, Error, any>({
     mutationFn: (payload) => studentApi.updateProfile(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["studentProfile"] });
+    },
   });
 }
 

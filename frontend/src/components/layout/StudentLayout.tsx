@@ -27,7 +27,11 @@ export default function StudentLayout() {
             icon={<item.icon size={24} />}
             label={item.label}
             to={item.path}
-            active={location.pathname === item.path}
+            active={
+              item.path === PATHS.PROFILE 
+                ? (location.pathname === PATHS.PROFILE || location.pathname === PATHS.WALLET)
+                : location.pathname === item.path
+            }
           />
         ))}
       </nav>

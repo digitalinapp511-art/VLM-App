@@ -2,7 +2,8 @@ import { Router } from 'express';
 import {
   createStudentProfile, getStudentProfile, getDashboard, getPlans,
   activateTrial, submitDoubt, getDailyMcq, submitMcq, toggleFavoriteTeacher, getSubjects,
-  getChapters, claimSpinReward
+  getChapters, claimSpinReward, getStudentWalletHistory, submitDoubtWithImages, getDoubtById,
+  getAvailableTeachers
 } from '../controllers/studentController.js';
 import {
   getSessionHistory, getSessionMessages, sendMessage, resolveSession,
@@ -27,6 +28,9 @@ router.get('/plans', getPlans);
 router.post('/trial', activateTrial);
 router.post('/spin', claimSpinReward);
 router.post('/doubt', submitDoubt);
+router.post('/doubts/upload', upload.single('images'), submitDoubtWithImages);
+router.get('/doubts/:id', getDoubtById);
+router.get('/teachers', getAvailableTeachers);
 router.get('/mcq/daily', getDailyMcq);
 router.post('/mcq/submit', submitMcq);
 router.post('/favorite-teacher', toggleFavoriteTeacher);
@@ -45,5 +49,6 @@ router.post('/videos', upload.single('video'), uploadShortVideo);
 router.get('/videos', getShortVideos);
 router.get('/videos/mine', getMyVideos);
 router.get('/referral', getReferralData);
+router.get('/wallet/history', getStudentWalletHistory);
 
 export default router;

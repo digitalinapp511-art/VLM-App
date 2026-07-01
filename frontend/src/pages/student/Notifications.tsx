@@ -15,7 +15,7 @@ type Notification = {
   id: string;
   title: string;
   message: string;
-  type: string; // 'alert', 'info', 'success'
+  type: string; 
   isRead?: boolean;
   createdAt: string;
 };

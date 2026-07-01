@@ -25,6 +25,10 @@ import LiveSession from "./pages/student/LiveSession";
 import SessionFeedback from "./pages/student/SessionFeedBack";
 import SessionHistory from "./pages/student/SessionHistory";
 import ShortLiveSessions from "./pages/student/ShortLiveSession";
+import ShortVideoFeed from "./pages/student/ShortVideoFeed";
+import Library from "./pages/student/Library";
+import UseSubscription from "./pages/student/UseSubscription";
+import UseRecharge from "./pages/student/UseRecharge";
 import SubjectSelection from "./pages/SubjectSelection";
 import OnboardingSlides from "./pages/OnboardingSlides";
 import PlanScreen from "./pages/student/PlanScreen";
@@ -33,7 +37,12 @@ import DoubtSubmitted from "./pages/student/DoubtSubmitted";
 import Coupon from "./pages/student/Coupon";
 import PlanUpgrade from "./pages/student/PlanUpgrade";
 import ReferralReward from "./pages/student/ReferralReward";
+import AIChat from "./pages/student/AIChat";
+import TeacherSearching from "./pages/student/TeacherSearching";
+import ChatSession from "./pages/student/ChatSession";
+import Leaderboard from "./pages/student/Leaderboard";
 import EditProfile from "./pages/student/EditProfile";
+import Profile from "./pages/student/Profile";
 import { PATHS } from "@/routes/paths";
 import TeacherRegistration from "./pages/teacher/TeacherRegistration";
 import TeacherQualificationDetails from "./pages/teacher/TeacherQualificationDetails";
@@ -53,12 +62,18 @@ import TeacherDemoVideo from "./pages/teacher/TeacherDemoVideo";
 import ProfileReview from "./pages/teacher/ProfileReview";
 import InterviewConfirmation from "./pages/teacher/InterviewConfirmation";
 import VerificationStatus from './pages/teacher/VerificationStatus';
+import LiveClassRequestStatus from './pages/teacher/LiveClassRequestStatus';
 import Dashboard from "./pages/teacher/Dashboard";
 import TeacherProfile from "./pages/teacher/TeacherProfile";
+import TeacherEditProfile from "./pages/teacher/TeacherEditProfile";
 import AvailabilityStatus from "./pages/teacher/AvailabilityStatus";
 import DirectRequestNotification from "./pages/teacher/DirectRequestNotification";
 import TeacherNotifications from "./pages/teacher/Notifications";
 import WalletDashboard from "./pages/teacher/WalletDashboard";
+import RewardCenter from "./pages/teacher/RewardCenter";
+import ReferStudentPortal from "./pages/teacher/ReferStudentPortal";
+import ReferTeacherPortal from "./pages/teacher/ReferTeacherPortal";
+import TeacherReferralHistory from "./pages/teacher/ReferralHistory";
 import EarningsHistory from "./pages/teacher/EarningsHistory";
 import TeachSessionHistory from "./pages/teacher/TeachSessionHistory";
 import RequestsPage from "./pages/teacher/RequestsPage";
@@ -104,20 +119,29 @@ export default function App() {
               <Route path={PATHS.STUDENT_DASHBOARD} element={<StudentDashboard />} />
               <Route path={PATHS.STUDENT_NOTIFICATIONS} element={<StudentNotifications />} />
               <Route path={PATHS.ASK_DOUBT} element={<AskDoubt />} />
-              <Route path={PATHS.MCQ} element={<Mcq />} />
               <Route path={PATHS.LIVE_CLASSES} element={<LiveClasses />} />
               <Route path={PATHS.PROFILE} element={<EditProfile />} />
+              <Route path={PATHS.WALLET} element={<Profile />} />
               <Route path={PATHS.VIDEO_UPLOAD} element={<VideoUpload />} />
               <Route path={PATHS.REFERRAL_REWARD} element={<ReferralReward />} />
             </Route>
 
             {/* Student flows (immersive) */}
+            <Route path={PATHS.MCQ} element={<Mcq />} />
             <Route path={PATHS.AUDIO_CALL} element={<AudioCall />} />
             <Route path={PATHS.LIVE_SESSION} element={<LiveSession />} />
             <Route path={PATHS.SHORT_LIVE_SESSION} element={<ShortLiveSessions />} />
+            <Route path={PATHS.SHORT_VIDEO_FEED} element={<ShortVideoFeed />} />
+            <Route path={PATHS.LIBRARY} element={<Library />} />
+            <Route path={PATHS.USE_SUBSCRIPTION} element={<UseSubscription />} />
+            <Route path={PATHS.USE_RECHARGE} element={<UseRecharge />} />
             <Route path={PATHS.SESSION_FEEDBACK} element={<SessionFeedback />} />
             <Route path={PATHS.SESSION_HISTORY} element={<SessionHistory />} />
             <Route path={PATHS.DOUBT_SUBMITTED} element={<DoubtSubmitted />} />
+            <Route path={PATHS.AI_CHAT} element={<AIChat />} />
+            <Route path={PATHS.TEACHER_SEARCHING} element={<TeacherSearching />} />
+            <Route path={PATHS.CHAT_SESSION} element={<ChatSession />} />
+            <Route path={PATHS.LEADERBOARD} element={<Leaderboard />} />
             <Route path={PATHS.SPINNER} element={<Spinner />} />
             <Route path={PATHS.REFER_EARN} element={<ReferEarn />} />
             <Route path={PATHS.REFERRAL_HISTORY} element={<ReferralHistory />} />
@@ -144,14 +168,20 @@ export default function App() {
         {/* Teacher flows */}
         <Route path={PATHS.TEACHER_DASHBOARD} element={<Dashboard />} />
         <Route path={PATHS.TEACHER_PROFILE} element={<TeacherProfile />} />
+        <Route path={PATHS.TEACHER_EDIT_PROFILE} element={<TeacherEditProfile />} />
         <Route path={PATHS.AVAILABILITY_STATUS} element={<AvailabilityStatus />} />
         <Route path={PATHS.DIRECT_REQUEST_NOTIFICATION} element={<DirectRequestNotification />} />
         <Route path={PATHS.TEACHER_NOTIFICATIONS} element={<TeacherNotifications />} />
         <Route path={PATHS.TEACHER_WALLET} element={<WalletDashboard />} />
+        <Route path={PATHS.REWARD_CENTER} element={<RewardCenter />} />
+        <Route path={PATHS.REFER_STUDENT} element={<ReferStudentPortal />} />
+        <Route path={PATHS.REFER_TEACHER} element={<ReferTeacherPortal />} />
+        <Route path={PATHS.REFERRAL_HISTORY} element={<TeacherReferralHistory />} />
         <Route path={PATHS.TEACHER_EARNINGS_HISTORY} element={<EarningsHistory />} />
         <Route path={PATHS.TEACHER_SESSION_HISTORY} element={<TeachSessionHistory />} />
         <Route path={PATHS.TEACHER_REQUESTS} element={<RequestsPage />} />
-        <Route path={PATHS.TEACHER_CLASSES} element={<CreateLiveClassRequest />} />
+        <Route path={PATHS.TEACHER_CLASSES} element={<LiveClassRequestStatus />} />
+        <Route path={PATHS.CREATE_LIVE_CLASS} element={<CreateLiveClassRequest />} />
         <Route path={PATHS.TEACHER_LIBRARY} element={<RecordingLibrary />} />
         
           {/* Parent Module */} 

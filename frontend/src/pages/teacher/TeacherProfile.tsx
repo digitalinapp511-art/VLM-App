@@ -46,35 +46,47 @@ export default function TeacherProfile() {
         <div className="flex flex-col items-center gap-4 p-8 rounded-[32px] border border-white/5 bg-white/[0.02] backdrop-blur-md">
           <div className="relative group">
             <Avatar className="w-24 h-24 border-2 border-white/10 bg-zinc-800">
-              <AvatarImage src={p?.profilePhoto ?? `https://api.dicebear.com/7.x/avataaars/svg?seed=${p?.fullName || "Teacher"}`} />
-              <AvatarFallback>{(p?.fullName || "T")[0]}</AvatarFallback>
+              <AvatarImage src={profile?.profilePhoto || `https://api.dicebear.com/7.x/avataaars/svg?seed=${profile?.fullName || "Teacher"}`} />
+              <AvatarFallback>{(profile?.fullName || "T")[0]}</AvatarFallback>
             </Avatar>
-            <button className="absolute bottom-0 right-0 p-2 bg-blue-600 rounded-full border-2 border-black hover:bg-blue-500 transition-colors shadow-lg">
+            <button 
+              onClick={() => navigate(PATHS.TEACHER_EDIT_PROFILE)}
+              className="absolute bottom-0 right-0 p-2 bg-blue-600 rounded-full border-2 border-black hover:bg-blue-500 transition-colors shadow-lg"
+            >
               <Camera size={16} className="text-white" />
             </button>
           </div>
           <div className="text-center">
             <h2 className="text-2xl font-black text-white tracking-tight">
-              {isLoading ? "Loading..." : p?.fullName || "Teacher"}
+              {isLoading ? "Loading..." : profile?.fullName || profile?.user?.fullName || "Teacher"}
             </h2>
             <p className="text-cyan-400 text-xs font-bold tracking-widest uppercase mt-1">
-              Verified Teacher
+              {profile?.applicationStatus === "approved" ? "Verified Teacher" : "Profile Draft"}
             </p>
           </div>
         </div>
 
         {/* Info Form */}
         <div className="p-6 rounded-[32px] border border-white/5 bg-white/[0.02] backdrop-blur-md space-y-6">
-          <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-widest border-b border-white/5 pb-4 flex items-center gap-2">
-            <User size={16} /> Basic Information
-          </h3>
+          <div className="flex items-center justify-between border-b border-white/5 pb-4">
+            <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-widest flex items-center gap-2">
+              <User size={16} /> Basic Information
+            </h3>
+            <Button
+              onClick={() => navigate(PATHS.TEACHER_EDIT_PROFILE)}
+              size="sm"
+              className="h-8 px-4 rounded-full text-xs font-bold border border-cyan-400/20 bg-cyan-400/10 hover:bg-cyan-400/20 text-cyan-400 transition-all"
+            >
+              Edit Details
+            </Button>
+          </div>
 
           <div className="space-y-4">
             <div>
               <label className="text-xs font-medium text-zinc-500 uppercase ml-2">Full Name</label>
               <div className="mt-1 flex items-center p-4 rounded-2xl bg-black/40 border border-white/5 text-white">
                 <User size={18} className="text-zinc-600 mr-3" />
-                <span className="flex-1">{p?.fullName || "N/A"}</span>
+                <span className="flex-1">{profile?.fullName || profile?.user?.fullName || "N/A"}</span>
               </div>
             </div>
 
@@ -82,7 +94,7 @@ export default function TeacherProfile() {
               <label className="text-xs font-medium text-zinc-500 uppercase ml-2">Phone Number</label>
               <div className="mt-1 flex items-center p-4 rounded-2xl bg-black/40 border border-white/5 text-white">
                 <Phone size={18} className="text-zinc-600 mr-3" />
-                <span className="flex-1">{p?.phone || "N/A"}</span>
+                <span className="flex-1">{profile?.user?.mobile || "N/A"}</span>
               </div>
             </div>
 
@@ -90,7 +102,7 @@ export default function TeacherProfile() {
               <label className="text-xs font-medium text-zinc-500 uppercase ml-2">Email Address</label>
               <div className="mt-1 flex items-center p-4 rounded-2xl bg-black/40 border border-white/5 text-white">
                 <Mail size={18} className="text-zinc-600 mr-3" />
-                <span className="flex-1">{p?.email || "Not Provided"}</span>
+                <span className="flex-1">{profile?.user?.email || "Not Provided"}</span>
               </div>
             </div>
           </div>

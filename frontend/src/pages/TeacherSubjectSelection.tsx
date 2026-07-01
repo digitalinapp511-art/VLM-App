@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
   Calculator,
@@ -18,9 +18,13 @@ import { useNavigate } from "react-router-dom";
 import { bgCss } from "@/helper/CssHelper";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { teacherApi } from "@/lib/teacher-api";
+import { toast } from "sonner";
+import { PATHS } from "@/routes/paths";
+
 import SubjectCard from "@/components/basic/teacher/SubjectCard";
 import RegistrationStepper from "@/components/basic/teacher/RegistrationStepper";
-import { PATHS } from "@/routes/paths";
 
 interface Subject {
   id: string;
@@ -46,12 +50,45 @@ const subjects: Subject[] = [
 
 const TeacherSubjectSelection: React.FC = () => {
   const navigate = useNavigate();
-  const [selectedIds, setSelectedIds] = useState<string[]>(["maths", "physics", "chemistry"]);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+
+  const { data: profile } = useQuery({
+    queryKey: ["teacherProfile"],
+    queryFn: teacherApi.getProfile,
+    retry: false,
+  });
+
+  useEffect(() => {
+    if (profile && profile.subjects) {
+      setSelectedIds(profile.subjects);
+    }
+  }, [profile]);
+
+  const saveMutation = useMutation({
+    mutationFn: async (subjectsList: string[]) => {
+      return teacherApi.updateProfile({ subjects: subjectsList });
+    },
+    onSuccess: () => {
+      toast.success("Subjects saved successfully!");
+      navigate(PATHS.TEACHERCLASS_SELECTION);
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.message || err?.response?.data?.error || "Failed to save subjects");
+    }
+  });
 
   const toggleSubject = (id: string) => {
     setSelectedIds(prev =>
       prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
     );
+  };
+
+  const handleContinue = () => {
+    if (selectedIds.length === 0) {
+      toast.error("Please select at least one subject");
+      return;
+    }
+    saveMutation.mutate(selectedIds);
   };
 
   const containerVariants = {
@@ -64,7 +101,7 @@ const TeacherSubjectSelection: React.FC = () => {
 
   return (
     <div className={cn("min-h-screen flex flex-col items-center p-6 pb-36", bgCss)}>
-      <RegistrationStepper currentStep={3} />
+      <RegistrationStepper currentStep={4} />
       <motion.header
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -79,7 +116,7 @@ const TeacherSubjectSelection: React.FC = () => {
         variants={containerVariants}
         initial="hidden"
         animate="visible"
-        className="grid grid-cols-3 gap-4 w-full max-w-xl"
+        className="grid grid-cols-3 gap-4 w-full max-w-xl animate-in fade-in zoom-in-95 duration-300"
       >
         {subjects.map((subject) => (
           <motion.div key={subject.id} variants={{ hidden: { opacity: 0, scale: 0.9 }, visible: { opacity: 1, scale: 1 } }}>
@@ -101,14 +138,15 @@ const TeacherSubjectSelection: React.FC = () => {
           className="w-full max-w-xl pointer-events-auto"
         >
           <Button
-            onClick={() => navigate(PATHS.TEACHERCLASS_SELECTION)}
+            onClick={handleContinue}
+            disabled={saveMutation.isPending}
             className={cn(
               "w-full h-16 rounded-full text-lg font-bold transition-all flex items-center justify-center gap-3",
               "bg-gradient-to-r from-[#2b4b9b] to-[#1a2e5d] hover:brightness-110",
               "border border-white/10 shadow-2xl text-white group"
             )}
           >
-            CONTINUE
+            {saveMutation.isPending ? "SAVING..." : "CONTINUE"}
             <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center group-hover:bg-white/20 transition-colors">
               <ChevronRight size={24} />
             </div>

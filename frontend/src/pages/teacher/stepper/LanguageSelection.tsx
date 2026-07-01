@@ -1,14 +1,15 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { Globe, MoreHorizontal, Star, ChevronRight } from "lucide-react";
 import { bgCss } from "@/helper/CssHelper";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { teacherApi } from "@/lib/teacher-api";
 import { toast } from "sonner";
 import { PATHS } from "@/routes/paths";
+
 import LanguageCard from "@/components/basic/teacher/LanguageCard";
 import RegistrationStepper from "@/components/basic/teacher/RegistrationStepper";
 
@@ -33,17 +34,49 @@ const languages: Language[] = [
 
 const LanguageSelection: React.FC = () => {
   const navigate = useNavigate();
-  const [selected, setSelected] = useState<string[]>(["en", "eh", "ta"]);
+  const [selected, setSelected] = useState<string[]>([]);
+
+  const { data: profile } = useQuery({
+    queryKey: ["teacherProfile"],
+    queryFn: teacherApi.getProfile,
+    retry: false,
+  });
+
+  useEffect(() => {
+    if (profile && profile.languages) {
+      setSelected(profile.languages);
+    }
+  }, [profile]);
+
+  const saveMutation = useMutation({
+    mutationFn: async (langsList: string[]) => {
+      return teacherApi.updateProfile({ languages: langsList });
+    },
+    onSuccess: () => {
+      toast.success("Languages saved successfully!");
+      navigate(PATHS.DOCUMENT_UPLOAD);
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.message || err?.response?.data?.error || "Failed to save languages");
+    }
+  });
 
   const toggleLanguage = (id: string) => {
     setSelected(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
   };
 
-  const handleContinue = () => navigate(PATHS.DOCUMENT_UPLOAD);
+  const handleContinue = () => {
+    if (selected.length === 0) {
+      toast.error("Please select at least one language");
+      return;
+    }
+    saveMutation.mutate(selected);
+  };
 
   return (
     <div className={cn("min-h-screen flex flex-col items-center p-6 pb-40 relative overflow-hidden", bgCss)}>
-      <RegistrationStepper currentStep={6} />
+      <RegistrationStepper currentStep={7} />
+      
       {/* Decorative Star/Glows */}
       <div className="absolute top-16 right-8 text-purple-500/40 blur-[1px]">
         <Star size={24} fill="currentColor" />
@@ -74,7 +107,7 @@ const LanguageSelection: React.FC = () => {
           hidden: { opacity: 0 },
           visible: { opacity: 1, transition: { staggerChildren: 0.05 } }
         }}
-        className="grid grid-cols-3 gap-4 w-full max-w-xl"
+        className="grid grid-cols-3 gap-4 w-full max-w-xl animate-in fade-in zoom-in-95 duration-300"
       >
         {languages.map((lang) => (
           <motion.div 
@@ -101,13 +134,14 @@ const LanguageSelection: React.FC = () => {
         >
           <Button
             onClick={handleContinue}
+            disabled={saveMutation.isPending}
             className={cn(
               "w-full h-16 rounded-full text-lg font-bold transition-all flex items-center justify-center gap-3",
               "bg-gradient-to-r from-[#2b4b9b] to-[#1a2e5d] hover:brightness-110",
               "border border-white/10 shadow-[0_0_30px_rgba(59,130,246,0.15)] text-white group"
             )}
           >
-            CONTINUE
+            {saveMutation.isPending ? "SAVING..." : "CONTINUE"}
             <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center group-hover:bg-white/20 transition-colors">
               <ChevronRight size={22} className="opacity-90" />
             </div>

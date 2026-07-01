@@ -360,14 +360,38 @@ export const getMyVideos = asyncHandler(async (req, res) => {
 });
 
 export const getReferralData = asyncHandler(async (req, res) => {
+  const student = await Student.findOne({ userId: req.user._id });
+  let studentRefCode = req.user.referralCode;
+  let teacherRefCode = req.user.referralCode;
+
+  if (student) {
+    let updated = false;
+    if (!student.studentReferralCode) {
+      student.studentReferralCode = `STU-${req.user.referralCode?.replace('VLM', '') || Math.random().toString(36).substring(2, 10).toUpperCase()}`;
+      updated = true;
+    }
+    if (!student.teacherReferralCode) {
+      student.teacherReferralCode = `TCH-${req.user.referralCode?.replace('VLM', '') || Math.random().toString(36).substring(2, 10).toUpperCase()}`;
+      updated = true;
+    }
+    if (updated) {
+      await student.save();
+    }
+    studentRefCode = student.studentReferralCode;
+    teacherRefCode = student.teacherReferralCode;
+  }
+
   const referrals = await Referral.find({ referrerId: req.user._id }).sort({ createdAt: -1 });
   const totalPoints = referrals.filter((r) => r.status === 'rewarded').reduce((s, r) => s + r.rewardPoints, 0);
+
   res.json({
     success: true,
     data: {
       referralCode: req.user.referralCode,
-      studentLink: `${process.env.FRONTEND_URL}/signup?ref=${req.user.referralCode}&type=student`,
-      teacherLink: `${process.env.FRONTEND_URL}/signup?ref=${req.user.referralCode}&type=teacher`,
+      studentLink: `${process.env.FRONTEND_URL}/signup?ref=${studentRefCode}&type=student`,
+      teacherLink: `${process.env.FRONTEND_URL}/signup?ref=${teacherRefCode}&type=teacher`,
+      studentRef: `vlm.academy/ref/${studentRefCode}`,
+      teacherRef: `vlm.academy/ref/${teacherRefCode}`,
       referrals,
       totalReferrals: referrals.length,
       totalPoints,

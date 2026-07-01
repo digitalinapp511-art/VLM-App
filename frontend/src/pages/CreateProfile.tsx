@@ -66,6 +66,8 @@ export default function CreateProfileShadcn() {
         state,
         medium,
         mobile,
+        parentMobile: mobile,
+        subjects: preferredSubjects,
         preferredSubjects,
         weakSubjects,
       } as any,
@@ -212,9 +214,13 @@ export default function CreateProfileShadcn() {
                 </SelectTrigger>
                 <SelectContent className="bg-[#111] border-white/10">
                   {[
-                    "Maharashtra", "Delhi", "Karnataka", "Tamil Nadu",
-                    "Uttar Pradesh", "Gujarat", "Rajasthan", "West Bengal",
-                    "Telangana", "Andhra Pradesh", "Madhya Pradesh", "Bihar",
+                    "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh", 
+                    "Goa", "Gujarat", "Haryana", "Himachal Pradesh", "Jharkhand", "Karnataka", 
+                    "Kerala", "Madhya Pradesh", "Maharashtra", "Manipur", "Meghalaya", "Mizoram", 
+                    "Nagaland", "Odisha", "Punjab", "Rajasthan", "Sikkim", "Tamil Nadu", 
+                    "Telangana", "Tripura", "Uttar Pradesh", "Uttarakhand", "West Bengal",
+                    "Andaman and Nicobar Islands", "Chandigarh", "Dadra and Nagar Haveli and Daman and Diu", 
+                    "Delhi", "Jammu and Kashmir", "Ladakh", "Lakshadweep", "Puducherry"
                   ].map((s) => (
                     <SelectItem key={s} value={s}>{s}</SelectItem>
                   ))}
@@ -240,10 +246,10 @@ export default function CreateProfileShadcn() {
         {/* 4 · Academic Preferences */}
         <SectionCard title="Your Academic Preferences">
 
-          {/* Favourite Subjects */}
+          {/* Preferred Subjects */}
           <div className="space-y-2">
             <p className="text-[10px] uppercase tracking-widest text-white/40 font-medium">
-              Favourite Subjects
+              Preferred Subjects
             </p>
             <div className="flex flex-wrap gap-2">
               {allSubjects.map((subject) => {

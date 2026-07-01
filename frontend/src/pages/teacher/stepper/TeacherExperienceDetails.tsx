@@ -1,16 +1,16 @@
-import RegistrationStepper from "@/components/basic/teacher/RegistrationStepper";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { Monitor, Users, LayoutGrid, ChevronRight } from "lucide-react";
 import { bgCss } from "@/helper/CssHelper";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { teacherApi } from "@/lib/teacher-api";
 import { toast } from "sonner";
 import { PATHS } from "@/routes/paths";
 
+import RegistrationStepper from "@/components/basic/teacher/RegistrationStepper";
 import ExperienceCounter from "@/components/basic/teacher/ExperienceCounter";
 import ResumeUploadZone from "@/components/basic/teacher/ResumeUploadZone";
 import { SelectionChip } from "@/components/basic/teacher/ModeSelector";
@@ -23,7 +23,54 @@ const TeacherExperienceDetails: React.FC = () => {
   const [type, setType] = useState("school");
   const [summary, setSummary] = useState("");
 
-  const handleContinue = () => navigate(PATHS.TEACHER_SUBJECT_SELECTION);
+  const { data: profile } = useQuery({
+    queryKey: ["teacherProfile"],
+    queryFn: teacherApi.getProfile,
+    retry: false,
+  });
+
+  useEffect(() => {
+    if (profile && profile.experience) {
+      const exp = profile.experience;
+      if (exp.totalYears !== undefined) {
+        setYears(Math.floor(exp.totalYears));
+        setMonths(Math.round((exp.totalYears - Math.floor(exp.totalYears)) * 12));
+      }
+      if (exp.teachingModes && exp.teachingModes.length > 0) {
+        setMode(exp.teachingModes[0]);
+      }
+      if (exp.experienceTypes && exp.experienceTypes.length > 0) {
+        setType(exp.experienceTypes[0]);
+      }
+      if (exp.summary) {
+        setSummary(exp.summary);
+      }
+    }
+  }, [profile]);
+
+  const saveMutation = useMutation({
+    mutationFn: async (payload: any) => {
+      return teacherApi.updateProfile({ experience: payload });
+    },
+    onSuccess: () => {
+      toast.success("Experience details saved successfully!");
+      navigate(PATHS.TEACHER_SUBJECT_SELECTION);
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.message || err?.response?.data?.error || "Failed to save experience details");
+    }
+  });
+
+  const handleContinue = () => {
+    const totalYears = years + (months / 12);
+    saveMutation.mutate({
+      totalYears: parseFloat(totalYears.toFixed(2)),
+      isFresher: totalYears === 0,
+      teachingModes: [mode],
+      experienceTypes: [type],
+      summary: summary
+    });
+  };
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -37,7 +84,7 @@ const TeacherExperienceDetails: React.FC = () => {
 
   return (
     <div className={cn("min-h-screen flex flex-col items-center p-4 pb-12", bgCss)}>
-      <RegistrationStepper currentStep={2} />
+      <RegistrationStepper currentStep={3} />
 
       <motion.h1 
         initial={{ opacity: 0, y: -20 }}
@@ -131,20 +178,18 @@ const TeacherExperienceDetails: React.FC = () => {
           </div>
         </motion.div>
 
-        {/* Progress Bar & CTA */}
-        <motion.div variants={itemVariants} className="space-y-6 pt-4">
-          <div className="w-full h-[3px] bg-zinc-800 rounded-full overflow-hidden">
-            <motion.div initial={{ width: 0 }} animate={{ width: "45%" }} className="h-full bg-yellow-500 shadow-[0_0_10px_rgba(234,179,8,0.5)]" />
-          </div>
+        {/* CTA Button without the yellow line */}
+        <motion.div variants={itemVariants} className="pt-4">
           <Button
             onClick={handleContinue}
+            disabled={saveMutation.isPending}
             className={cn(
               "w-full h-16 rounded-[20px] text-xl font-bold uppercase tracking-tight transition-all",
               "bg-gradient-to-r from-[#2b4b9b] to-[#1a2e5d] hover:brightness-110",
               "border border-white/10 shadow-2xl text-white flex items-center justify-center gap-2"
             )}
           >
-            Save & Continue <ChevronRight size={22} className="ml-1" />
+            {saveMutation.isPending ? "Saving..." : "Save & Continue"} <ChevronRight size={22} className="ml-1" />
           </Button>
         </motion.div>
       </motion.div>

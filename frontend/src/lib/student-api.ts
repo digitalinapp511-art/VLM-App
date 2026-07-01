@@ -7,6 +7,11 @@ export const studentApi = {
     return data;
   },
 
+  getWalletHistory: async () => {
+    const { data } = await apiClient.get("/student/wallet/history");
+    return data.data || data;
+  },
+
   getSubjectsFull: async (className?: string) => {
     const { data } = await apiClient.get("/student/subjects", {
       params: { class: className },
@@ -91,7 +96,20 @@ export const studentApi = {
   },
 
   submitFeedback: async (feedbackData: any) => {
-    const { data } = await apiClient.post("/student/feedback", feedbackData);
+    if (!feedbackData.sessionId || String(feedbackData.sessionId).startsWith("mock-")) {
+      return { success: true };
+    }
+    const payload = {
+      sessionId: feedbackData.sessionId,
+      rating: feedbackData.rating,
+      feedback: feedbackData.comment || "",
+      categories: {
+        understanding: feedbackData.rating >= 4,
+        explanation: feedbackData.rating >= 4,
+        interaction: feedbackData.rating >= 4,
+      }
+    };
+    const { data } = await apiClient.post("/student/sessions/resolve", payload);
     return data;
   },
 

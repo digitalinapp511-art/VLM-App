@@ -37,15 +37,15 @@ const fetchSessionHistory = async () => {
 
     return sessions.map((s: any) => ({
       id: s._id || s.id,
-      name: s.teacher?.fullName ?? "AI Tutor",
-      subject: s.type,
+      name: s.teacherId?.fullName ?? "AI Tutor",
+      subject: s.subject || "General Doubt",
       date: new Date(s.createdAt).toLocaleString('en-IN', {
         day: 'numeric', month: 'short', year: 'numeric',
         hour: '2-digit', minute: '2-digit',
       }),
-      type: s.type === 'VIDEO' ? 'Video Call' : s.type === 'AUDIO' ? 'Audio Call' : 'Chat Session',
-      rating: s.feedback?.rating ? String(s.feedback.rating) + '.0' : 'N/A',
-      avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${s.teacher?.fullName ?? 'ai'}`,
+      type: s.type === 'video' ? 'Video Call' : s.type === 'audio' ? 'Audio Call' : 'Chat Session',
+      rating: s.studentBehaviourRating ? String(s.studentBehaviourRating) + '.0' : 'N/A',
+      avatar: s.teacherId?.profilePhoto || `https://api.dicebear.com/7.x/avataaars/svg?seed=${s.teacherId?.fullName ?? 'ai'}`,
       icon: Layers,
     }));
   } catch {

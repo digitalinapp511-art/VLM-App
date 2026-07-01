@@ -1,20 +1,37 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { IdCard, GraduationCap, Briefcase, HelpCircle, ChevronRight, Star } from "lucide-react";
 import { bgCss } from "@/helper/CssHelper";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { teacherApi } from "@/lib/teacher-api";
 import { toast } from "sonner";
 import { PATHS } from "@/routes/paths";
+
 import DocumentUploadCard from "@/components/basic/teacher/DocumentUploadCard";
 import RegistrationStepper from "@/components/basic/teacher/RegistrationStepper";
 
 const DocumentUpload: React.FC = () => {
   const navigate = useNavigate();
   const [uploadedDocs, setUploadedDocs] = useState<Record<string, string>>({});
+
+  const { data: profile } = useQuery({
+    queryKey: ["teacherProfile"],
+    queryFn: teacherApi.getProfile,
+    retry: false,
+  });
+
+  useEffect(() => {
+    if (profile && profile.documents) {
+      const docs: Record<string, string> = {};
+      if (profile.documents.aadhaar) docs.aadhaar = profile.documents.aadhaar;
+      if (profile.documents.qualificationCert) docs.qualification = profile.documents.qualificationCert;
+      if (profile.documents.experienceProof) docs.experience = profile.documents.experienceProof;
+      setUploadedDocs(docs);
+    }
+  }, [profile]);
 
   const uploadMutation = useMutation({
     mutationFn: async ({ id, file }: { id: string; file: File }) => {
@@ -26,7 +43,27 @@ const DocumentUpload: React.FC = () => {
       setUploadedDocs(prev => ({ ...prev, [id]: url }));
       toast.success(`Document uploaded successfully`);
     },
-    onError: () => toast.error("Upload failed. Check Cloudinary config."),
+    onError: () => toast.error("Upload failed. Make sure server is running and Cloudinary config is correct."),
+  });
+
+  const submitMutation = useMutation({
+    mutationFn: async () => {
+      return teacherApi.updateProfile({
+        documents: {
+          aadhaar: uploadedDocs.aadhaar || "",
+          qualificationCert: uploadedDocs.qualification || "",
+          experienceProof: uploadedDocs.experience || ""
+        },
+        applicationStatus: "pending"
+      });
+    },
+    onSuccess: () => {
+      toast.success("Documents submitted successfully!");
+      navigate(PATHS.INTERVIEW_SCHEDULE);
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.message || err?.response?.data?.error || "Failed to submit documents");
+    }
   });
 
   const handleUpload = (id: string) => {
@@ -38,6 +75,10 @@ const DocumentUpload: React.FC = () => {
       if (file) uploadMutation.mutate({ id, file });
     };
     input.click();
+  };
+
+  const handleContinue = () => {
+    navigate(PATHS.INTERVIEW_SCHEDULE);
   };
 
   const docStatus = (id: string) => uploadedDocs[id] ? "UPLOADED" : "PENDING";
@@ -52,7 +93,8 @@ const DocumentUpload: React.FC = () => {
 
   return (
     <div className={cn("min-h-screen flex flex-col items-center p-6 pb-32 relative overflow-hidden", bgCss)}>
-      <RegistrationStepper currentStep={7} />
+      <RegistrationStepper currentStep={8} />
+      
       {/* Decorative Assets */}
       <div className="absolute top-10 right-8 text-purple-500/40 blur-[1px] rotate-12">
         <Star size={24} fill="currentColor" />
@@ -67,7 +109,7 @@ const DocumentUpload: React.FC = () => {
         animate={{ opacity: 1, y: 0 }}
         className="mt-10 mb-10 text-center"
       >
-        <h1  className="text-[28px] font-bold text-white tracking-widest uppercase">
+        <h1 className="text-[28px] font-bold text-white tracking-widest uppercase">
           Document Upload
         </h1>
       </motion.header>
@@ -126,18 +168,20 @@ const DocumentUpload: React.FC = () => {
 
           {/* Submit Button */}
           <Button
-            onClick={() => navigate(PATHS.INTERVIEW_SCHEDULE)}
+            onClick={handleContinue}
+            disabled={submitMutation.isPending || uploadMutation.isPending}
             className={cn(
               "flex-1 h-14 md:h-16 rounded-full text-[13px] sm:text-sm md:text-lg font-bold transition-all uppercase tracking-tight",
               "bg-gradient-to-r from-[#2b4b9b] to-[#1a2e5d] hover:brightness-110",
               "border border-blue-400/20 shadow-2xl text-white whitespace-nowrap"
             )}
           >
-            Submit for Verification
+            {submitMutation.isPending ? "Submitting..." : "Submit for Verification"}
           </Button>
 
           {/* Next/Arrow Button */}
           <Button
+            onClick={handleContinue}
             variant="ghost"
             size="icon"
             className="w-12 h-12 md:w-14 md:h-14 rounded-full border border-white/10 bg-zinc-900/40 text-zinc-400 hover:text-white shrink-0"

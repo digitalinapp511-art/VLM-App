@@ -19,9 +19,14 @@ export const PATHS = {
   // Student tabs (StudentLayout)
   STUDENT_DASHBOARD: "/student-dashboard",
   ASK_DOUBT: "/ask-doubt",
+  TEACHER_SEARCHING: "/teacher-searching",
+  AI_CHAT: "/ai-chat",
+  CHAT_SESSION: "/chat-session",
+  LEADERBOARD: "/leaderboard",
   MCQ: "/mcq",
   LIVE_CLASSES: "/live-classes",
   PROFILE: "/profile",
+  WALLET: "/wallet",
   STUDENT_PROFILE_SETUP: "/student/profile/setup",
   STUDENT_NOTIFICATIONS: "/student-notifications",
 
@@ -42,6 +47,11 @@ export const PATHS = {
   VERIFICATION_STATUS:"/verification-status",
   TEACHER_DASHBOARD:"/teacher-dashboard",
   TEACHER_PROFILE:"/teacher-profile",
+  TEACHER_EDIT_PROFILE:"/teacher/edit-profile",
+  REWARD_CENTER: "/teacher/reward-center",
+  REFER_STUDENT: "/teacher/refer-student",
+  REFER_TEACHER: "/teacher/refer-teacher",
+  REFERRAL_HISTORY: "/teacher/referral-history",
 
     AVAILABILITY_STATUS: "/availability-status",
     DIRECT_REQUEST_NOTIFICATION: "/direct-request-notification",
@@ -51,10 +61,12 @@ export const PATHS = {
     TEACHER_SESSION_HISTORY: "/teacher-session-history",
     TEACHER_REQUESTS: "/teacher-requests",
     TEACHER_CLASSES: "/teacher-classes",
+    CREATE_LIVE_CLASS: "/teacher-classes/create",
     TEACHER_LIBRARY: "/teacher-library",
 
   // Student flows
   VIDEO_UPLOAD: "/video-upload",
+  SHORT_VIDEO_FEED: "/short-video-feed",
   DOUBT_SUBMITTED: "/doubt-submitted",
   AUDIO_CALL: "/audio-call",
   LIVE_SESSION: "/live-session",
@@ -66,6 +78,9 @@ export const PATHS = {
   REFERRAL_HISTORY: "/referral-history",
   REFERRAL_REWARD: "/referral-reward",
   PLAN_UPGRADE: "/plan-upgrade",
+  LIBRARY: "/library",
+  USE_SUBSCRIPTION: "/use-subscription",
+  USE_RECHARGE: "/use-recharge",
 
 
   //Parent Flow

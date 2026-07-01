@@ -12,19 +12,19 @@ interface RegistrationStepperProps {
 
 const steps: Step[] = [
   { id: 1, label: "Basic Info" },
-  { id: 2, label: "Experience" },
-  { id: 3, label: "Subjects" },
-  { id: 4, label: "Classes" },
-  { id: 5, label: "Board" },
-  { id: 6, label: "Language" },
-  { id: 7, label: "Documents" },
-
+  { id: 2, label: "Qualification" },
+  { id: 3, label: "Experience" },
+  { id: 4, label: "Subjects" },
+  { id: 5, label: "Classes" },
+  { id: 6, label: "Board" },
+  { id: 7, label: "Language" },
+  { id: 8, label: "Documents" },
 ];
 
 const RegistrationStepper: React.FC<RegistrationStepperProps> = ({ currentStep }) => {
   return (
     <div className="w-full py-6 px-1 overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-      <div className="relative flex justify-between items-start min-w-[500px] md:min-w-full px-2">
+      <div className="relative flex justify-between items-start min-w-[820px] md:min-w-full px-4">
         {/* Progress Line */}
         <div className="absolute top-[17px] left-8 right-8 h-[2px] bg-zinc-800 z-0">
           <div 

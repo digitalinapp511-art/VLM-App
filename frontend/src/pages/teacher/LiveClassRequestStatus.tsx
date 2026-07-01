@@ -1,17 +1,19 @@
 import React from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import { ChevronLeft, FileText, Star } from "lucide-react";
+import { 
+  ChevronLeft, FileText, Star, Home, BookOpen, Wallet, Library, User, PlusCircle 
+} from "lucide-react";
 import { bgCss } from "@/helper/CssHelper";
 import { cn } from "@/lib/utils";
-
+import { PATHS } from "@/routes/paths";
 import StatusTimelineCard from "@/components/basic/teacher/StatusTimelineCard";
 
 const LiveClassRequestStatus: React.FC = () => {
   const navigate = useNavigate();
 
   return (
-    <div className={cn("min-h-screen flex flex-col p-4 pb-20 relative overflow-x-hidden", bgCss)}>
+    <div className={cn("min-h-screen flex flex-col p-4 pb-28 relative overflow-x-hidden", bgCss)}>
       {/* Decorative BG Elements */}
       <div className="absolute top-20 -left-2 text-blue-400/20 blur-[1px]">
         <Star size={16} fill="currentColor" />
@@ -21,16 +23,23 @@ const LiveClassRequestStatus: React.FC = () => {
       </div>
 
       {/* Header */}
-      <header className="w-full max-w-xl mx-auto flex items-center py-4 mb-4">
+      <header className="w-full max-w-xl mx-auto flex items-center justify-between py-4 mb-4 relative z-10">
         <button
           onClick={() => navigate(-1)}
           className="w-10 h-10 rounded-full bg-zinc-900 border border-white/10 flex items-center justify-center text-white"
         >
           <ChevronLeft size={20} />
         </button>
-        <h1 className="flex-1 text-center text-sm font-black text-white uppercase tracking-widest mr-10">
-          Live Class Request Status
+        <h1 className="text-sm font-black text-white uppercase tracking-widest px-4">
+          Live Classes
         </h1>
+        <button
+          onClick={() => navigate(PATHS.CREATE_LIVE_CLASS)}
+          className="px-4 py-2 text-xs font-black text-cyan-400 bg-cyan-400/10 hover:bg-cyan-400/20 border border-cyan-400/30 rounded-full transition-all flex items-center gap-1.5"
+        >
+          <PlusCircle size={14} />
+          Create Class
+        </button>
       </header>
 
       <div className="w-full max-w-xl mx-auto flex flex-col">
@@ -113,8 +122,33 @@ const LiveClassRequestStatus: React.FC = () => {
           </div>
         </footer>
       </div>
+
+      {/* Bottom Nav */}
+      <nav className="fixed bottom-0 left-0 w-full bg-[#0a0a0a]/95 border-t border-white/5 backdrop-blur-lg px-6 py-4 flex items-center justify-between z-50">
+        <NavItem icon={<Home />} label="Home" onClick={() => navigate(PATHS.TEACHER_DASHBOARD)} />
+        <NavItem icon={<BookOpen />} label="Classes" active onClick={() => navigate(PATHS.TEACHER_CLASSES)} />
+        <NavItem icon={<Wallet />} label="Wallet" onClick={() => navigate(PATHS.TEACHER_WALLET)} />
+        <NavItem icon={<Library />} label="Library" onClick={() => navigate(PATHS.TEACHER_LIBRARY)} />
+        <NavItem icon={<User />} label="Profile" onClick={() => navigate(PATHS.TEACHER_PROFILE)} />
+      </nav>
     </div>
   );
 };
+
+const NavItem = ({ icon, label, active = false, onClick }: { icon: any, label: string, active?: boolean, onClick?: () => void }) => (
+  <button 
+    onClick={onClick}
+    className={cn(
+      "flex flex-col items-center gap-1.5 transition-all duration-300",
+      active ? "text-cyan-400" : "text-zinc-600 hover:text-zinc-400"
+    )}
+  >
+    <div className={cn("relative", active && "drop-shadow-[0_0_8px_rgba(34,211,238,0.5)]")}>
+      {React.cloneElement(icon, { size: 24, strokeWidth: active ? 2.5 : 1.5 })}
+    </div>
+    <span className="text-[10px] font-bold uppercase tracking-widest">{label}</span>
+    {active && <motion.div layoutId="navDot" className="w-1 h-1 rounded-full bg-cyan-400" />}
+  </button>
+);
 
 export default LiveClassRequestStatus;

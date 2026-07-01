@@ -40,6 +40,8 @@ const BasicProfileDetails: React.FC = () => {
     city: "",
     state: "",
     pincode: "",
+    email: "",
+    mobile: "",
   });
 
   useEffect(() => {
@@ -55,6 +57,8 @@ const BasicProfileDetails: React.FC = () => {
         city: profile.city || "",
         state: profile.state || "",
         pincode: profile.pincode || "",
+        email: profile.user?.email || "",
+        mobile: profile.user?.mobile || "",
       });
 
       if (profile.profilePhoto) {
@@ -74,12 +78,61 @@ const BasicProfileDetails: React.FC = () => {
     setPhotoPreview(URL.createObjectURL(file));
   };
 
-  const handleContinue = () => {
-    navigate(PATHS.EXPERIENCE_DETAILS);
-  };
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [isSaving, setIsSaving] = useState(false);
 
-  const email = profile?.user?.email ?? "—";
-  const mobile = profile?.user?.mobile ?? "—";
+  const handleContinue = async () => {
+    const newErrors: Record<string, string> = {};
+    if (!form.fullName.trim()) newErrors.fullName = "Full Name is required";
+    if (!form.gender) newErrors.gender = "Gender is required";
+    if (!form.dob) newErrors.dob = "Date of birth is required";
+    if (!form.address.trim()) newErrors.address = "Address is required";
+    if (!form.city.trim()) newErrors.city = "City is required";
+    if (!form.state.trim()) newErrors.state = "State is required";
+    if (!form.pincode.trim()) newErrors.pincode = "Pincode is required";
+    if (!form.email.trim()) newErrors.email = "Email is required";
+    if (!form.mobile.trim()) newErrors.mobile = "Mobile number is required";
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      toast.error("Please fill in all required fields");
+      return;
+    }
+
+    setErrors({});
+    setIsSaving(true);
+    try {
+      let finalPhotoUrl = profile?.profilePhoto || "";
+
+      if (photoFile) {
+        const uploadRes = await teacherApi.uploadProfilePhoto(photoFile);
+        if (uploadRes?.url) {
+          finalPhotoUrl = uploadRes.url;
+        }
+      }
+
+      await teacherApi.updateProfile({
+        fullName: form.fullName,
+        gender: form.gender,
+        dob: form.dob,
+        address: form.address,
+        city: form.city,
+        state: form.state,
+        pincode: form.pincode,
+        profilePhoto: finalPhotoUrl,
+        email: form.email,
+        mobile: form.mobile
+      });
+
+      toast.success("Profile details saved successfully!");
+      navigate(PATHS.QUALIFICATION_DETAILS);
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err?.response?.data?.message || err?.response?.data?.error || "Failed to save details");
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   return (
     <div className={cn("min-h-screen flex flex-col items-center pb-12", bgCss)}>
@@ -139,12 +192,14 @@ const BasicProfileDetails: React.FC = () => {
               </span>
             </div>
 
-            <div className="flex-1 space-y-3">
+            <div className="flex-grow flex flex-col gap-3 min-w-[200px]">
               <RegistrationField
                 icon={<User />}
                 label="Full Name"
                 placeholder="Enter Full Name"
                 value={form.fullName}
+                required
+                error={errors.fullName}
                 onChange={(e: any) => updateField("fullName", e.target.value)}
               />
               <RegistrationField
@@ -152,6 +207,8 @@ const BasicProfileDetails: React.FC = () => {
                 label="Gender"
                 isSelect
                 value={form.gender}
+                required
+                error={errors.gender}
                 options={[
                   { label: "Male", value: "male" },
                   { label: "Female", value: "female" },
@@ -159,12 +216,13 @@ const BasicProfileDetails: React.FC = () => {
                 ]}
                 onChange={(e: any) => updateField("gender", e.target.value)}
               />
-              {/* sumit */}
               <RegistrationField
                 icon={<Calendar />}
                 label="DOB"
                 type="date"
                 value={form.dob}
+                required
+                error={errors.dob}
                 onChange={(e: any) => updateField("dob", e.target.value)}
               />
             </div>
@@ -175,23 +233,29 @@ const BasicProfileDetails: React.FC = () => {
             label="Address"
             placeholder="Enter Street Address"
             value={form.address}
+            required
+            error={errors.address}
             onChange={(e: any) => updateField("address", e.target.value)}
           />
 
-          <div className="grid grid-cols-12 gap-3">
-            <div className="col-span-7 flex flex-col p-3.5 rounded-2xl border border-white/10 bg-white/[0.03]">
+          <div className="grid grid-cols-12 gap-3 items-start">
+            <div className={cn(
+              "col-span-7 flex flex-col p-3.5 rounded-2xl border bg-white/[0.03] transition-all hover:bg-white/[0.05]",
+              (errors.city || errors.state) ? "border-red-500/50 bg-red-500/[0.02]" : "border-white/10"
+            )}>
               <div className="flex items-start gap-3">
-                <MapPin size={18} className="text-blue-400/80 mt-1" />
+                <MapPin size={18} className="text-blue-400/80 mt-1 shrink-0" />
                 <div className="flex-1 space-y-2">
                   <div className="flex flex-col border-b border-white/5 pb-2">
-                    <span className="text-[11px] font-bold text-zinc-100 uppercase tracking-tight">
+                    <span className="text-[11px] font-bold text-zinc-100 uppercase tracking-tight flex items-center gap-0.5">
                       City / State
+                      <span className="text-red-500 font-black text-xs inline-block ml-0.5">*</span>
                     </span>
                     <input
                       placeholder="City"
                       value={form.city}
                       onChange={e => updateField("city", e.target.value)}
-                      className="bg-transparent text-sm text-zinc-300 outline-none mt-1 placeholder:text-zinc-600"
+                      className="bg-transparent text-sm text-zinc-300 outline-none mt-1 placeholder:text-zinc-600 w-full"
                     />
                   </div>
                   <input
@@ -202,39 +266,62 @@ const BasicProfileDetails: React.FC = () => {
                   />
                 </div>
               </div>
+              {(errors.city || errors.state) && (
+                <span className="text-[9px] font-bold text-red-400/90 mt-2 uppercase tracking-wide">
+                  {errors.city || errors.state}
+                </span>
+              )}
             </div>
 
             <RegistrationField
-              className="col-span-5 items-center"
+              className="col-span-5"
               icon={<MapPin />}
               label="Pincode"
               placeholder="XXXXXX"
               value={form.pincode}
+              required
+              error={errors.pincode}
               onChange={(e: any) => updateField("pincode", e.target.value)}
             />
           </div>
 
-          {/* Read-only contact fields */}
-          <RegistrationField icon={<Mail />} label="Email" value={email} readOnly />
+          {/* Editable contact fields */}
+          <RegistrationField 
+            icon={<Mail />} 
+            label="Email" 
+            placeholder="Enter Email Address"
+            value={form.email} 
+            required
+            error={errors.email}
+            onChange={(e: any) => updateField("email", e.target.value)} 
+          />
           <RegistrationField
             icon={<Smartphone />}
             label="Mobile"
-            value={mobile}
+            placeholder="Enter Mobile Number"
+            value={form.mobile}
             iconColor="text-blue-300"
-            readOnly
+            required
+            error={errors.mobile}
+            onChange={(e: any) => updateField("mobile", e.target.value)}
           />
         </div>
 
         <div className="mt-10">
           <Button
             onClick={handleContinue}
+            disabled={isSaving}
             className={cn(
               "w-full h-14 rounded-full text-lg font-bold transition-all",
               "bg-gradient-to-r from-[#2b4b9b] to-[#1a2e5d] hover:brightness-110",
               "border border-blue-400/20 shadow-[0_0_20px_rgba(37,99,235,0.15)] text-white flex items-center justify-center gap-2"
             )}
           >
-            Continue to document <ChevronRight className="font-light text-xl opacity-80" />
+            {isSaving ? "Saving details..." : (
+              <>
+                Continue to qualifications <ChevronRight className="font-light text-xl opacity-80" />
+              </>
+            )}
           </Button>
         </div>
       </motion.div>

@@ -1,14 +1,15 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { Baby, Presentation, Atom, GraduationCap, ChevronRight } from "lucide-react";
 import { bgCss } from "@/helper/CssHelper";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { teacherApi } from "@/lib/teacher-api";
 import { toast } from "sonner";
 import { PATHS } from "@/routes/paths";
+
 import ClassSelectionCard from "@/components/basic/teacher/ClassSelectionCard";
 import RegistrationStepper from "@/components/basic/teacher/RegistrationStepper";
 
@@ -48,13 +49,44 @@ const classGroups: ClassGroup[] = [
 
 const TeacherClassSelection: React.FC = () => {
   const navigate = useNavigate();
-  const [selectedClasses, setSelectedClasses] = useState<string[]>(["6-8", "9-10"]);
+  const [selectedClasses, setSelectedClasses] = useState<string[]>([]);
+
+  const { data: profile } = useQuery({
+    queryKey: ["teacherProfile"],
+    queryFn: teacherApi.getProfile,
+    retry: false,
+  });
+
+  useEffect(() => {
+    if (profile && profile.classes) {
+      setSelectedClasses(profile.classes);
+    }
+  }, [profile]);
+
+  const saveMutation = useMutation({
+    mutationFn: async (classesList: string[]) => {
+      return teacherApi.updateProfile({ classes: classesList });
+    },
+    onSuccess: () => {
+      toast.success("Classes saved successfully!");
+      navigate(PATHS.BOARD_SELECTION);
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.message || err?.response?.data?.error || "Failed to save classes");
+    }
+  });
 
   const toggleClass = (id: string) => {
     setSelectedClasses(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
   };
 
-  const handleContinue = () => navigate(PATHS.BOARD_SELECTION);
+  const handleContinue = () => {
+    if (selectedClasses.length === 0) {
+      toast.error("Please select at least one class group");
+      return;
+    }
+    saveMutation.mutate(selectedClasses);
+  };
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -71,7 +103,8 @@ const TeacherClassSelection: React.FC = () => {
 
   return (
     <div className={cn("min-h-screen flex flex-col items-center p-6 pb-32", bgCss)}>
-      <RegistrationStepper currentStep={4} />
+      <RegistrationStepper currentStep={5} />
+      
       {/* Header Section */}
       <motion.header
         initial={{ opacity: 0, y: -20 }}
@@ -91,10 +124,10 @@ const TeacherClassSelection: React.FC = () => {
         variants={containerVariants}
         initial="hidden"
         animate="visible"
-        className="grid grid-cols-2 gap-4 w-full max-w-xl"
+        className="grid grid-cols-2 gap-4 w-full max-w-xl animate-in fade-in zoom-in-95 duration-300"
       >
         {classGroups.map((group) => (
-          <motion.div key={group.id} variants={itemVariants}>
+          <motion.div key={group.id} variants={itemVariants} className="w-full">
             <ClassSelectionCard
               title={group.title}
               subtitle={group.subtitle}
@@ -115,13 +148,14 @@ const TeacherClassSelection: React.FC = () => {
         >
           <Button
             onClick={handleContinue}
+            disabled={saveMutation.isPending}
             className={cn(
               "w-full h-16 rounded-full text-lg font-bold transition-all flex items-center justify-center gap-3",
-              "bg-gradient-to-r from-[#2b4b9b] to-[#1a2e5d] hover:from-[#355bc0] hover:to-[#233c7a]",
+              "bg-gradient-to-r from-[#2b4b9b] to-[#1a2e5d] hover:brightness-110",
               "border border-white/10 shadow-2xl text-white group"
             )}
           >
-            CONTINUE
+            {saveMutation.isPending ? "SAVING..." : "CONTINUE"}
             <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center group-hover:bg-white/20 transition-colors">
               <ChevronRight size={24} className="opacity-90" />
             </div>
@@ -129,7 +163,7 @@ const TeacherClassSelection: React.FC = () => {
         </motion.div>
       </div>
 
-      {/* Decorative Glows to match reference style */}
+      {/* Decorative Glows */}
       <div className="fixed top-1/4 -left-10 w-32 h-32 bg-yellow-500/5 blur-[100px] pointer-events-none" />
       <div className="fixed bottom-1/4 -right-10 w-32 h-32 bg-blue-500/5 blur-[100px] pointer-events-none" />
     </div>

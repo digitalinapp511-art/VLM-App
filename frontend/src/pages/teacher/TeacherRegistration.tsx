@@ -13,7 +13,7 @@ import RegistrationButton from "@/components/basic/teacher/RegistrationButton";
 const TeacherRegistration: React.FC = () => {
   const navigate = useNavigate();
 
-  const handleStart = () => navigate(PATHS.QUALIFICATION_DETAILS);
+  const handleStart = () => navigate(PATHS.BASICPROFILE_DETAILS);
 
   return (
     <div className={cn("min-h-screen flex items-center justify-center p-6", bgCss)}>

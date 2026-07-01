@@ -1,14 +1,15 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { School, BookOpenCheck, ChevronRight, Star } from "lucide-react";
 import { bgCss } from "@/helper/CssHelper";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { teacherApi } from "@/lib/teacher-api";
 import { toast } from "sonner";
 import { PATHS } from "@/routes/paths";
+
 import BoardSelectionCard from "@/components/basic/teacher/BoardSelectionCard";
 import RegistrationStepper from "@/components/basic/teacher/RegistrationStepper";
 
@@ -36,17 +37,49 @@ const teachingBoards: TeachingBoard[] = [
 
 const BoardSelection: React.FC = () => {
   const navigate = useNavigate();
-  const [selectedBoards, setSelectedBoards] = useState<string[]>(["cbse", "state"]);
+  const [selectedBoards, setSelectedBoards] = useState<string[]>([]);
+
+  const { data: profile } = useQuery({
+    queryKey: ["teacherProfile"],
+    queryFn: teacherApi.getProfile,
+    retry: false,
+  });
+
+  useEffect(() => {
+    if (profile && profile.boards) {
+      setSelectedBoards(profile.boards);
+    }
+  }, [profile]);
+
+  const saveMutation = useMutation({
+    mutationFn: async (boardsList: string[]) => {
+      return teacherApi.updateProfile({ boards: boardsList });
+    },
+    onSuccess: () => {
+      toast.success("Boards saved successfully!");
+      navigate(PATHS.LANGUAGE_SELECTION);
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.message || err?.response?.data?.error || "Failed to save boards");
+    }
+  });
 
   const toggleBoard = (id: string) => {
     setSelectedBoards(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
   };
 
-  const handleContinue = () => navigate(PATHS.LANGUAGE_SELECTION);
+  const handleContinue = () => {
+    if (selectedBoards.length === 0) {
+      toast.error("Please select at least one teaching board");
+      return;
+    }
+    saveMutation.mutate(selectedBoards);
+  };
 
   return (
     <div className={cn("min-h-screen flex flex-col items-center p-6 pb-32 relative overflow-hidden", bgCss)}>
-      <RegistrationStepper currentStep={5} />
+      <RegistrationStepper currentStep={6} />
+      
       {/* Decorative Stars & Glows */}
       <div className="absolute top-20 right-10 text-purple-500/40 blur-[1px]">
         <Star size={24} fill="currentColor" />
@@ -75,7 +108,7 @@ const BoardSelection: React.FC = () => {
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.5, ease: "easeOut" }}
-        className="grid grid-cols-1 md:grid-cols-2 gap-5 w-full max-w-2xl px-2"
+        className="grid grid-cols-1 md:grid-cols-2 gap-5 w-full max-w-2xl px-2 animate-in fade-in zoom-in-95 duration-300"
       >
         {teachingBoards.map((board) => (
           <BoardSelectionCard
@@ -98,13 +131,14 @@ const BoardSelection: React.FC = () => {
         >
           <Button
             onClick={handleContinue}
+            disabled={saveMutation.isPending}
             className={cn(
               "w-full h-16 rounded-full text-xl font-bold transition-all flex items-center justify-center gap-4",
               "bg-gradient-to-r from-[#2b4b9b] to-[#1a2e5d] hover:brightness-110",
               "border border-white/10 shadow-2xl text-white group"
             )}
           >
-            CONTINUE
+            {saveMutation.isPending ? "SAVING..." : "CONTINUE"}
             <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center group-hover:bg-white/20 transition-colors">
               <ChevronRight size={24} className="opacity-90" />
             </div>

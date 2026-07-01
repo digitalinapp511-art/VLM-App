@@ -1,6 +1,8 @@
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Users, UserRound, CircleDollarSign, Home, Wallet, History, User } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { PATHS } from "@/routes/paths";
+import { Users, UserRound, CircleDollarSign, Home, Wallet, History, User, BookOpen, Library } from "lucide-react";
 import { bgCss } from "@/helper/CssHelper";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
@@ -10,6 +12,7 @@ import ReferralItemCard from "@/components/basic/teacher/ReferralItemCard";
 import type{ ReferralStatus } from "@/components/basic/teacher/ReferralItemCard";
 
 const ReferralHistory: React.FC = () => {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<"student" | "teacher">("student");
 
   const referrals = [
@@ -105,21 +108,25 @@ const ReferralHistory: React.FC = () => {
 
       {/* Persistent Bottom Navigation */}
       <nav className="fixed bottom-0 left-0 w-full bg-[#0a0a0a]/95 border-t border-white/5 backdrop-blur-xl px-6 py-4 flex items-center justify-between z-50">
-        <NavItem icon={<Home />} label="Home" />
-        <NavItem icon={<Wallet />} label="Wallet" />
-        <NavItem icon={<History />} label="Referral" active />
-        <NavItem icon={<User />} label="Profile" />
+        <NavItem icon={<Home />} label="Home" onClick={() => navigate(PATHS.TEACHER_DASHBOARD)} />
+        <NavItem icon={<BookOpen />} label="Classes" onClick={() => navigate(PATHS.TEACHER_CLASSES)} />
+        <NavItem icon={<Wallet />} label="Wallet" active onClick={() => navigate(PATHS.TEACHER_WALLET)} />
+        <NavItem icon={<Library />} label="Library" onClick={() => navigate(PATHS.TEACHER_LIBRARY)} />
+        <NavItem icon={<User />} label="Profile" onClick={() => navigate(PATHS.TEACHER_PROFILE)} />
       </nav>
     </div>
   );
 };
 
 // Nav Item Helper
-const NavItem = ({ icon, label, active = false }: { icon: any, label: string, active?: boolean }) => (
-  <button className={cn(
-    "flex flex-col items-center gap-1.5 transition-all duration-300",
-    active ? "text-cyan-400" : "text-zinc-600 hover:text-zinc-400"
-  )}>
+const NavItem = ({ icon, label, active = false, onClick }: { icon: any, label: string, active?: boolean, onClick?: () => void }) => (
+  <button 
+    onClick={onClick}
+    className={cn(
+      "flex flex-col items-center gap-1.5 transition-all duration-300",
+      active ? "text-cyan-400" : "text-zinc-600 hover:text-zinc-400"
+    )}
+  >
     <div className={cn("relative transition-transform duration-300", active && "scale-110 drop-shadow-[0_0_8px_rgba(34,211,238,0.5)]")}>
       {React.cloneElement(icon, { size: 24, strokeWidth: active ? 2.5 : 1.5 })}
     </div>

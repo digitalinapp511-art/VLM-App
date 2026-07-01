@@ -1,13 +1,27 @@
 import Teacher from '../models/Teacher.js';
 import Interview from '../models/Interview.js';
+import User from '../models/User.js';
+import Notification from '../models/Notification.js';
+import Review from '../models/Review.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
 import { TEACHER_STATUS } from '../config/constants.js';
 import { createNotification } from '../services/notificationService.js';
 
 export const getTeacherProfile = asyncHandler(async (req, res) => {
-  const teacher = await Teacher.findOne({ userId: req.user._id });
-  if (!teacher) return res.status(404).json({ success: false, message: 'Teacher profile not found' });
-  res.json({ success: true, data: teacher });
+  let teacher = await Teacher.findOne({ userId: req.user._id }).populate('userId', 'email mobile fullName');
+  if (!teacher) {
+    teacher = await Teacher.create({
+      userId: req.user._id,
+      fullName: req.user.fullName || 'Teacher',
+      applicationStatus: 'draft',
+    });
+    teacher = await Teacher.findOne({ userId: req.user._id }).populate('userId', 'email mobile fullName');
+  }
+  
+  const teacherObj = teacher.toObject();
+  teacherObj.user = teacherObj.userId; // Map populated User document to p.user
+  
+  res.json({ success: true, data: teacherObj });
 });
 
 export const updateOnboarding = asyncHandler(async (req, res) => {
@@ -60,7 +74,8 @@ export const getApplicationStatus = asyncHandler(async (req, res) => {
 });
 
 export const updateAvailability = asyncHandler(async (req, res) => {
-  const { availabilityStatus, availabilitySlots } = req.body;
+  const availabilityStatus = req.body.availabilityStatus || req.body.status;
+  const { availabilitySlots } = req.body;
   const teacher = await Teacher.findOne({ userId: req.user._id });
   if (!teacher) return res.status(404).json({ success: false, message: 'Not found' });
 
@@ -75,35 +90,107 @@ export const getDashboard = asyncHandler(async (req, res) => {
   const teacher = await Teacher.findOne({ userId: req.user._id });
   if (!teacher) return res.status(404).json({ success: false, message: 'Not found' });
 
+
+
+  const unreadNotifications = await Notification.countDocuments({ userId: req.user._id, isRead: false });
+  const notifications = await Notification.find({ userId: req.user._id }).sort({ createdAt: -1 }).limit(5);
+  const recentReviews = await Review.find({ teacherId: teacher._id }).populate('studentId').sort({ createdAt: -1 }).limit(5);
+
   res.json({
     success: true,
     data: {
-      todayEarnings: teacher.metrics.todayEarnings,
-      totalPoints: teacher.wallet.totalPoints,
-      walletBalance: teacher.wallet.withdrawableBalance,
-      availabilityStatus: teacher.availabilityStatus,
-      totalSessions: teacher.metrics.totalSessions,
-      missedRequests: teacher.metrics.missedRequests,
-      rating: teacher.metrics.rating,
-      performanceScore: teacher.metrics.performanceScore,
-      responseSpeed: teacher.metrics.responseSpeed,
-      weeklyLiveTarget: teacher.metrics.weeklyLiveTarget,
-      weeklyLiveCompleted: teacher.metrics.weeklyLiveCompleted,
-      applicationStatus: teacher.applicationStatus,
-      isApproved: teacher.isApproved,
+      teacher: {
+        name: teacher.fullName,
+        availabilityStatus: teacher.availabilityStatus,
+        profilePhoto: teacher.profilePhoto,
+        applicationStatus: teacher.applicationStatus,
+        isApproved: teacher.isApproved,
+      },
+      stats: {
+        todayEarnings: teacher.metrics.todayEarnings,
+        totalPoints: teacher.wallet.totalPoints,
+        walletBalance: teacher.wallet.withdrawableBalance,
+        rating: teacher.metrics.rating,
+        totalSessions: teacher.metrics.totalSessions,
+        missedRequests: teacher.metrics.missedRequests || 0,
+        performanceScore: teacher.metrics.performanceScore,
+        responseSpeed: teacher.metrics.responseSpeed || 85,
+        weeklyLiveTarget: teacher.metrics.weeklyLiveTarget || 10,
+        weeklyLiveCompleted: teacher.metrics.weeklyLiveCompleted || 0,
+      },
+      unreadNotifications,
+      notifications,
+      recentReviews,
+      upcomingClasses: []
     },
   });
 });
 
 export const updateProfile = asyncHandler(async (req, res) => {
-  const teacher = await Teacher.findOne({ userId: req.user._id });
-  if (!teacher) return res.status(404).json({ success: false, message: 'Not found' });
+  let teacher = await Teacher.findOne({ userId: req.user._id });
+  if (!teacher) {
+    teacher = await Teacher.create({
+      userId: req.user._id,
+      fullName: req.body.fullName || req.user.fullName || 'Teacher',
+      applicationStatus: 'draft',
+    });
+  }
 
-  const allowed = ['bio', 'teachingStyle', 'bankDetails', 'qualification', 'experience'];
+  const allowed = [
+    'fullName', 'bio', 'teachingStyle', 'bankDetails', 'profilePhoto', 
+    'address', 'city', 'state', 'pincode', 'gender', 'dob',
+    'subjects', 'classes', 'boards', 'languages'
+  ];
   allowed.forEach((key) => {
-    if (req.body[key]) teacher[key] = { ...teacher[key]?.toObject?.() || teacher[key], ...req.body[key] };
+    if (req.body[key] !== undefined) {
+      teacher[key] = req.body[key];
+    }
   });
+
+  if (req.body.qualification) {
+    if (!teacher.qualification) teacher.qualification = {};
+    const qAllowed = ['highestQualification', 'instituteName', 'passingYear', 'hasBEd', 'teachingCertification', 'additionalCertifications', 'certificateUrl'];
+    qAllowed.forEach((key) => {
+      if (req.body.qualification[key] !== undefined) {
+        teacher.qualification[key] = req.body.qualification[key];
+      }
+    });
+  }
+
+  if (req.body.experience) {
+    if (!teacher.experience) teacher.experience = {};
+    const eAllowed = ['totalYears', 'isFresher', 'teachingModes', 'experienceTypes', 'summary', 'resumeUrl'];
+    eAllowed.forEach((key) => {
+      if (req.body.experience[key] !== undefined) {
+        teacher.experience[key] = req.body.experience[key];
+      }
+    });
+  }
+
+  if (req.body.documents) {
+    if (!teacher.documents) teacher.documents = {};
+    const dAllowed = ['aadhaar', 'qualificationCert', 'experienceProof', 'resume', 'additional'];
+    dAllowed.forEach((key) => {
+      if (req.body.documents[key] !== undefined) {
+        teacher.documents[key] = req.body.documents[key];
+      }
+    });
+  }
+
+  if (req.body.applicationStatus !== undefined) {
+    teacher.applicationStatus = req.body.applicationStatus;
+  }
+
   await teacher.save();
+
+  // Also update email and mobile on User model if provided
+  const user = await User.findById(req.user._id);
+  if (user) {
+    if (req.body.email !== undefined) user.email = req.body.email;
+    if (req.body.mobile !== undefined) user.mobile = req.body.mobile;
+    await user.save();
+  }
+
   res.json({ success: true, data: teacher });
 });
 
