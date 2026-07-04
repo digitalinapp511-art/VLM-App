@@ -70,13 +70,15 @@ export const studentApi = {
     return data;
   },
 
-  getDailyMcq: async () => {
-    const { data } = await apiClient.get("/student/mcq/daily");
+  getDailyMcq: async (classQuery?: string) => {
+    const { data } = await apiClient.get("/student/mcq/daily", {
+      params: { class: classQuery }
+    });
     return data;
   },
 
-  submitMcq: async (questionId: string, answer: any) => {
-    const { data } = await apiClient.post("/student/mcq/submit", { questionId, answer });
+  submitMcq: async (taskId: string, answers: { questionIndex: number; selectedAnswer: number }[]) => {
+    const { data } = await apiClient.post("/student/mcq/submit", { taskId, answers });
     return data;
   },
 
@@ -132,6 +134,41 @@ export const studentApi = {
     const form = new FormData();
     form.append("photo", file);
     const { data } = await apiClient.post("/student/profile/photo", form, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+    return data;
+  },
+
+  getAiChatHistory: async (sessionId?: string) => {
+    const { data } = await apiClient.get("/student/ai-chat/history", {
+      params: { sessionId }
+    });
+    return data;
+  },
+
+  getAiChatSessions: async () => {
+    const { data } = await apiClient.get("/student/ai-chat/sessions");
+    return data;
+  },
+
+  deleteAiChatSession: async (sessionId: string) => {
+    const { data } = await apiClient.delete(`/student/ai-chat/session/${sessionId}`);
+    return data;
+  },
+
+  clearAllAiChatHistory: async () => {
+    const { data } = await apiClient.delete("/student/ai-chat/history");
+    return data;
+  },
+
+  sendAiChatMessage: async (query: string, sessionId: string, imageFile?: File) => {
+    const form = new FormData();
+    form.append("query", query);
+    form.append("sessionId", sessionId);
+    if (imageFile) {
+      form.append("image", imageFile);
+    }
+    const { data } = await apiClient.post("/student/ai-chat", form, {
       headers: { "Content-Type": "multipart/form-data" },
     });
     return data;

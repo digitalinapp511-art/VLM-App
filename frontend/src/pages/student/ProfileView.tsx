@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { PATHS } from "@/routes/paths";
 import {
@@ -25,9 +25,18 @@ import LoadingSkeleton from "@/components/basic/student/LoadingSkeleton";
 export default function ProfileView() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { data: profile, isLoading } = useStudentProfile();
+  const { data: profile, isLoading, error: profileError } = useStudentProfile();
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    if (profileError) {
+      const err = profileError as any;
+      if (err?.response?.status === 404) {
+        navigate(PATHS.STUDENT_PROFILE_SETUP, { replace: true });
+      }
+    }
+  }, [profileError, navigate]);
 
   const handleLogout = async () => {
     try {
@@ -42,6 +51,7 @@ export default function ProfileView() {
   if (isLoading) return <LoadingSkeleton />;
 
   const p = (profile as any)?.data ?? profile;
+  console.log("ProfileView data:", p);
 
   return (
     <div className={cn("relative min-h-svh w-full text-white flex flex-col items-center px-6 pt-8 overflow-x-hidden pb-32", bgCss)}>

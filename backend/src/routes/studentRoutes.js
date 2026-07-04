@@ -3,7 +3,8 @@ import {
   createStudentProfile, getStudentProfile, getDashboard, getPlans,
   activateTrial, submitDoubt, getDailyMcq, submitMcq, toggleFavoriteTeacher, getSubjects,
   getChapters, claimSpinReward, getStudentWalletHistory, submitDoubtWithImages, getDoubtById,
-  getAvailableTeachers, getParentRequests, approveParentRequest, rejectParentRequest
+  getAvailableTeachers, getParentRequests, approveParentRequest, rejectParentRequest,
+  getAiChatHistory, submitAiChatQuery, getAiChatSessions, deleteAiChatSession, clearAllAiChatHistory
 } from '../controllers/studentController.js';
 import {
   getSessionHistory, getSessionMessages, sendMessage, resolveSession,
@@ -39,6 +40,11 @@ router.get('/chapters', getChapters);
 router.post('/profile', createStudentProfile);
 router.put('/profile', createStudentProfile);
 router.get('/dashboard', getDashboard);
+router.get('/ai-chat/history', getAiChatHistory);
+router.get('/ai-chat/sessions', getAiChatSessions);
+router.delete('/ai-chat/session/:sessionId', deleteAiChatSession);
+router.delete('/ai-chat/history', clearAllAiChatHistory);
+router.post('/ai-chat', upload.single('image'), cloudinaryUploadMiddleware, submitAiChatQuery);
 router.get('/plans', getPlans);
 router.post('/trial', activateTrial);
 router.post('/spin', claimSpinReward);

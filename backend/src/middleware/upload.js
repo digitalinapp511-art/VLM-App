@@ -53,7 +53,7 @@ export const cloudinaryUploadMiddleware = async (req, res, next) => {
     next();
   } catch (err) {
     console.error('Cloudinary upload error:', err);
-    res.status(500).json({ success: false, message: 'File upload failed' });
+    res.status(500).json({ success: false, message: 'File upload failed', error: err.message || err });
   }
 };
 

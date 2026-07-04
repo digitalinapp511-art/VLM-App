@@ -15,6 +15,7 @@ import { getIo } from '../socket/index.js';
 import { getFileUrl } from '../middleware/upload.js';
 import { generateVlmId } from '../utils/vlmIdGenerator.js';
 import User from '../models/User.js';
+import AiChatMessage from '../models/AiChatMessage.js';
 
 const logStudentPointsTransaction = async (userId, points, type, description) => {
   try {
@@ -340,10 +341,14 @@ export const getAvailableTeachers = asyncHandler(async (req, res) => {
 
 export const getDailyMcq = asyncHandler(async (req, res) => {
   const student = await Student.findOne({ userId: req.user._id });
+  if (!student) return res.status(404).json({ success: false, message: 'Student profile not found' });
+  
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  let task = await McqTask.findOne({ studentId: student._id, date: { $gte: today } });
+  const selectedClass = student.class || '10';
+
+  let task = await McqTask.findOne({ studentId: student._id, class: selectedClass, date: { $gte: today } });
   if (!task) {
     const subjects = student.subjects?.length ? student.subjects : ['Math', 'Science', 'English'];
     const questions = [];
@@ -351,7 +356,7 @@ export const getDailyMcq = asyncHandler(async (req, res) => {
       const subj = subjects[i % subjects.length];
       questions.push({
         subject: subj,
-        question: `Sample ${subj} question ${i + 1} for Class ${student.class}?`,
+        question: `Sample ${subj} question ${i + 1} for Class ${selectedClass}?`,
         options: ['Option A', 'Option B', 'Option C', 'Option D'],
         correctAnswer: Math.floor(Math.random() * 4),
         explanation: `Explanation for question ${i + 1}`,
@@ -359,13 +364,39 @@ export const getDailyMcq = asyncHandler(async (req, res) => {
     }
     task = await McqTask.create({
       studentId: student._id,
-      class: student.class,
+      class: selectedClass,
       date: today,
       questions,
       timerSeconds: 1200,
     });
   }
-  res.json({ success: true, data: task });
+
+  // Calculate completed days for this week (Sun-Sat)
+  const startOfWeek = new Date(today);
+  startOfWeek.setDate(today.getDate() - today.getDay());
+  startOfWeek.setHours(0, 0, 0, 0);
+
+  const completedTasks = await McqTask.find({
+    studentId: student._id,
+    status: 'completed',
+    completedAt: { $gte: startOfWeek }
+  });
+
+  const completedDays = completedTasks.map(t => new Date(t.completedAt).getDay());
+
+  // Fetch Class Leaderboard
+  const leaderboard = await Student.find({ class: student.class })
+    .sort({ totalPoints: -1 })
+    .limit(10)
+    .select('fullName nickname totalPoints streak avatarUrl');
+
+  res.json({
+    success: true,
+    data: task,
+    streak: student.streak || 0,
+    completedDays,
+    leaderboard
+  });
 });
 
 export const submitMcq = asyncHandler(async (req, res) => {
@@ -391,6 +422,28 @@ export const submitMcq = asyncHandler(async (req, res) => {
   student.totalPoints += task.pointsEarned;
   student.wallet.totalPoints += task.pointsEarned;
   student.markModified('wallet');
+
+  // Streak logic
+  const lastActive = student.lastActiveDate;
+  const now = new Date();
+  if (!lastActive) {
+    student.streak = 1;
+  } else {
+    const lastDate = new Date(lastActive);
+    lastDate.setHours(0, 0, 0, 0);
+    const todayDate = new Date(now);
+    todayDate.setHours(0, 0, 0, 0);
+    
+    const diffTime = Math.abs(todayDate.getTime() - lastDate.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 1) {
+      student.streak += 1;
+    } else if (diffDays > 1) {
+      student.streak = 1;
+    }
+  }
+  student.lastActiveDate = now;
   await student.save();
 
   if (task.pointsEarned > 0) {
@@ -621,4 +674,211 @@ export const rejectParentRequest = asyncHandler(async (req, res) => {
   await student.save();
 
   res.json({ success: true, message: 'Request rejected' });
+});
+
+export const getAiChatHistory = asyncHandler(async (req, res) => {
+  const student = await Student.findOne({ userId: req.user._id });
+  if (!student) return res.status(404).json({ success: false, message: 'Student profile not found' });
+
+  const { sessionId } = req.query;
+  const filter = { studentId: student._id };
+  if (sessionId) {
+    filter.sessionId = sessionId;
+  }
+
+  const history = await AiChatMessage.find(filter)
+    .sort({ createdAt: 1 })
+    .limit(100);
+
+  res.json({ success: true, data: history });
+});
+
+export const getAiChatSessions = asyncHandler(async (req, res) => {
+  const student = await Student.findOne({ userId: req.user._id });
+  if (!student) return res.status(404).json({ success: false, message: 'Student profile not found' });
+
+  const sessions = await AiChatMessage.aggregate([
+    { $match: { studentId: student._id } },
+    { $sort: { createdAt: 1 } },
+    {
+      $group: {
+        _id: '$sessionId',
+        firstMsgText: { $first: '$text' },
+        createdAt: { $first: '$createdAt' }
+      }
+    },
+    { $sort: { createdAt: -1 } }
+  ]);
+
+  res.json({ success: true, data: sessions });
+});
+
+export const deleteAiChatSession = asyncHandler(async (req, res) => {
+  const student = await Student.findOne({ userId: req.user._id });
+  if (!student) return res.status(404).json({ success: false, message: 'Student profile not found' });
+
+  const { sessionId } = req.params;
+  await AiChatMessage.deleteMany({ studentId: student._id, sessionId });
+
+  res.json({ success: true, message: 'Session deleted successfully' });
+});
+
+export const clearAllAiChatHistory = asyncHandler(async (req, res) => {
+  const student = await Student.findOne({ userId: req.user._id });
+  if (!student) return res.status(404).json({ success: false, message: 'Student profile not found' });
+
+  await AiChatMessage.deleteMany({ studentId: student._id });
+
+  res.json({ success: true, message: 'All chat history cleared successfully' });
+});
+
+export const submitAiChatQuery = asyncHandler(async (req, res) => {
+  const student = await Student.findOne({ userId: req.user._id });
+  if (!student) return res.status(404).json({ success: false, message: 'Student profile not found' });
+
+  // Enforce credits check
+  const currentCredits = student.wallet?.aiCredits ?? 0;
+  if (currentCredits <= 0) {
+    return res.status(403).json({
+      success: false,
+      message: 'Insufficient AI credits. Please recharge your wallet.'
+    });
+  }
+
+  const { query, sessionId } = req.body;
+  if (!query) {
+    return res.status(400).json({ success: false, message: 'Query is required' });
+  }
+
+  if (!sessionId) {
+    return res.status(400).json({ success: false, message: 'Session ID is required' });
+  }
+
+  // Get image URL if uploaded
+  let imageUrl = null;
+  if (req.file) {
+    imageUrl = getFileUrl(req.file.filename, 'profiles');
+  }
+
+  // Fetch recent history for memory inside current session (last 6 messages to reduce token size and input tokens)
+  const pastMessages = await AiChatMessage.find({ studentId: student._id, sessionId })
+    .sort({ createdAt: -1 })
+    .limit(6);
+  
+  // Format history for OpenAI API
+  const messagesContext = [];
+  
+  // System instructions - enforce NO LATEX
+  messagesContext.push({
+    role: 'system',
+    content: `You are VLM AI Tutor, a helpful and friendly educational assistant. Help the student ${student.fullName} with step-by-step solutions to math, science, or other textbook problems. 
+    
+    IMPORTANT INSTRUCTION: Format all math expressions, formulas, and equations in clean, readable plain text using standard keyboard characters (e.g. use ^ for power like x^2, * for multiplication, and simple text formatting). DO NOT use raw LaTeX formatting indicators like \\( , \\) , \\[ , or \\] under any circumstances.`
+  });
+
+  // Add history in chronological order
+  const orderedHistory = pastMessages.reverse();
+  for (const msg of orderedHistory) {
+    messagesContext.push({
+      role: msg.sender === 'user' ? 'user' : 'assistant',
+      content: msg.text
+    });
+  }
+
+  // Choose model and format query content
+  const model = imageUrl ? 'gpt-4o' : 'gpt-4o-mini';
+  
+  if (imageUrl) {
+    messagesContext.push({
+      role: 'user',
+      content: [
+        { type: 'text', text: query },
+        { type: 'image_url', image_url: { url: imageUrl } }
+      ]
+    });
+  } else {
+    messagesContext.push({
+      role: 'user',
+      content: query
+    });
+  }
+
+  // Make request to aicredits.in API
+  const apiKey = process.env.AICREDITS_API_KEY || 'sk-live-a92f285a97499b113c4bb6ef0098e42ac4a0875f83afb0903512abb77491db96';
+  const baseUrl = process.env.AICREDITS_BASE_URL || 'https://aicredits.in/v1';
+
+  try {
+    const response = await fetch(`${baseUrl}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        model: model,
+        messages: messagesContext,
+        max_tokens: 800
+      })
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      console.error('AICredits API error:', errText);
+      return res.status(500).json({ success: false, message: 'AI Tutor failed to respond' });
+    }
+
+    const responseData = await response.json();
+    const replyText = responseData.choices?.[0]?.message?.content || '';
+    const usage = responseData.usage || { prompt_tokens: 0, completion_tokens: 0 };
+
+    // Calculate credits to deduct
+    let costUsd = 0;
+    if (model === 'gpt-4o') {
+      costUsd = (usage.prompt_tokens * 0.0000025) + (usage.completion_tokens * 0.0000100);
+    } else {
+      costUsd = (usage.prompt_tokens * 0.000000150) + (usage.completion_tokens * 0.000000600);
+    }
+    const creditsUsed = Math.max(1, Math.ceil(costUsd * 10000));
+
+    console.log(`AI Chat cost: ${costUsd} USD -> Deducting ${creditsUsed} credits. Current balance: ${currentCredits}`);
+
+    // Deduct credits from student
+    student.wallet.aiCredits = Math.max(0, currentCredits - creditsUsed);
+    student.markModified('wallet');
+    await student.save();
+
+    // Save message logs
+    const userMsg = await AiChatMessage.create({
+      studentId: student._id,
+      sessionId,
+      sender: 'user',
+      text: query,
+      image: imageUrl || undefined,
+      tokensUsed: usage.prompt_tokens,
+      creditsDeducted: 0
+    });
+
+    const aiMsg = await AiChatMessage.create({
+      studentId: student._id,
+      sessionId,
+      sender: 'ai',
+      text: replyText,
+      tokensUsed: usage.completion_tokens,
+      creditsDeducted: creditsUsed
+    });
+
+    res.json({
+      success: true,
+      data: {
+        userMessage: userMsg,
+        aiMessage: aiMsg,
+        aiCredits: student.wallet.aiCredits,
+        creditsDeducted: creditsUsed
+      }
+    });
+
+  } catch (apiErr) {
+    console.error('AI chat processing error:', apiErr);
+    res.status(500).json({ success: false, message: 'AI Tutor connection failed' });
+  }
 });
