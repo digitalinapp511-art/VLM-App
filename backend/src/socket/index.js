@@ -6,8 +6,24 @@ import Teacher from '../models/Teacher.js';
 let ioInstance = null;
 
 export const initSocket = (server) => {
+  const allowedOrigins = [
+    process.env.FRONTEND_URL,
+    'http://localhost:5173',
+    'http://localhost:5174',
+  ].filter(Boolean);
+
   const io = new Server(server, {
-    cors: { origin: process.env.FRONTEND_URL || 'http://localhost:5173', methods: ['GET', 'POST'] },
+    cors: {
+      origin: (origin, callback) => {
+        if (!origin || allowedOrigins.some((o) => origin === o || origin.endsWith('.vercel.app'))) {
+          callback(null, true);
+        } else {
+          callback(null, allowedOrigins[0] || true);
+        }
+      },
+      methods: ['GET', 'POST'],
+      credentials: true,
+    },
   });
   ioInstance = io;
 
