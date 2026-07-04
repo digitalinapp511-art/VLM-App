@@ -12,10 +12,25 @@ import {
   getReferralData,
 } from '../controllers/sharedController.js';
 import { protect, authorize } from '../middleware/auth.js';
-import { upload, cloudinaryUploadMiddleware } from '../middleware/upload.js';
+import { upload, cloudinaryUploadMiddleware, getFileUrl } from '../middleware/upload.js';
+import { asyncHandler } from '../middleware/errorHandler.js';
+import Student from '../models/Student.js';
 
 const router = Router();
 router.use(protect, authorize('student'));
+
+router.post('/profile/photo', upload.single('photo'), cloudinaryUploadMiddleware, asyncHandler(async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ success: false, message: 'No file uploaded' });
+  }
+  const student = await Student.findOne({ userId: req.user._id });
+  const photoUrl = getFileUrl(req.file.filename, 'profiles');
+  if (student) {
+    student.profilePhoto = photoUrl;
+    await student.save();
+  }
+  res.json({ success: true, url: photoUrl });
+}));
 
 router.get('/profile', getStudentProfile);
 router.get('/subjects', getSubjects);

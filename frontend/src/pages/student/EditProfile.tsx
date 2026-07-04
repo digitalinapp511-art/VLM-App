@@ -9,6 +9,7 @@ import {
   Pencil,
   LogOut,
   History,
+  RefreshCw,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { bgCss } from "@/helper/CssHelper";
@@ -28,6 +29,8 @@ import {
 
 import { useStudentProfile, useUpdateProfile } from "@/hooks/use-student";
 import LoadingSkeleton from "@/components/basic/student/LoadingSkeleton";
+import { studentApi } from "@/lib/student-api";
+import { toast } from "sonner";
 
 const CLASSES = [
   "Class 9th",
@@ -58,10 +61,12 @@ export default function EditProfile() {
     city: "",
     subjects: [] as string[],
     weakSubjects: [] as string[],
+    profilePhoto: "",
   });
 
   const [showSaveSuccess, setShowSaveSuccess] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
 
   const resetForm = () => {
     if (profile) {
@@ -73,6 +78,7 @@ export default function EditProfile() {
         city: p.city ?? "",
         subjects: p.subjects ?? [],
         weakSubjects: p.weakSubjects ?? [],
+        profilePhoto: p.profilePhoto ?? "",
       });
     }
   };
@@ -80,6 +86,33 @@ export default function EditProfile() {
   useEffect(() => {
     resetForm();
   }, [profile]);
+
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    try {
+      const res = await studentApi.uploadProfilePhoto(file);
+      if (res?.url) {
+        setFormData((prev) => ({ ...prev, profilePhoto: res.url }));
+        toast.success("Profile photo uploaded to Cloudinary!");
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to upload profile photo");
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const triggerFileInput = () => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/*";
+    input.onchange = (e) => handlePhotoUpload(e as any);
+    input.click();
+  };
 
   if (isLoading) return <LoadingSkeleton />;
 
@@ -100,12 +133,23 @@ export default function EditProfile() {
         {/* ── PROFILE AVATAR BLOCK ── */}
         <div className="flex flex-col items-center gap-4 p-8 rounded-[32px] border border-white/5 bg-white/[0.02] backdrop-blur-md w-full">
           <div className="relative">
-            <div className="relative h-24 w-24 rounded-full border-4 border-cyan-400 bg-black flex items-center justify-center shadow-[0_0_25px_rgba(34,211,238,0.25)]">
-              <User size={40} className="text-cyan-400" />
+            <div className="relative h-24 w-24 rounded-full border-4 border-cyan-400 bg-black flex items-center justify-center shadow-[0_0_25px_rgba(34,211,238,0.25)] overflow-hidden">
+              {formData.profilePhoto ? (
+                <img src={formData.profilePhoto} alt="Profile" className="w-full h-full object-cover" />
+              ) : (
+                <User size={40} className="text-cyan-400" />
+              )}
+              {isUploading && (
+                <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                  <RefreshCw className="h-5 w-5 text-cyan-400 animate-spin" />
+                </div>
+              )}
             </div>
             {/* Pencil Button overlay to edit profile photo */}
             <button 
               type="button"
+              onClick={triggerFileInput}
+              disabled={isUploading}
               className="absolute bottom-0 right-0 h-8 w-8 rounded-full bg-cyan-400 text-black flex items-center justify-center border-2 border-black shadow-lg cursor-pointer hover:bg-cyan-300 active:scale-95 transition-all"
             >
               <Pencil size={12} strokeWidth={3} />
@@ -282,6 +326,7 @@ export default function EditProfile() {
               city: formData.city,
               subjects: formData.subjects,
               weakSubjects: formData.weakSubjects,
+              profilePhoto: formData.profilePhoto,
             }, {
               onSuccess: () => {
                 setShowSaveSuccess(true);

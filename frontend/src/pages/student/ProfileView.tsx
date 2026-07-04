@@ -55,8 +55,12 @@ export default function ProfileView() {
         {/* ── PROFILE AVATAR BLOCK ── */}
         <div className="flex flex-col items-center gap-4 p-8 rounded-[32px] border border-white/5 bg-white/[0.02] backdrop-blur-md w-full">
           <div className="relative">
-            <div className="relative h-24 w-24 rounded-full border-4 border-cyan-400 bg-black flex items-center justify-center shadow-[0_0_25px_rgba(34,211,238,0.25)]">
-              <User size={40} className="text-cyan-400" />
+            <div className="relative h-24 w-24 rounded-full border-4 border-cyan-400 bg-black flex items-center justify-center shadow-[0_0_25px_rgba(34,211,238,0.25)] overflow-hidden">
+              {p?.profilePhoto ? (
+                <img src={p.profilePhoto} alt="Profile" className="w-full h-full object-cover" />
+              ) : (
+                <User size={40} className="text-cyan-400" />
+              )}
             </div>
           </div>
 

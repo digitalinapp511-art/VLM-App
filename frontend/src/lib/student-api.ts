@@ -128,6 +128,15 @@ export const studentApi = {
     return data;
   },
 
+  uploadProfilePhoto: async (file: File) => {
+    const form = new FormData();
+    form.append("photo", file);
+    const { data } = await apiClient.post("/student/profile/photo", form, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+    return data;
+  },
+
   getLiveClasses: async () => {
     const { data } = await apiClient.get("/student/live-classes");
     return data;

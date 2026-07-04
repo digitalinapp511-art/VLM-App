@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronLeft, ChevronRight, Globe, Bell, Shield, LogOut, User, Sliders } from "lucide-react";
+import { ChevronLeft, ChevronRight, Globe, Bell, Shield, LogOut, User, Sliders, Pencil, RefreshCw } from "lucide-react";
 import { bgCss } from "@/helper/CssHelper";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -11,11 +11,44 @@ import { apiClient } from "@/lib/api-client";
 import { PATHS } from "@/routes/paths";
 import { authApi } from "@/lib/auth-api";
 import ParentLayout from "@/components/layout/ParentLayout";
+import { toast } from "sonner";
 
 export default function ParentProfile() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    try {
+      const form = new FormData();
+      form.append("photo", file);
+      const { data } = await apiClient.post("/parent/profile/photo", form, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      if (data?.url) {
+        queryClient.invalidateQueries({ queryKey: ["parentProfile"] });
+        toast.success("Profile photo updated on Cloudinary!");
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to upload profile photo");
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const triggerFileInput = () => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/*";
+    input.onchange = (e) => handlePhotoUpload(e as any);
+    input.click();
+  };
 
   const { data: profile, isLoading } = useQuery<any>({
     queryKey: ["parentProfile"],
@@ -51,10 +84,24 @@ export default function ParentProfile() {
         {/* ── PROFILE CARD ── */}
         <div className="flex items-center justify-between p-6 rounded-[32px] border border-white/5 bg-white/[0.02] backdrop-blur-md w-full relative">
           <div className="flex items-center gap-4">
-            <Avatar className="w-16 h-16 border border-white/10 bg-zinc-800">
-              <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${parentName}`} />
-              <AvatarFallback>{parentName[0]}</AvatarFallback>
-            </Avatar>
+            <div className="relative">
+              <Avatar className="w-16 h-16 border border-white/10 bg-zinc-800">
+                <AvatarImage src={profile?.profilePhoto || `https://api.dicebear.com/7.x/avataaars/svg?seed=${parentName}`} />
+                <AvatarFallback>{parentName[0]}</AvatarFallback>
+              </Avatar>
+              <button
+                type="button"
+                onClick={triggerFileInput}
+                disabled={isUploading}
+                className="absolute -bottom-1 -right-1 h-6 w-6 rounded-full bg-cyan-400 text-black flex items-center justify-center border border-black shadow-md cursor-pointer hover:bg-cyan-300 active:scale-95 transition-all"
+              >
+                {isUploading ? (
+                  <RefreshCw className="h-3 w-3 animate-spin" />
+                ) : (
+                  <Pencil className="h-3 w-3" />
+                )}
+              </button>
+            </div>
             <div className="text-left">
               <p className="text-[10px] text-white/40 font-bold tracking-widest uppercase">
                 Edit Profile
