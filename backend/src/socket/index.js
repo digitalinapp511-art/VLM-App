@@ -3,10 +3,13 @@ import jwt from 'jsonwebtoken';
 import DoubtRequest from '../models/DoubtRequest.js';
 import Teacher from '../models/Teacher.js';
 
+let ioInstance = null;
+
 export const initSocket = (server) => {
   const io = new Server(server, {
     cors: { origin: process.env.FRONTEND_URL || 'http://localhost:5173', methods: ['GET', 'POST'] },
   });
+  ioInstance = io;
 
   io.use((socket, next) => {
     const token = socket.handshake.auth?.token;
@@ -84,3 +87,5 @@ export const initSocket = (server) => {
 
   return io;
 };
+
+export const getIo = () => ioInstance;

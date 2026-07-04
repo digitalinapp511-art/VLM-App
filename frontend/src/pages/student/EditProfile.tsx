@@ -49,6 +49,7 @@ export default function EditProfile() {
   const navigate = useNavigate();
   const { data: profile, isLoading } = useStudentProfile();
   const mutation = useUpdateProfile();
+  const isEditing = true;
 
   const [formData, setFormData] = useState({
     name: "",
@@ -59,10 +60,10 @@ export default function EditProfile() {
     weakSubjects: [] as string[],
   });
 
-  const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [showSaveSuccess, setShowSaveSuccess] = useState(false);
+  const [copied, setCopied] = useState(false);
 
-  useEffect(() => {
+  const resetForm = () => {
     if (profile) {
       const p = (profile as any).data ?? profile;
       setFormData({
@@ -74,13 +75,11 @@ export default function EditProfile() {
         weakSubjects: p.weakSubjects ?? [],
       });
     }
-  }, [profile]);
-
-  const handleLogout = () => {
-    localStorage.removeItem("vlm_token");
-    sessionStorage.removeItem("vlm_role");
-    navigate(PATHS.SPLASH, { replace: true });
   };
+
+  useEffect(() => {
+    resetForm();
+  }, [profile]);
 
   if (isLoading) return <LoadingSkeleton />;
 
@@ -89,12 +88,17 @@ export default function EditProfile() {
       <div className="max-w-md w-full flex flex-col gap-6">
         
         {/* ── HEADER ── */}
-        <header className="relative w-full flex items-center justify-center mb-6 z-20">
-          <h1 className="text-lg font-bold tracking-[0.1em] uppercase">My Profile</h1>
+        <header className="relative w-full flex items-center justify-between mb-6 z-20">
+          <button
+            onClick={() => navigate(PATHS.PROFILE)}
+            className="h-10 w-10 rounded-xl border border-white/10 bg-white/5 text-white flex items-center justify-center cursor-pointer transition-colors hover:bg-white/10"
+          >
+            <ChevronLeft size={20} />
+          </button>
         </header>
 
         {/* ── PROFILE AVATAR BLOCK ── */}
-        <div className="relative flex flex-col items-center py-2">
+        <div className="flex flex-col items-center gap-4 p-8 rounded-[32px] border border-white/5 bg-white/[0.02] backdrop-blur-md w-full">
           <div className="relative">
             <div className="relative h-24 w-24 rounded-full border-4 border-cyan-400 bg-black flex items-center justify-center shadow-[0_0_25px_rgba(34,211,238,0.25)]">
               <User size={40} className="text-cyan-400" />
@@ -108,143 +112,165 @@ export default function EditProfile() {
             </button>
           </div>
 
-          <div className="text-center mt-4 space-y-0.5">
-            <h2 className="text-base font-bold text-white tracking-wide">My Profile</h2>
-            <p className="text-[10px] text-white/40 tracking-wider uppercase font-bold">
+          <div className="text-center mt-2 space-y-0.5">
+            <h2 className="text-2xl font-black text-white tracking-tight">My Profile</h2>
+            <p className="text-cyan-400 text-xs font-bold tracking-widest uppercase mt-1">
               Edit Details
             </p>
           </div>
         </div>
 
-        {/* ── FORM FIELDS ── */}
-        <main className="w-full space-y-4">
-          <EditFieldWrapper icon={<User size={18} className="text-white/60" />} label="Name">
-            <Input
+        {/* ── FORM FIELDS CARD ── */}
+        <div className="p-6 rounded-[32px] border border-white/5 bg-white/[0.02] backdrop-blur-md space-y-6 w-full">
+          <div className="flex items-center justify-between border-b border-white/5 pb-4 px-1">
+            <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-widest flex items-center gap-2">
+              <User size={16} /> Edit Details
+            </h3>
+          </div>
+
+          <main className="w-full space-y-4">
+            <EditFieldWrapper
+              icon={<User size={18} className="text-zinc-500 mr-3" />}
+              label="Full Name"
               value={formData.name}
-              onChange={(e) =>
-                setFormData({
-                  ...formData,
-                  name: e.target.value,
-                })
-              }
-              className="border-none bg-transparent h-auto p-0 text-sm text-white focus-visible:ring-0 placeholder:text-white/20 mt-0.5"
-              placeholder="Name"
-            />
-          </EditFieldWrapper>
+              isEditing={isEditing}
+            >
+              <Input
+                value={formData.name}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    name: e.target.value,
+                  })
+                }
+                className="border-none bg-transparent h-auto p-0 text-sm text-white focus-visible:ring-0 placeholder:text-white/20 mt-0.5"
+                placeholder="Name"
+              />
+            </EditFieldWrapper>
 
-          <EditFieldWrapper icon={<User size={18} className="text-white/60" />} label="Nickname">
-            <Input
+            <EditFieldWrapper
+              icon={<User size={18} className="text-zinc-500 mr-3" />}
+              label="Nickname"
               value={formData.nickname}
-              onChange={(e) =>
-                setFormData({
-                  ...formData,
-                  nickname: e.target.value,
-                })
-              }
-              className="border-none bg-transparent h-auto p-0 text-sm text-white focus-visible:ring-0 placeholder:text-white/20 mt-0.5"
-              placeholder="Nickname"
-            />
-          </EditFieldWrapper>
+              isEditing={isEditing}
+            >
+              <Input
+                value={formData.nickname}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    nickname: e.target.value,
+                  })
+                }
+                className="border-none bg-transparent h-auto p-0 text-sm text-white focus-visible:ring-0 placeholder:text-white/20 mt-0.5"
+                placeholder="Nickname"
+              />
+            </EditFieldWrapper>
 
-          <EditFieldWrapper icon={<BookOpen size={18} className="text-white/60" />} label="Class">
-            <Select
+            <EditFieldWrapper
+              icon={<BookOpen size={18} className="text-zinc-500 mr-3" />}
+              label="Class"
               value={formData.class}
-              onValueChange={(value) =>
-                setFormData({
-                  ...formData,
-                  class: value ?? "Class 10th",
-                })
-              }
+              isEditing={isEditing}
             >
-              <SelectTrigger className="border-none bg-transparent h-auto p-0 text-sm text-white focus:ring-0 flex justify-between w-full mt-0.5 select-none">
-                <SelectValue placeholder="Select current class" />
-              </SelectTrigger>
+              <Select
+                value={formData.class}
+                onValueChange={(value) =>
+                  setFormData({
+                    ...formData,
+                    class: value ?? "Class 10th",
+                  })
+                }
+              >
+                <SelectTrigger className="border-none bg-transparent h-auto p-0 text-sm text-white focus:ring-0 flex justify-between w-full mt-0.5 select-none">
+                  <SelectValue placeholder="Select current class" />
+                </SelectTrigger>
 
-              <SelectContent className="bg-[#111] border-white/10 text-white rounded-2xl">
-                {CLASSES.map((item) => (
-                  <SelectItem key={item} value={item} className="focus:bg-white/10 focus:text-white rounded-lg">
-                    {item}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </EditFieldWrapper>
+                <SelectContent className="bg-[#111] border-white/10 text-white rounded-2xl">
+                  {CLASSES.map((item) => (
+                    <SelectItem key={item} value={item} className="focus:bg-white/10 focus:text-white rounded-lg">
+                      {item}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </EditFieldWrapper>
 
-          <EditFieldWrapper icon={<Globe size={18} className="text-white/60" />} label="City">
-            <Select
+            <EditFieldWrapper
+              icon={<Globe size={18} className="text-zinc-500 mr-3" />}
+              label="City"
               value={formData.city}
-              onValueChange={(value) =>
-                setFormData({
-                  ...formData,
-                  city: value ?? "",
-                })
-              }
+              isEditing={isEditing}
             >
-              <SelectTrigger className="border-none bg-transparent h-auto p-0 text-sm text-white focus:ring-0 flex justify-between w-full mt-0.5 select-none">
-                <SelectValue placeholder="City city" />
-              </SelectTrigger>
+              <Select
+                value={formData.city}
+                onValueChange={(value) =>
+                  setFormData({
+                    ...formData,
+                    city: value ?? "",
+                  })
+                }
+              >
+                <SelectTrigger className="border-none bg-transparent h-auto p-0 text-sm text-white focus:ring-0 flex justify-between w-full mt-0.5 select-none">
+                  <SelectValue placeholder="City city" />
+                </SelectTrigger>
 
-              <SelectContent className="bg-[#111] border-white/10 text-white rounded-2xl">
-                {CITIES.map((item) => (
-                  <SelectItem key={item} value={item} className="focus:bg-white/10 focus:text-white rounded-lg">
-                    {item}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </EditFieldWrapper>
+                <SelectContent className="bg-[#111] border-white/10 text-white rounded-2xl">
+                  {CITIES.map((item) => (
+                    <SelectItem key={item} value={item} className="focus:bg-white/10 focus:text-white rounded-lg">
+                      {item}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </EditFieldWrapper>
+          </main>
+        </div>
 
-          {/* ── EDIT PREFERRED SUBJECTS NAVIGATION ── */}
-          <div 
-            onClick={() => navigate(PATHS.SUBJECT_SELECTION, { state: { fromProfile: true, type: "preferred" } })}
-            className="flex items-center justify-between p-5 rounded-[1.5rem] border border-white/5 bg-white/[0.04] cursor-pointer hover:bg-white/[0.07] transition-all active:scale-[0.98]"
-          >
-            <div className="flex items-center gap-4">
-              <div className="h-10 w-10 rounded-xl bg-cyan-500/10 flex items-center justify-center">
-                <BookOpen size={18} className="text-cyan-400" />
-              </div>
-              <div className="text-left">
-                <span className="text-sm font-bold text-white block">Preferred Subjects</span>
-                <span className="text-xs text-white/40 block mt-0.5">Click to edit preferred subjects</span>
-              </div>
-            </div>
-            <ChevronLeft size={16} className="text-white/30 rotate-180" />
+        {/* ── SUBJECT SECTION CARD ── */}
+        <div className="p-6 rounded-[32px] border border-white/5 bg-white/[0.02] backdrop-blur-md space-y-6 w-full">
+          <div className="flex items-center border-b border-white/5 pb-4 px-1">
+            <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-widest flex items-center gap-2">
+              <BookOpen size={16} /> Subjects Info
+            </h3>
           </div>
 
-          {/* ── EDIT WEAK SUBJECTS NAVIGATION ── */}
-          <div 
-            onClick={() => navigate(PATHS.SUBJECT_SELECTION, { state: { fromProfile: true, type: "weak" } })}
-            className="flex items-center justify-between p-5 rounded-[1.5rem] border border-white/5 bg-white/[0.04] cursor-pointer hover:bg-white/[0.07] transition-all active:scale-[0.98]"
-          >
-            <div className="flex items-center gap-4">
-              <div className="h-10 w-10 rounded-xl bg-red-500/10 flex items-center justify-center">
-                <BookOpen size={18} className="text-red-400" />
+          <div className="space-y-4">
+            {/* ── EDIT PREFERRED SUBJECTS NAVIGATION ── */}
+            <div 
+              onClick={() => navigate(PATHS.SUBJECT_SELECTION, { state: { fromProfile: true, type: "preferred" } })}
+              className="flex items-center justify-between p-4 rounded-2xl border border-white/5 bg-black/45 cursor-pointer hover:bg-black/60 transition-all active:scale-[0.98]"
+            >
+              <div className="flex items-center gap-4">
+                <div className="h-10 w-10 rounded-xl bg-cyan-500/10 flex items-center justify-center">
+                  <BookOpen size={18} className="text-cyan-400" />
+                </div>
+                <div className="text-left">
+                  <span className="text-sm font-bold text-white block">Preferred Subjects</span>
+                  <span className="text-[10px] text-white/40 block mt-0.5">Click to edit preferred subjects</span>
+                </div>
               </div>
-              <div className="text-left">
-                <span className="text-sm font-bold text-white block">Weak Subjects</span>
-                <span className="text-xs text-white/40 block mt-0.5">Click to edit weak subjects</span>
-              </div>
+              <ChevronLeft size={16} className="text-white/30 rotate-180" />
             </div>
-            <ChevronLeft size={16} className="text-white/30 rotate-180" />
-          </div>
 
-          {/* ── VIEW SESSION HISTORY NAVIGATION ── */}
-          <div 
-            onClick={() => navigate(PATHS.SESSION_HISTORY)}
-            className="flex items-center justify-between p-5 rounded-[1.5rem] border border-white/5 bg-white/[0.04] cursor-pointer hover:bg-white/[0.07] transition-all active:scale-[0.98]"
-          >
-            <div className="flex items-center gap-4">
-              <div className="h-10 w-10 rounded-xl bg-purple-500/10 flex items-center justify-center">
-                <History size={18} className="text-purple-400" />
+            {/* ── EDIT WEAK SUBJECTS NAVIGATION ── */}
+            <div 
+              onClick={() => navigate(PATHS.SUBJECT_SELECTION, { state: { fromProfile: true, type: "weak" } })}
+              className="flex items-center justify-between p-4 rounded-2xl border border-white/5 bg-black/45 cursor-pointer hover:bg-black/60 transition-all active:scale-[0.98]"
+            >
+              <div className="flex items-center gap-4">
+                <div className="h-10 w-10 rounded-xl bg-red-500/10 flex items-center justify-center">
+                  <BookOpen size={18} className="text-red-400" />
+                </div>
+                <div className="text-left">
+                  <span className="text-sm font-bold text-white block">Weak Subjects</span>
+                  <span className="text-[10px] text-white/40 block mt-0.5">Click to edit weak subjects</span>
+                </div>
               </div>
-              <div className="text-left">
-                <span className="text-sm font-bold text-white block">Session History</span>
-                <span className="text-xs text-white/40 block mt-0.5">Click to view past chats and calls</span>
-              </div>
+              <ChevronLeft size={16} className="text-white/30 rotate-180" />
             </div>
-            <ChevronLeft size={16} className="text-white/30 rotate-180" />
           </div>
-        </main>
+        </div>
 
         {/* ── SAVE ACTION BUTTON ── */}
         <div className="mt-4 w-full">
@@ -259,7 +285,10 @@ export default function EditProfile() {
             }, {
               onSuccess: () => {
                 setShowSaveSuccess(true);
-                setTimeout(() => setShowSaveSuccess(false), 3000);
+                setTimeout(() => {
+                  setShowSaveSuccess(false);
+                  navigate(PATHS.PROFILE);
+                }, 1000);
               }
             })}
             disabled={mutation.isPending}
@@ -278,63 +307,7 @@ export default function EditProfile() {
           )}
         </div>
 
-        {/* ── LOGOUT BUTTON ── */}
-        <div className="w-full">
-          <Button
-            variant="ghost"
-            onClick={() => setShowLogoutModal(true)}
-            className="w-full h-12 rounded-full border border-red-500/20 hover:bg-red-500/10 text-red-400 gap-2 font-bold tracking-wide"
-          >
-            <LogOut size={16} />
-            LOG OUT
-          </Button>
-        </div>
-
       </div>
-
-      {/* ── LOGOUT CONFIRMATION POPUP ── */}
-      <AnimatePresence>
-        {showLogoutModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-6">
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="relative w-full max-w-xs rounded-[2.5rem] border border-white/10 bg-gradient-to-b from-[#1c1c1e] to-[#0a0a0c] p-8 text-center shadow-[0_0_50px_rgba(255,255,255,0.05)] flex flex-col items-center gap-6"
-            >
-              <div className="h-16 w-16 rounded-full bg-cyan-950/40 flex items-center justify-center text-cyan-400 border border-cyan-500/20 text-2xl shadow-inner">
-                ⭐
-              </div>
-
-              <div className="space-y-2">
-                <h3 className="text-lg font-bold text-white leading-snug">
-                  Are you sure you want to log out?
-                </h3>
-              </div>
-
-              <div className="flex flex-col gap-3 w-full">
-                <Button
-                  onClick={() => setShowLogoutModal(false)}
-                  className="w-full h-12 rounded-full font-bold text-sm bg-white text-black hover:bg-white/90 border-none transition-all flex items-center justify-center gap-1.5"
-                >
-                  ✓ CANCEL
-                </Button>
-                <Button
-                  onClick={handleLogout}
-                  className="w-full h-12 rounded-full font-bold text-sm bg-gradient-to-b from-blue-700 to-indigo-900 hover:from-blue-600 hover:to-indigo-800 text-white border border-blue-400/20 shadow-[0_0_15px_rgba(37,99,235,0.3)] active:scale-95 transition-all flex items-center justify-center gap-1.5"
-                >
-                  ➜ LOGOUT
-                </Button>
-              </div>
-
-              <p className="text-[10px] text-white/30 uppercase tracking-widest font-bold">
-                We priority match your review
-              </p>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
     </div>
   );
 }
@@ -346,20 +319,17 @@ function EditFieldWrapper({
 }: {
   icon: React.ReactNode;
   label: string;
+  value?: string;
+  isEditing?: boolean;
   children: React.ReactNode;
 }) {
   return (
-    <Card className="bg-white/[0.04] border-white/5 backdrop-blur-xl rounded-[1.5rem] overflow-hidden">
-      <CardContent className="px-5 py-4 flex items-center gap-4">
-        <div className="text-white/50 flex items-center justify-center">{icon}</div>
-
-        <div className="flex-1 min-w-0">
-          <Label className="text-[10px] text-white/40 font-bold block mb-0.5">
-            {label}
-          </Label>
-          <div className="w-full">{children}</div>
-        </div>
-      </CardContent>
-    </Card>
+    <div className="space-y-1 text-left">
+      <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider ml-2">{label}</label>
+      <div className="flex items-center p-3 rounded-2xl bg-black/40 border border-white/5 text-white">
+        {icon}
+        <div className="flex-1 min-w-0 ml-1">{children}</div>
+      </div>
+    </div>
   );
 }

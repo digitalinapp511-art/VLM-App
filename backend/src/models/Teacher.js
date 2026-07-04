@@ -4,6 +4,7 @@ import { TEACHER_STATUS } from '../config/constants.js';
 const teacherSchema = new mongoose.Schema(
   {
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, unique: true },
+    vlmTeacherId: { type: String, unique: true, sparse: true, index: true },
     fullName: { type: String, required: true },
     profilePhoto: String,
     gender: { type: String, enum: ['male', 'female', 'other'] },

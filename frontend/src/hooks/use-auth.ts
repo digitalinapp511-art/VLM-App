@@ -4,8 +4,8 @@ import type { Role } from "@/types";
 
 export function useSendOtp() {
   return useMutation({
-    mutationFn: ({ email, purpose = "login" }: { email: string; purpose?: string }) =>
-      authApi.sendOtp(email, purpose),
+    mutationFn: ({ email, purpose = "login", role }: { email: string; purpose?: string; role?: string }) =>
+      authApi.sendOtp(email, purpose, role),
   });
 }
 

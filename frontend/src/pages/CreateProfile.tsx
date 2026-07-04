@@ -1,9 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { PATHS } from "@/routes/paths";
-import { ChevronLeft, User, MapPin, Phone } from "lucide-react";
+import { ChevronLeft, User, MapPin, Phone, Mail } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCreateProfile } from "@/hooks/use-student";
+import { useQuery } from "@tanstack/react-query";
+import { authApi } from "@/lib/auth-api";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,6 +47,22 @@ export default function CreateProfileShadcn() {
   const [city, setCity] = useState("");
   const [state, setState] = useState("Maharashtra");
   const [mobile, setMobile] = useState("");
+  const [email, setEmail] = useState("");
+  const [parentMobile, setParentMobile] = useState("");
+
+  // Query to get current logged in user details
+  const { data: user } = useQuery({
+    queryKey: ["currentUserProfileSetup"],
+    queryFn: authApi.getMe,
+  });
+
+  // Sync user details to states
+  useEffect(() => {
+    if (user) {
+      if (user.mobile) setMobile(user.mobile);
+      if (user.email) setEmail(user.email);
+    }
+  }, [user]);
 
   const [preferredSubjects, setPreferredSubjects] = useState<string[]>(["Mathematics"]);
   const [weakSubjects, setWeakSubjects] = useState<string[]>(["Social Studies"]);
@@ -66,7 +84,8 @@ export default function CreateProfileShadcn() {
         state,
         medium,
         mobile,
-        parentMobile: mobile,
+        email,
+        parentMobile,
         subjects: preferredSubjects,
         preferredSubjects,
         weakSubjects,
@@ -229,18 +248,48 @@ export default function CreateProfileShadcn() {
             </Field>
           </div>
 
-          <Field label="Student Mobile Number">
-            <div className="relative">
-              <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/25 pointer-events-none" />
-              <Input
-                type="tel"
-                placeholder="Parent's Phone Number"
-                value={mobile}
-                onChange={(e) => setMobile(e.target.value)}
-                className={cn(inputCls, "pl-10")}
-              />
-            </div>
-          </Field>
+          <div className="space-y-4 pt-2">
+            <Field label="Student Mobile Number">
+              <div className="relative">
+                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/25 pointer-events-none" />
+                <Input
+                  type="tel"
+                  placeholder="Enter student mobile number"
+                  value={mobile}
+                  onChange={(e) => setMobile(e.target.value)}
+                  disabled={!!user?.mobile}
+                  className={cn(inputCls, "pl-10", !!user?.mobile && "opacity-60 bg-zinc-900 cursor-not-allowed")}
+                />
+              </div>
+            </Field>
+
+            <Field label="Student Email">
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/25 pointer-events-none" />
+                <Input
+                  type="email"
+                  placeholder="Enter student email address"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  disabled={!!user?.email}
+                  className={cn(inputCls, "pl-10", !!user?.email && "opacity-60 bg-zinc-900 cursor-not-allowed")}
+                />
+              </div>
+            </Field>
+
+            <Field label="Parent Mobile Number">
+              <div className="relative">
+                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/25 pointer-events-none" />
+                <Input
+                  type="tel"
+                  placeholder="Enter parent mobile number"
+                  value={parentMobile}
+                  onChange={(e) => setParentMobile(e.target.value)}
+                  className={cn(inputCls, "pl-10")}
+                />
+              </div>
+            </Field>
+          </div>
         </SectionCard>
 
         {/* 4 · Academic Preferences */}

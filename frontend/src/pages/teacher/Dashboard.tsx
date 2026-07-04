@@ -123,7 +123,7 @@ const Dashboard: React.FC = () => {
               onClick={() => navigate(PATHS.TEACHER_PROFILE)}
             >
               <Avatar className="w-10 h-10 border-2 border-white/10 bg-zinc-800">
-                <AvatarImage src={teacher?.profilePhoto ?? `https://api.dicebear.com/7.x/avataaars/svg?seed=${firstName}`} />
+                <AvatarImage src={teacher?.profilePhoto || `https://api.dicebear.com/7.x/avataaars/svg?seed=${firstName}`} />
                 <AvatarFallback>{firstName[0]}</AvatarFallback>
               </Avatar>
               <span className="text-[10px] font-bold text-zinc-500 mt-1">{firstName}</span>
@@ -133,11 +133,11 @@ const Dashboard: React.FC = () => {
 
         {/* Stats Grid */}
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-          <StatsCard title="Today's Earnings" value={isLoading ? "..." : `₹${stats?.walletBalance ?? 0}`} subValue="+0%" variant="teal" onClick={() => navigate(PATHS.TEACHER_EARNINGS_HISTORY)} />
-          <StatsCard title="Total Points" value={isLoading ? "..." : String(stats?.totalPoints ?? 0)} subValue="Value:" variant="gold" icon={<Star size={14} fill="currentColor" />} onClick={() => navigate(PATHS.TEACHER_WALLET)} />
-          <StatsCard title="Wallet Balance" value={isLoading ? "..." : `₹${stats?.walletBalance ?? 0}`} subValue="recent activity..." variant="purple" onClick={() => navigate(PATHS.TEACHER_WALLET)} />
-          <StatsCard title="Total Sessions" value={isLoading ? "..." : String(stats?.totalSessions ?? 0)} subValue="Value:" icon={<History size={14} />} onClick={() => navigate(PATHS.TEACHER_SESSION_HISTORY)} />
-          <StatsCard title="Missed Requests" value={isLoading ? "..." : String(stats?.missedRequests ?? 0)} subValue="Value:" onClick={() => navigate(PATHS.TEACHER_REQUESTS)} />
+          <StatsCard title="Today's Earnings" value={isLoading ? "..." : `₹${stats?.todayEarnings ?? 0}`} subValue="Today" variant="teal" onClick={() => navigate(PATHS.TEACHER_EARNINGS_HISTORY)} />
+          <StatsCard title="Total Points" value={isLoading ? "..." : String(stats?.totalPoints ?? 0)} subValue={`Value: ₹${(stats?.totalPoints ?? 0) / 10}`} variant="gold" icon={<Star size={14} fill="currentColor" />} onClick={() => navigate(PATHS.TEACHER_WALLET)} />
+          <StatsCard title="Wallet Balance" value={isLoading ? "..." : `₹${stats?.walletBalance ?? 0}`} subValue="withdrawable" variant="purple" onClick={() => navigate(PATHS.TEACHER_WALLET)} />
+          <StatsCard title="Total Sessions" value={isLoading ? "..." : String(stats?.totalSessions ?? 0)} subValue="sessions" icon={<History size={14} />} onClick={() => navigate(PATHS.TEACHER_SESSION_HISTORY)} />
+          <StatsCard title="Missed Requests" value={isLoading ? "..." : String(stats?.missedRequests ?? 0)} subValue="missed" onClick={() => navigate(PATHS.TEACHER_REQUESTS)} />
           <StatsCard title="Rating" value={isLoading ? "..." : String(stats?.rating ?? 0)} subValue={`${stats?.rating ?? 0} | ${data?.recentReviews?.length ?? 0} reviews`} icon={<Star size={14} fill="currentColor" className="text-yellow-500" />} />
         </div>
 
@@ -148,34 +148,24 @@ const Dashboard: React.FC = () => {
             {isLoading ? (
               <p className="text-xs text-zinc-500">Loading...</p>
             ) : (() => {
-              const classesToDisplay = data?.upcomingClasses?.length > 0 ? data.upcomingClasses : [
-                {
-                  id: "mock-1",
-                  type: "Mathematics - Calculus",
-                  student: "Rohan Sharma (Class 12)",
-                  startedAt: new Date(Date.now() + 10 * 60 * 1000).toISOString()
-                },
-                {
-                  id: "mock-2",
-                  type: "Physics - Electrostatics",
-                  student: "Sneha Patel (Class 12)",
-                  startedAt: new Date(Date.now() + 45 * 60 * 1000).toISOString()
-                }
-              ];
-              return classesToDisplay.map((cls: any) => (
-                <LiveClassCard
-                  key={cls.id}
-                  title={cls.type}
-                  student={cls.student}
-                  time={
-                    cls.startedAt
-                      ? new Date(cls.startedAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })
-                      : "Pending"
-                  }
-                />
-              ));
+              if (!data?.upcomingClasses || data.upcomingClasses.length === 0) {
+                return <p className="text-xs text-zinc-500 py-4">No upcoming live classes scheduled</p>;
+              }
+              return (
+                <>
+                  {data.upcomingClasses.map((cls: any) => (
+                    <LiveClassCard
+                      key={cls.id}
+                      title={cls.type}
+                      student={cls.student}
+                      startedAt={cls.startedAt}
+                      duration={cls.duration}
+                    />
+                  ))}
+                  <span className="text-[9px] font-bold text-zinc-600 text-center uppercase">next class scheduled</span>
+                </>
+              );
             })()}
-            <span className="text-[9px] font-bold text-zinc-600 text-center uppercase">next in 10 mins</span>
           </div>
 
           <div className="p-6 rounded-[32px] border border-white/5 bg-white/[0.02] flex flex-col gap-6">

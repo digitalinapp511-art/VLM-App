@@ -10,6 +10,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { toast } from "sonner";
 
 type Notification = {
   id: string;
@@ -29,6 +31,11 @@ export default function StudentNotifications() {
     queryFn: studentApi.getNotifications,
   });
 
+  const { data: parentRequests, refetch: refetchParentRequests } = useQuery<any[]>({
+    queryKey: ["parentRequests"],
+    queryFn: studentApi.getParentRequests,
+  });
+
   const markRead = useMutation({
     mutationFn: studentApi.markNotificationRead,
     onSuccess: () => {
@@ -36,11 +43,11 @@ export default function StudentNotifications() {
     },
   });
 
-  const notifications: Notification[] = Array.isArray(rawNotifications?.data) 
+  const notifications: Notification[] = (Array.isArray(rawNotifications?.data) 
     ? rawNotifications.data 
     : Array.isArray(rawNotifications) 
       ? rawNotifications 
-      : [];
+      : []).filter((n: any) => n.type !== 'parent_link_request');
 
   return (
     <div className={`${bgCss} min-h-svh w-full text-white flex flex-col items-center pb-7 overflow-x-hidden`}>
@@ -56,6 +63,57 @@ export default function StudentNotifications() {
         </header>
 
         <main className="px-6 space-y-4 relative z-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
+          {/* Parent Linking Requests */}
+          {parentRequests && parentRequests.map((request: any) => (
+            <Card key={request._id} className="border-purple-500/30 bg-purple-950/20 backdrop-blur-md rounded-2xl shadow-[0_0_15px_rgba(168,85,247,0.1)]">
+              <CardContent className="p-4 flex flex-col gap-4">
+                <div className="flex gap-4">
+                  <Avatar className="w-10 h-10 border border-purple-500/20">
+                    <AvatarImage src={request.profilePhoto || `https://api.dicebear.com/7.x/avataaars/svg?seed=${request.fullName}`} />
+                    <AvatarFallback>{request.fullName?.[0] || 'P'}</AvatarFallback>
+                  </Avatar>
+                  <div className="space-y-1 text-left flex-1">
+                    <p className="text-sm font-bold text-white">Parent Linking Request</p>
+                    <p className="text-xs text-white/70">
+                      Parent <span className="text-purple-400 font-bold">{request.fullName}</span> ({request.email || request.mobile || "No Contact Info"}) wants to link with your account.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex gap-3 justify-end">
+                  <Button 
+                    onClick={async () => {
+                      try {
+                        await studentApi.approveParentRequest(request._id);
+                        toast.success("Parent linked successfully!");
+                        refetchParentRequests();
+                      } catch (err) {
+                        toast.error("Failed to approve request.");
+                      }
+                    }}
+                    className="h-9 px-4 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs"
+                  >
+                    Accept
+                  </Button>
+                  <Button 
+                    onClick={async () => {
+                      try {
+                        await studentApi.rejectParentRequest(request._id);
+                        toast.success("Request declined.");
+                        refetchParentRequests();
+                      } catch (err) {
+                        toast.error("Failed to decline request.");
+                      }
+                    }}
+                    variant="outline"
+                    className="h-9 px-4 rounded-xl border-white/10 bg-transparent text-white font-bold text-xs hover:bg-white/5"
+                  >
+                    Decline
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+
           {isLoading ? (
             <div className="space-y-4">
               {[1, 2, 3, 4].map((i) => (

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { 
@@ -7,10 +7,117 @@ import {
 import { bgCss } from "@/helper/CssHelper";
 import { cn } from "@/lib/utils";
 import { PATHS } from "@/routes/paths";
+import { useQuery } from "@tanstack/react-query";
+import { teacherApi } from "@/lib/teacher-api";
 import StatusTimelineCard from "@/components/basic/teacher/StatusTimelineCard";
+
+const ClassCountdown: React.FC<{ scheduledAt: string; onReady: () => void }> = ({ scheduledAt, onReady }) => {
+  const [timeLeft, setTimeLeft] = useState("");
+  const [isReady, setIsReady] = useState(false);
+
+  useEffect(() => {
+    const calculateTimeLeft = () => {
+      const difference = +new Date(scheduledAt) - +new Date();
+      if (difference <= 0) {
+        setTimeLeft("Class time has arrived!");
+        setIsReady(true);
+        onReady();
+        return;
+      }
+      
+      // If within 15 minutes, enable the button
+      if (difference <= 15 * 60 * 1000) {
+        setIsReady(true);
+        onReady();
+      }
+
+      const hours = Math.floor(difference / (1000 * 60 * 60));
+      const minutes = Math.floor((difference / 1000 / 60) % 60);
+      const seconds = Math.floor((difference / 1000) % 60);
+
+      const parts = [];
+      if (hours > 0) parts.push(`${hours.toString().padStart(2, '0')}h`);
+      parts.push(`${minutes.toString().padStart(2, '0')}m`);
+      parts.push(`${seconds.toString().padStart(2, '0')}s`);
+
+      setTimeLeft(`Starts in: ${parts.join(" ")}`);
+    };
+
+    calculateTimeLeft();
+    const timer = setInterval(calculateTimeLeft, 1000);
+    return () => clearInterval(timer);
+  }, [scheduledAt]);
+
+  return (
+    <div className={cn(
+      "text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 rounded-full inline-block mt-2",
+      isReady 
+        ? "bg-green-500/10 text-green-400 border border-green-500/20" 
+        : "bg-yellow-500/10 text-yellow-400 border border-yellow-500/20"
+    )}>
+      {timeLeft}
+    </div>
+  );
+};
 
 const LiveClassRequestStatus: React.FC = () => {
   const navigate = useNavigate();
+  const [readyClasses, setReadyClasses] = useState<Record<string, boolean>>({});
+
+  const { data: classes, isLoading } = useQuery({
+    queryKey: ["liveClasses"],
+    queryFn: teacherApi.getLiveClasses,
+  });
+
+  const mapStatusToTimeline = (dbStatus: string): "approved" | "action" | "review" | "rejected" => {
+    switch (dbStatus) {
+      case "approved":
+      case "live":
+      case "ended":
+        return "approved";
+      case "needs_changes":
+        return "action";
+      case "pending":
+      case "draft":
+        return "review";
+      case "rejected":
+      case "cancelled":
+      default:
+        return "rejected";
+    }
+  };
+
+  const getButtonText = (dbStatus: string, isReady: boolean): string => {
+    switch (dbStatus) {
+      case "approved":
+      case "live":
+        return isReady ? "Go Live Now" : "Waiting for Time";
+      case "ended":
+        return "Completed";
+      case "needs_changes":
+        return "Edit Request";
+      case "pending":
+      case "draft":
+        return "Withdraw Request";
+      case "rejected":
+      case "cancelled":
+      default:
+        return "Reapply";
+    }
+  };
+
+  const handleCardAction = (item: any) => {
+    const status = item.status;
+    if (status === "ended") {
+      alert("This class has already ended.");
+      return;
+    }
+    if (status === "approved" || status === "live") {
+      navigate(PATHS.TEACHER_LIVE_SESSION, { state: { classId: item._id, topic: item.topic } });
+    } else {
+      alert(`Class status is "${status}". Action not available yet.`);
+    }
+  };
 
   return (
     <div className={cn("min-h-screen flex flex-col p-4 pb-28 relative overflow-x-hidden", bgCss)}>
@@ -48,76 +155,89 @@ const LiveClassRequestStatus: React.FC = () => {
           animate={{ opacity: 1, y: 0 }}
           className="text-2xl font-black text-white text-center mb-8"
         >
-          My Class Approval Status
+          My Live Classes
         </motion.h2>
 
         {/* Timeline Container */}
         <div className="flex flex-col">
-          {/* 1. Approved Case */}
-          <StatusTimelineCard
-            status="approved"
-            topic="Advanced Trigonometry"
-            date="Oct 26, 11:00 AM"
-            buttonText="Go Live Now"
-          >
-            <div className="bg-zinc-900/60 rounded-2xl p-4 mb-4 space-y-2 border border-white/5">
-              <div className="text-[11px] font-medium text-zinc-400 space-y-1.5">
-                <p><span className="text-zinc-500 font-bold uppercase mr-1">Topic:</span> Advanced Trigonometry</p>
-                <p><span className="text-zinc-500 font-bold uppercase mr-1">Subject:</span> Mathematics</p>
-                <p><span className="text-zinc-500 font-bold uppercase mr-1">Class:</span> Grade 10</p>
-                <p><span className="text-zinc-500 font-bold uppercase mr-1">Board:</span> CBSE</p>
-                <p><span className="text-zinc-500 font-bold uppercase mr-1">Language:</span> English</p>
-                <div className="pt-1">
-                  <span className="text-zinc-500 font-bold uppercase block mb-0.5">Description:</span>
-                  <p className="line-clamp-2">Mastering complex functions and ensuring deep conceptual clarity...</p>
-                </div>
-              </div>
+          {isLoading ? (
+            <div className="text-center py-12 text-zinc-500 font-bold uppercase tracking-wider text-xs">
+              Loading requests...
             </div>
-
-            <div className="rounded-2xl border border-dashed border-yellow-500/40 bg-yellow-500/[0.03] p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <FileText className="text-yellow-500" size={16} />
-                <span className="text-[10px] font-black text-yellow-500 uppercase tracking-widest">
-                  Moderator Feedback
-                </span>
-              </div>
-              <p className="text-[11px] text-zinc-400 leading-relaxed">
-                Approved for publication. Excellent session plan. Remember to upload pre-session reading materials by Oct 24th.
-              </p>
+          ) : !classes || classes.length === 0 ? (
+            <div className="text-center py-12 px-6 rounded-3xl border border-dashed border-white/10 bg-white/[0.01]">
+              <p className="text-zinc-500 font-bold uppercase tracking-wider text-xs mb-4">No live classes scheduled</p>
+              <button 
+                onClick={() => navigate(PATHS.CREATE_LIVE_CLASS)}
+                className="px-6 py-3 rounded-full bg-cyan-400 text-black font-black uppercase text-xs tracking-widest hover:bg-cyan-300 transition-all"
+              >
+                Create a Class Now
+              </button>
             </div>
-          </StatusTimelineCard>
+          ) : (
+            classes.map((item: any) => {
+              const isApproved = item.status === "approved" || item.status === "live";
+              const isReady = item.status !== "ended" && (!isApproved || !!readyClasses[item._id]);
 
-          {/* 2. Action Required Case */}
-          <StatusTimelineCard
-            status="action"
-            topic="Fractions Basics"
-            notes="Please clarify objectives"
-            buttonText="Edit Request"
-          />
+              return (
+                <StatusTimelineCard
+                  key={item._id}
+                  status={mapStatusToTimeline(item.status)}
+                  topic={item.topic}
+                  date={item.scheduledAt ? new Date(item.scheduledAt).toLocaleString(undefined, {
+                    month: 'short',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  }) : "N/A"}
+                  notes={item.rejectionReason}
+                  buttonText={getButtonText(item.status, isReady)}
+                  onClick={() => handleCardAction(item)}
+                  disabled={!isReady}
+                >
+                  <div className="bg-zinc-900/60 rounded-2xl p-4 mb-4 space-y-2 border border-white/5">
+                    <div className="text-[11px] font-medium text-zinc-400 space-y-1.5 text-left">
+                      <p><span className="text-zinc-500 font-bold uppercase mr-1">Subject:</span> {item.subject || "N/A"}</p>
+                      <p><span className="text-zinc-500 font-bold uppercase mr-1">Class:</span> {item.class || "N/A"}</p>
+                      <p><span className="text-zinc-500 font-bold uppercase mr-1">Board:</span> {item.board || "N/A"}</p>
+                      <p><span className="text-zinc-500 font-bold uppercase mr-1">Language:</span> {item.language || "N/A"}</p>
+                      {item.description && (
+                        <div className="pt-1">
+                          <span className="text-zinc-500 font-bold uppercase block mb-0.5">Description:</span>
+                          <p className="line-clamp-2">{item.description}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
 
-          {/* 3. Under Review Case */}
-          <StatusTimelineCard
-            status="review"
-            topic="Biology: Cell Structure"
-            notes="Under Review"
-            buttonText="Withdraw Request"
-          />
-
-          {/* 4. Rejected Case */}
-          <StatusTimelineCard
-            status="rejected"
-            topic="Global History"
-            notes="Topic already covered"
-            buttonText="Reapply"
-          />
+                  {isApproved && (
+                    <div className="rounded-2xl border border-dashed border-cyan-500/40 bg-cyan-500/[0.03] p-4 text-left">
+                      <div className="flex items-center gap-2 mb-1">
+                        <FileText className="text-cyan-400" size={16} />
+                        <span className="text-[10px] font-black text-cyan-400 uppercase tracking-widest">
+                          Schedule Status
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-zinc-400 leading-relaxed mb-2">
+                        This session is approved. You can start the class once the scheduled time is reached.
+                      </p>
+                      <ClassCountdown 
+                        scheduledAt={item.scheduledAt} 
+                        onReady={() => setReadyClasses(prev => ({ ...prev, [item._id]: true }))}
+                      />
+                    </div>
+                  )}
+                </StatusTimelineCard>
+              );
+            })
+          )}
         </div>
 
         {/* Footer Info */}
         <footer className="mt-8 text-center pb-10">
           <div className="inline-block px-6 py-4 rounded-3xl bg-zinc-950/40 backdrop-blur-sm border border-white/5">
             <p className="text-[9px] font-bold text-zinc-600 uppercase tracking-widest leading-loose">
-              Teacher: Dr. Elena Petrova | ID: VLM-FA-01234<br />
-              Note: Session approval takes up to 24 hours.
+              Classes are auto-approved on creation.
             </p>
           </div>
         </footer>

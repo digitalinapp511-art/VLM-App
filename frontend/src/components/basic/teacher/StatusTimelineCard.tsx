@@ -13,6 +13,8 @@ interface StatusTimelineCardProps {
   notes?: string;
   buttonText?: string;
   isDetailed?: boolean;
+  onClick?: () => void;
+  disabled?: boolean;
   children?: React.ReactNode;
 }
 
@@ -49,6 +51,8 @@ const StatusTimelineCard: React.FC<StatusTimelineCardProps> = ({
   date,
   notes,
   buttonText,
+  onClick,
+  disabled = false,
 //   isDetailed = false,
   children,
 }) => {
@@ -68,8 +72,7 @@ const StatusTimelineCard: React.FC<StatusTimelineCardProps> = ({
         animate={{ opacity: 1, x: 0 }}
         className={cn(
           "flex-1 p-5 rounded-[28px] border bg-[#121212]/80 backdrop-blur-xl mb-6 relative overflow-hidden",
-          config.color,
-          config.shadow
+          disabled ? "border-zinc-800 shadow-none opacity-60" : cn(config.color, config.shadow)
         )}
       >
         <div className="flex justify-between items-start mb-4">
@@ -96,11 +99,14 @@ const StatusTimelineCard: React.FC<StatusTimelineCardProps> = ({
         {buttonText && (
           <div className="flex justify-end mt-4">
             <Button
+              onClick={onClick}
+              disabled={disabled}
               variant="outline"
               size="sm"
               className={cn(
                 "rounded-full px-6 h-9 text-[11px] font-bold uppercase tracking-widest border-zinc-700 bg-transparent hover:bg-white/5",
-                status === "approved" && "w-full h-12 rounded-full border-cyan-400/50 text-white hover:bg-cyan-400/10 text-sm"
+                status === "approved" && "w-full h-12 rounded-full border-cyan-400/50 text-white hover:bg-cyan-400/10 text-sm",
+                disabled && "opacity-40 cursor-not-allowed border-zinc-800 hover:bg-transparent text-zinc-500 shadow-none pointer-events-none"
               )}
             >
               {buttonText}

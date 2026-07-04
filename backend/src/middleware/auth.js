@@ -28,9 +28,21 @@ export const protect = async (req, res, next) => {
   }
 };
 
-export const authorize = (...roles) => (req, res, next) => {
-  if (!roles.includes(req.user.activeRole)) {
+export const authorize = (...roles) => async (req, res, next) => {
+  const hasRole = roles.some(r => req.user.roles.includes(r));
+  if (!hasRole) {
     return res.status(403).json({ success: false, message: 'Access denied for this role' });
+  }
+  if (!roles.includes(req.user.activeRole)) {
+    const matchingRole = roles.find(r => req.user.roles.includes(r));
+    if (matchingRole) {
+      req.user.activeRole = matchingRole;
+      try {
+        await req.user.save();
+      } catch (err) {
+        console.error("Failed to save activeRole switch:", err);
+      }
+    }
   }
   next();
 };

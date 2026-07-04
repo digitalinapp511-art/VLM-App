@@ -15,6 +15,7 @@ import { asyncHandler } from '../middleware/errorHandler.js';
 import { creditTeacher, calculateSessionEarning } from '../services/rewardService.js';
 import { detectRestrictedContent } from '../utils/helpers.js';
 import { createNotification } from '../services/notificationService.js';
+import { getFileUrl } from '../middleware/upload.js';
 
 export const getIncomingRequests = asyncHandler(async (req, res) => {
   const teacher = await Teacher.findOne({ userId: req.user._id });
@@ -159,7 +160,7 @@ export const resolveSession = asyncHandler(async (req, res) => {
 });
 
 export const getSessionHistory = asyncHandler(async (req, res) => {
-  const { role } = req.user;
+  const role = req.user.activeRole;
   const { type, status, page = 1, limit = 20 } = req.query;
   const query = {};
 
@@ -305,12 +306,12 @@ export const replyReview = asyncHandler(async (req, res) => {
 
 export const createLiveClass = asyncHandler(async (req, res) => {
   const teacher = await Teacher.findOne({ userId: req.user._id });
-  const liveClass = await LiveClass.create({ teacherId: teacher._id, ...req.body, status: 'pending' });
+  const liveClass = await LiveClass.create({ teacherId: teacher._id, ...req.body, status: 'approved' });
   res.status(201).json({ success: true, data: liveClass });
 });
 
 export const getLiveClasses = asyncHandler(async (req, res) => {
-  const { role } = req.user;
+  const role = req.user.activeRole;
   let query = {};
   if (role === 'teacher') {
     const teacher = await Teacher.findOne({ userId: req.user._id });
@@ -329,7 +330,7 @@ export const uploadShortVideo = asyncHandler(async (req, res) => {
   const video = await ShortVideo.create({
     uploaderId: req.user._id,
     uploaderRole: req.user.activeRole,
-    videoUrl: req.body.videoUrl || (req.file ? `/uploads/videos/${req.file.filename}` : ''),
+    videoUrl: req.body.videoUrl || (req.file ? getFileUrl(req.file.filename, 'videos') : ''),
     duration: req.body.duration,
     ...req.body,
     status: 'pending',

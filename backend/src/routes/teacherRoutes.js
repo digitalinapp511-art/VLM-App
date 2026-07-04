@@ -9,19 +9,19 @@ import {
   getEarningsHistory, getAnalytics,
 } from '../controllers/sharedController.js';
 import { protect, authorize } from '../middleware/auth.js';
-import { upload } from '../middleware/upload.js';
+import { upload, cloudinaryUploadMiddleware, getFileUrl } from '../middleware/upload.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
 import Teacher from '../models/Teacher.js';
 
 const router = Router();
 router.use(protect, authorize('teacher'));
 
-router.post('/profile/photo', upload.single('photo'), asyncHandler(async (req, res) => {
+router.post('/profile/photo', upload.single('photo'), cloudinaryUploadMiddleware, asyncHandler(async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ success: false, message: 'No file uploaded' });
   }
   const teacher = await Teacher.findOne({ userId: req.user._id });
-  const photoUrl = `/uploads/profiles/${req.file.filename}`;
+  const photoUrl = getFileUrl(req.file.filename, 'profiles');
   if (teacher) {
     teacher.profilePhoto = photoUrl;
     await teacher.save();
@@ -31,10 +31,33 @@ router.post('/profile/photo', upload.single('photo'), asyncHandler(async (req, r
 
 router.get('/profile', getTeacherProfile);
 router.put('/onboarding', updateOnboarding);
-router.post('/onboarding/upload', upload.single('file'), (req, res) => {
+
+router.post('/onboarding/upload', upload.single('file'), cloudinaryUploadMiddleware, (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ success: false, message: 'No file uploaded' });
+  }
   const folder = req.file?.mimetype?.startsWith('video/') ? 'videos' : 'documents';
-  res.json({ success: true, url: `/uploads/${folder}/${req.file.filename}` });
+  const url = getFileUrl(req.file.filename, folder);
+  res.json({ success: true, url });
 });
+
+router.post('/documents', upload.single('document'), cloudinaryUploadMiddleware, (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ success: false, message: 'No file uploaded' });
+  }
+  const folder = req.file?.mimetype?.startsWith('video/') ? 'videos' : 'documents';
+  const url = getFileUrl(req.file.filename, folder);
+  res.json({ success: true, url });
+});
+
+router.post('/demo-video', upload.single('video'), cloudinaryUploadMiddleware, (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ success: false, message: 'No file uploaded' });
+  }
+  const url = getFileUrl(req.file.filename, 'videos');
+  res.json({ success: true, url });
+});
+
 router.post('/submit', submitApplication);
 router.get('/application-status', getApplicationStatus);
 router.put('/availability', updateAvailability);

@@ -1,5 +1,6 @@
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { apiClient } from "@/lib/api-client";
 
 import SplashPage from "@/pages/SplashPage";
 import RoleSelectPage from "@/pages/RoleSelectPage";
@@ -42,6 +43,7 @@ import TeacherSearching from "./pages/student/TeacherSearching";
 import ChatSession from "./pages/student/ChatSession";
 import Leaderboard from "./pages/student/Leaderboard";
 import EditProfile from "./pages/student/EditProfile";
+import ProfileView from "./pages/student/ProfileView";
 import Profile from "./pages/student/Profile";
 import { PATHS } from "@/routes/paths";
 import TeacherRegistration from "./pages/teacher/TeacherRegistration";
@@ -54,6 +56,10 @@ import AddChild from "./pages/Parent/Addchild";
 import LiveActivity from "./pages/Parent/LiveActivity";
 import DoubtHistory from "./pages/Parent/DoubtHistory";
 import ParentDashboardPage from "./pages/Parent/ParentDashboardPage";
+import ParentPendingApproval from "./pages/Parent/ParentPendingApproval";
+import ParentProfile from "./pages/Parent/ParentProfile";
+import ParentAnalytics from "./pages/Parent/ParentAnalytics";
+import ParentControls from "./pages/Parent/ParentControls";
 import BoardSelection from "./pages/teacher/stepper/BoardSelection";
 import LanguageSelection from "./pages/teacher/stepper/LanguageSelection";
 import DocumentUpload from "./pages/teacher/stepper/DocumentUpload";
@@ -79,6 +85,11 @@ import TeachSessionHistory from "./pages/teacher/TeachSessionHistory";
 import RequestsPage from "./pages/teacher/RequestsPage";
 import CreateLiveClassRequest from "./pages/teacher/CreateLiveClassRequest";
 import RecordingLibrary from "./pages/teacher/RecordingLibrary";
+import Live_Session from "./pages/teacher/Live_Session";
+
+import { useEffect, useState } from "react";
+import { connectSocket, disconnectSocket, getSocket } from "@/lib/socket";
+import { toast } from "sonner";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -90,10 +101,66 @@ const queryClient = new QueryClient({
   },
 });
 
+function SocketInitializer({ setActiveRequest }: { setActiveRequest: (data: any) => void }) {
+  const location = useLocation();
+
+  useEffect(() => {
+    const token = localStorage.getItem("vlm_token");
+    if (token) {
+      connectSocket();
+      const socket = getSocket();
+
+      socket.on("parent_link_request", (data: any) => {
+        setActiveRequest(data);
+      });
+
+      return () => {
+        socket.off("parent_link_request");
+      };
+    } else {
+      disconnectSocket();
+    }
+  }, [location.pathname, setActiveRequest]);
+
+  return null;
+}
+
 export default function App() {
+  const [activeRequest, setActiveRequest] = useState<{
+    requestId: string;
+    parentName: string;
+    parentId: string;
+    parentEmailOrMobile: string;
+  } | null>(null);
+
+  const handleApprove = async () => {
+    if (!activeRequest) return;
+    try {
+      await apiClient.post(`/student/parent-requests/${activeRequest.parentId}/approve`);
+      toast.success("Parent request approved successfully!");
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || "Failed to approve request.");
+    } finally {
+      setActiveRequest(null);
+    }
+  };
+
+  const handleReject = async () => {
+    if (!activeRequest) return;
+    try {
+      await apiClient.post(`/student/parent-requests/${activeRequest.parentId}/reject`);
+      toast.success("Parent request declined.");
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || "Failed to reject request.");
+    } finally {
+      setActiveRequest(null);
+    }
+  };
+
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
+        <SocketInitializer setActiveRequest={setActiveRequest} />
         <Routes>
           {/* Public auth */}
           <Route path={PATHS.SPLASH} element={<SplashPage />} />
@@ -115,12 +182,13 @@ export default function App() {
             <Route path={PATHS.PAYMENT_FAILED} element={<PaymentFailed />} />
             
             {/* Student tabs */}
-            <Route element={<StudentLayout />}>
+             <Route element={<StudentLayout />}>
               <Route path={PATHS.STUDENT_DASHBOARD} element={<StudentDashboard />} />
               <Route path={PATHS.STUDENT_NOTIFICATIONS} element={<StudentNotifications />} />
               <Route path={PATHS.ASK_DOUBT} element={<AskDoubt />} />
               <Route path={PATHS.LIVE_CLASSES} element={<LiveClasses />} />
-              <Route path={PATHS.PROFILE} element={<EditProfile />} />
+              <Route path={PATHS.PROFILE} element={<ProfileView />} />
+              <Route path={PATHS.EDIT_PROFILE} element={<EditProfile />} />
               <Route path={PATHS.WALLET} element={<Profile />} />
               <Route path={PATHS.VIDEO_UPLOAD} element={<VideoUpload />} />
               <Route path={PATHS.REFERRAL_REWARD} element={<ReferralReward />} />
@@ -183,12 +251,17 @@ export default function App() {
         <Route path={PATHS.TEACHER_CLASSES} element={<LiveClassRequestStatus />} />
         <Route path={PATHS.CREATE_LIVE_CLASS} element={<CreateLiveClassRequest />} />
         <Route path={PATHS.TEACHER_LIBRARY} element={<RecordingLibrary />} />
+        <Route path={PATHS.TEACHER_LIVE_SESSION} element={<Live_Session />} />
         
           {/* Parent Module */} 
             <Route path={PATHS.ADD_CHILD} element={<AddChild />} />
+            <Route path={PATHS.PARENT_PENDING_APPROVAL} element={<ParentPendingApproval />} />
             <Route path={PATHS.PARENT_DASHBOARD} element={<ParentDashboardPage/>} />
             <Route path={PATHS.PARENT_LIVEACTIVITY} element={<LiveActivity/>} />
             <Route path={PATHS.PARENT_DOUBTHISTORY} element={<DoubtHistory/>} />
+            <Route path={PATHS.PARENT_PROFILE} element={<ParentProfile/>} />
+            <Route path={PATHS.PARENT_ANALYTICS} element={<ParentAnalytics/>} />
+            <Route path={PATHS.PARENT_CONTROLS} element={<ParentControls/>} />
             
 
 
@@ -202,6 +275,52 @@ export default function App() {
           <Route path="*" element={<Navigate to={PATHS.SPLASH} replace />} />
         </Routes>
       </BrowserRouter>
+
+      {/* Real-time parent link request popup modal */}
+      {activeRequest && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-300">
+          <div className="bg-[#121212] border border-white/10 rounded-[32px] w-full max-w-sm p-6 space-y-6 shadow-2xl relative text-center">
+            
+            {/* Pulsing indicator */}
+            <div className="flex justify-center pt-2">
+              <div className="relative flex items-center justify-center w-16 h-16">
+                <div className="absolute inset-0 rounded-full bg-cyan-500/10 animate-ping duration-1000" />
+                <div className="w-12 h-12 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center">
+                  <svg className="w-6 h-6 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+
+            {/* Content text info */}
+            <div className="space-y-2">
+              <h3 className="text-lg font-bold text-white tracking-tight">Parent Link Request</h3>
+              <p className="text-xs text-zinc-400 leading-relaxed px-2">
+                <span className="text-white font-extrabold">{activeRequest.parentName}</span> ({activeRequest.parentEmailOrMobile}) 
+                wants to link with your account to track your learning progress.
+              </p>
+            </div>
+
+            {/* Action buttons */}
+            <div className="flex flex-col gap-2 pt-2">
+              <button 
+                onClick={handleApprove}
+                className="w-full h-11 rounded-2xl bg-cyan-500 hover:bg-cyan-400 text-zinc-950 text-xs font-bold transition-colors cursor-pointer shadow-lg border-none"
+              >
+                Approve & Link
+              </button>
+              
+              <button 
+                onClick={handleReject}
+                className="w-full h-11 rounded-2xl bg-white/5 border border-white/10 text-white text-xs font-bold hover:bg-white/10 transition-colors cursor-pointer"
+              >
+                Decline
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </QueryClientProvider>
   );
 }

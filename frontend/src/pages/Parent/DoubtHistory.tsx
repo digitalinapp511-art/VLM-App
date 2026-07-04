@@ -4,13 +4,12 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ChevronLeft, Filter, } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
-import { bgCss } from "@/helper/CssHelper";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import DoubtCard from "@/components/basic/parent/DoubtCard";
-import BottomNav from "@/components/layout/BottomNav";
+import ParentLayout from "@/components/layout/ParentLayout";
 
 const DOUBTS_DATA = [
   { id: 1, subject: "Physics", topic: "Thermodynamics", teacher: "Prof. Niels Bohr", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Niels", time: "10:30 AM", date: "14 Oct", doubt: "Entropy and the Second Law", status: "solved" },
@@ -29,60 +28,58 @@ export default function DoubtHistory() {
   );
 
   return (
-    <div className={cn(bgCss, "min-h-svh w-full bg-[#050505] text-white flex flex-col items-center pb-28 overflow-x-hidden p-4")}>
-      
-      {/* --- HEADER --- */}
-      <header className="w-full max-w-xl flex items-center justify-between py-4">
-        <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="text-white hover:bg-white/10">
-          <ChevronLeft size={24} />
-        </Button>
-        <h1 className="text-lg font-bold tracking-tight">Doubt History</h1>
-        <Button variant="ghost" size="icon" className="text-white hover:bg-white/10">
-          <Filter size={20} />
-        </Button>
-      </header>
+    <ParentLayout>
+      <div className="w-full flex flex-col items-center">
+        
+        {/* --- HEADER --- */}
+        <header className="w-full flex items-center justify-between pb-4">
+          <div className="w-10" />
+          <h1 className="text-lg font-bold tracking-tight">Doubt History</h1>
+          <Button variant="ghost" size="icon" className="text-white hover:bg-white/10">
+            <Filter size={20} />
+          </Button>
+        </header>
 
-      {/* --- TABS --- */}
-      <div className="w-full max-w-xl mb-6">
-        <Tabs defaultValue="all" onValueChange={setActiveTab} className="w-full">
-          <TabsList className="bg-transparent w-full justify-between h-12 border-b border-white/10 rounded-none p-0">
-            {["all", "solved", "pending"].map((tab) => (
-              <TabsTrigger 
-                key={tab}
-                value={tab} 
-                className="flex-1 text-white/40 data-[state=active]:text-[#D4AF37] data-[state=active]:bg-transparent relative h-full rounded-none capitalize font-bold"
+        {/* --- TABS --- */}
+        <div className="w-full mb-6">
+          <Tabs defaultValue="all" onValueChange={setActiveTab} className="w-full">
+            <TabsList className="bg-transparent w-full justify-between h-12 border-b border-white/10 rounded-none p-0">
+              {["all", "solved", "pending"].map((tab) => (
+                <TabsTrigger 
+                  key={tab}
+                  value={tab} 
+                  className="flex-1 text-white/40 data-[state=active]:text-[#D4AF37] data-[state=active]:bg-transparent relative h-full rounded-none capitalize font-bold"
+                >
+                  {tab === "all" ? "All Doubts" : tab}
+                  {activeTab === tab && (
+                    <motion.div 
+                      layoutId="activeTab" 
+                      className="absolute bottom-0 left-0 right-0 h-[3px] bg-[#D4AF37] shadow-[0_0_10px_#D4AF37]" 
+                    />
+                  )}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
+        </div>
+
+        {/* --- DOUBT LIST --- */}
+        <main className="w-full space-y-4">
+          <AnimatePresence mode="popLayout">
+            {filteredDoubts.map((doubt, index) => (
+              <motion.div
+                key={doubt.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                transition={{ delay: index * 0.05 }}
               >
-                {tab === "all" ? "All Doubts" : tab}
-                {activeTab === tab && (
-                  <motion.div 
-                    layoutId="activeTab" 
-                    className="absolute bottom-0 left-0 right-0 h-[3px] bg-[#D4AF37] shadow-[0_0_10px_#D4AF37]" 
-                  />
-                )}
-              </TabsTrigger>
+                <DoubtCard {...doubt} />
+              </motion.div>
             ))}
-          </TabsList>
-        </Tabs>
+          </AnimatePresence>
+        </main>
       </div>
-
-      {/* --- DOUBT LIST --- */}
-      <main className="w-full max-w-xl space-y-4">
-        <AnimatePresence mode="popLayout">
-          {filteredDoubts.map((doubt, index) => (
-            <motion.div
-              key={doubt.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              transition={{ delay: index * 0.05 }}
-            >
-              <DoubtCard {...doubt} />
-            </motion.div>
-          ))}
-        </AnimatePresence>
-      </main>
-
-      <BottomNav />
-    </div>
+    </ParentLayout>
   );
 }

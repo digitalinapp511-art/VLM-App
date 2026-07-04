@@ -10,9 +10,28 @@ import { generateOtp, generateReferralCode } from '../utils/helpers.js';
 import { ROLES } from '../config/constants.js';
 
 export const sendOtp = asyncHandler(async (req, res) => {
-  const { mobile, email, purpose = 'login' } = req.body;
+  // Normalize inputs to prevent trailing-space phantom accounts
+  const mobile = req.body.mobile?.trim();
+  const email = req.body.email?.trim().toLowerCase();
+  const purpose = req.body.purpose || 'login';
+  const role = req.body.role;
   if (!mobile && !email) {
     return res.status(400).json({ success: false, message: 'Mobile or email required' });
+  }
+
+  // ── PRE-CHECK: If user exists with roles, validate role early ──
+  if (role && purpose === 'login') {
+    const existingUser = await User.findOne({
+      ...(mobile && { mobile }),
+      ...(email && { email }),
+    });
+    if (existingUser && existingUser.roles.length > 0 && !existingUser.roles.includes(role)) {
+      return res.status(403).json({
+        success: false,
+        message: `No ${role} account found with this ${email ? 'email' : 'phone number'}. Please check your credentials or use the correct login portal.`,
+        existingRoles: existingUser.roles,
+      });
+    }
   }
 
   const otp = generateOtp();
@@ -30,7 +49,11 @@ export const sendOtp = asyncHandler(async (req, res) => {
 });
 
 export const verifyOtp = asyncHandler(async (req, res) => {
-  const { mobile, email, otp, role } = req.body;
+  // Normalize inputs
+  const mobile = req.body.mobile?.trim();
+  const email = req.body.email?.trim().toLowerCase();
+  const otp = req.body.otp;
+  const role = req.body.role;
 
   const otpRecord = await Otp.findOne({
     ...(mobile && { mobile }),
@@ -57,8 +80,11 @@ export const verifyOtp = asyncHandler(async (req, res) => {
   await otpRecord.save();
 
   let user = await User.findOne({ ...(mobile && { mobile }), ...(email && { email }) });
+  let isNewUser = false;
 
   if (!user) {
+    // Brand new user – create with the claimed role
+    isNewUser = true;
     user = await User.create({
       mobile,
       email,
@@ -69,9 +95,25 @@ export const verifyOtp = asyncHandler(async (req, res) => {
       referralCode: generateReferralCode(),
     });
   } else {
+    // ── STRICT ROLE VALIDATION ──
+    // If the user already exists AND already has at least one role,
+    // only allow login if they are claiming a role they already possess.
+    // Exception: if the user has NO roles yet (account created via OTP with no role),
+    // allow them to claim any role.
+    const userHasRoles = user.roles && user.roles.length > 0;
+    if (role && userHasRoles && !user.roles.includes(role)) {
+      return res.status(403).json({
+        success: false,
+        message: `This account is not registered as a ${role}. Please use the correct login portal or contact support.`,
+        existingRoles: user.roles,
+      });
+    }
+
+    // Add role if not already present
     if (role && !user.roles.includes(role)) {
       user.roles.push(role);
     }
+    // Only switch activeRole to the claimed role (so correct profile is returned)
     if (role) user.activeRole = role;
     if (mobile) user.isMobileVerified = true;
     if (email) user.isEmailVerified = true;
@@ -82,10 +124,15 @@ export const verifyOtp = asyncHandler(async (req, res) => {
   const token = generateToken(user._id);
   const profile = await getProfileForRole(user);
 
+  if (!profile) {
+    isNewUser = true;
+  }
+
   res.json({
     success: true,
     message: 'OTP verified',
     token,
+    isNewUser,
     user: {
       id: user._id,
       mobile: user.mobile,
@@ -101,7 +148,8 @@ export const verifyOtp = asyncHandler(async (req, res) => {
 });
 
 export const loginWithEmail = asyncHandler(async (req, res) => {
-  const { email, password, role } = req.body;
+  const email = req.body.email?.trim().toLowerCase();
+  const { password, role } = req.body;
   const user = await User.findOne({ email }).select('+password');
   if (!user || !(await user.comparePassword(password))) {
     return res.status(401).json({ success: false, message: 'Invalid credentials' });
@@ -109,6 +157,17 @@ export const loginWithEmail = asyncHandler(async (req, res) => {
   if (user.status === 'blocked') {
     return res.status(403).json({ success: false, message: 'Account blocked', reason: user.blockReason });
   }
+
+  // ── STRICT ROLE VALIDATION ──
+  // Prevent a student from logging in via teacher portal and vice-versa
+  if (role && user.roles.length > 0 && !user.roles.includes(role)) {
+    return res.status(403).json({
+      success: false,
+      message: `This account is not registered as a ${role}. Please use the correct login portal.`,
+      existingRoles: user.roles,
+    });
+  }
+
   if (role) {
     if (!user.roles.includes(role)) user.roles.push(role);
     user.activeRole = role;
@@ -134,10 +193,33 @@ export const loginWithEmail = asyncHandler(async (req, res) => {
 });
 
 export const registerWithEmail = asyncHandler(async (req, res) => {
-  const { email, password, role, mobile } = req.body;
-  const exists = await User.findOne({ $or: [{ email }, ...(mobile ? [{ mobile }] : [])] });
-  if (exists) {
-    return res.status(400).json({ success: false, message: 'User already exists' });
+  const email = req.body.email?.trim().toLowerCase();
+  const mobile = req.body.mobile?.trim();
+  const { password, role } = req.body;
+
+  // Check email uniqueness
+  if (email) {
+    const emailExists = await User.findOne({ email });
+    if (emailExists) {
+      return res.status(400).json({
+        success: false,
+        message: 'An account already exists with this email address. Please login instead.',
+        field: 'email',
+      });
+    }
+  }
+
+  // Check mobile uniqueness (except parents can share phone numbers with each other,
+  // but no student/teacher should share a phone with another student/teacher)
+  if (mobile && role !== 'parent') {
+    const mobileExists = await User.findOne({ mobile });
+    if (mobileExists) {
+      return res.status(400).json({
+        success: false,
+        message: 'An account already exists with this phone number. Please login instead.',
+        field: 'mobile',
+      });
+    }
   }
 
   const user = await User.create({

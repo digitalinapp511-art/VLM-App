@@ -49,12 +49,12 @@ export const teacherApi = {
 
   // ── Onboarding ───────────────────────────────────────────────
   submitForVerification: async () => {
-    const { data } = await apiClient.post('/teacher/submit-for-verification');
+    const { data } = await apiClient.post('/teacher/submit');
     return data;
   },
 
   getVerificationStatus: async () => {
-    const { data } = await apiClient.get('/teacher/verification-status');
+    const { data } = await apiClient.get('/teacher/application-status');
     return data;
   },
 
@@ -138,5 +138,26 @@ export const teacherApi = {
   getSessionChat: async (chatId: string, page = 1) => {
     const { data } = await apiClient.get(`/teacher/chat/${chatId}?page=${page}`);
     return data;
+  },
+
+  // ── Live Classes ─────────────────────────────────────────────
+  createLiveClass: async (payload: {
+    topic: string;
+    subject: string;
+    class: string;
+    board: string;
+    language: string;
+    scheduledAt: Date | string;
+    description?: string;
+    isFree?: boolean;
+    duration?: number;
+  }) => {
+    const { data } = await apiClient.post('/teacher/live-classes', payload);
+    return data;
+  },
+
+  getLiveClasses: async () => {
+    const { data } = await apiClient.get('/teacher/live-classes');
+    return data.data;
   },
 };

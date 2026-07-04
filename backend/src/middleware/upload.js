@@ -1,45 +1,8 @@
 import multer from 'multer';
 import path from 'path';
-import { fileURLToPath } from 'url';
-import fs from 'fs';
+import { uploadToCloudinary as cloudinaryUpload } from '../config/cloudinary.js';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-
-const getUploadDir = () => (process.env.VERCEL
-  ? path.join('/tmp', 'vlm-uploads')
-  : path.join(__dirname, '../../uploads'));
-
-let dirsReady = false;
-
-const ensureDirs = () => {
-  if (dirsReady) return;
-  try {
-    const uploadDir = getUploadDir();
-    ['profiles', 'documents', 'videos', 'recordings', 'tickets'].forEach((dir) => {
-      const p = path.join(uploadDir, dir);
-      if (!fs.existsSync(p)) fs.mkdirSync(p, { recursive: true });
-    });
-    dirsReady = true;
-  } catch (err) {
-    console.warn('Upload dir init skipped:', err.message);
-  }
-};
-
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    ensureDirs();
-    const uploadDir = getUploadDir();
-    let folder = 'documents';
-    if (file.mimetype.startsWith('image/')) folder = 'profiles';
-    if (file.mimetype.startsWith('video/')) folder = 'videos';
-    if (file.mimetype.startsWith('audio/')) folder = 'recordings';
-    cb(null, path.join(uploadDir, folder));
-  },
-  filename: (req, file, cb) => {
-    const unique = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
-    cb(null, `${unique}${path.extname(file.originalname)}`);
-  },
-});
+const storage = multer.memoryStorage();
 
 export const upload = multer({
   storage,
@@ -52,5 +15,51 @@ export const upload = multer({
   },
 });
 
-export const getFileUrl = (filename, folder = 'documents') =>
-  `/uploads/${folder}/${filename}`;
+/**
+ * Middleware to upload a parsed file to Cloudinary.
+ * Expects multer middleware (e.g. upload.single(...)) to have run first.
+ * Automatically detects folder based on mimetype.
+ */
+export const cloudinaryUploadMiddleware = async (req, res, next) => {
+  if (!req.file) {
+    return next();
+  }
+
+  try {
+    let folder = 'documents';
+    let resourceType = 'auto';
+
+    if (req.file.mimetype.startsWith('image/')) {
+      folder = 'profiles';
+      resourceType = 'image';
+    } else if (req.file.mimetype.startsWith('video/')) {
+      folder = 'videos';
+      resourceType = 'video';
+    } else if (req.file.mimetype.startsWith('audio/')) {
+      folder = 'recordings';
+      resourceType = 'video';
+    } else if (req.file.mimetype === 'application/pdf') {
+      folder = 'documents';
+      resourceType = 'raw';
+    }
+
+    const result = await cloudinaryUpload(req.file.buffer, folder, resourceType);
+    
+    // Assign the Cloudinary URL to req.file
+    req.file.filename = result.secure_url;
+    req.file.path = result.secure_url;
+    req.file.cloudinaryUrl = result.secure_url;
+    
+    next();
+  } catch (err) {
+    console.error('Cloudinary upload error:', err);
+    res.status(500).json({ success: false, message: 'File upload failed' });
+  }
+};
+
+export const getFileUrl = (filename, folder = 'documents') => {
+  if (filename && (filename.startsWith('http://') || filename.startsWith('https://'))) {
+    return filename;
+  }
+  return `/uploads/${folder}/${filename}`;
+};

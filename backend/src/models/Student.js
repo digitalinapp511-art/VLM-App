@@ -3,6 +3,9 @@ import mongoose from 'mongoose';
 const studentSchema = new mongoose.Schema(
   {
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, unique: true },
+    vlmStudentId: { type: String, unique: true, sparse: true, index: true },
+    email: { type: String, sparse: true },
+    mobile: { type: String, sparse: true },
     fullName: { type: String, required: true },
     nickname: String,
     profilePhoto: String,

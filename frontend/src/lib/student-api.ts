@@ -233,6 +233,18 @@ export const studentApi = {
     const { data } = await apiClient.post("/student/spin", payload);
     return data;
   },
+  getParentRequests: async () => {
+    const { data } = await apiClient.get("/student/parent-requests");
+    return data.data || data;
+  },
+  approveParentRequest: async (parentId: string) => {
+    const { data } = await apiClient.post(`/student/parent-requests/${parentId}/approve`);
+    return data;
+  },
+  rejectParentRequest: async (parentId: string) => {
+    const { data } = await apiClient.post(`/student/parent-requests/${parentId}/reject`);
+    return data;
+  },
 };
 
 export default studentApi;

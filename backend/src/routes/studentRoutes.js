@@ -3,7 +3,7 @@ import {
   createStudentProfile, getStudentProfile, getDashboard, getPlans,
   activateTrial, submitDoubt, getDailyMcq, submitMcq, toggleFavoriteTeacher, getSubjects,
   getChapters, claimSpinReward, getStudentWalletHistory, submitDoubtWithImages, getDoubtById,
-  getAvailableTeachers
+  getAvailableTeachers, getParentRequests, approveParentRequest, rejectParentRequest
 } from '../controllers/studentController.js';
 import {
   getSessionHistory, getSessionMessages, sendMessage, resolveSession,
@@ -12,7 +12,7 @@ import {
   getReferralData,
 } from '../controllers/sharedController.js';
 import { protect, authorize } from '../middleware/auth.js';
-import { upload } from '../middleware/upload.js';
+import { upload, cloudinaryUploadMiddleware } from '../middleware/upload.js';
 
 const router = Router();
 router.use(protect, authorize('student'));
@@ -28,7 +28,7 @@ router.get('/plans', getPlans);
 router.post('/trial', activateTrial);
 router.post('/spin', claimSpinReward);
 router.post('/doubt', submitDoubt);
-router.post('/doubts/upload', upload.single('images'), submitDoubtWithImages);
+router.post('/doubts/upload', upload.single('images'), cloudinaryUploadMiddleware, submitDoubtWithImages);
 router.get('/doubts/:id', getDoubtById);
 router.get('/teachers', getAvailableTeachers);
 router.get('/mcq/daily', getDailyMcq);
@@ -45,10 +45,13 @@ router.get('/tickets', getTickets);
 router.get('/tickets/:id', getTicket);
 router.post('/tickets/:id/reply', replyTicket);
 router.get('/live-classes', getLiveClasses);
-router.post('/videos', upload.single('video'), uploadShortVideo);
+router.post('/videos', upload.single('video'), cloudinaryUploadMiddleware, uploadShortVideo);
 router.get('/videos', getShortVideos);
 router.get('/videos/mine', getMyVideos);
 router.get('/referral', getReferralData);
 router.get('/wallet/history', getStudentWalletHistory);
+router.get('/parent-requests', getParentRequests);
+router.post('/parent-requests/:parentId/approve', approveParentRequest);
+router.post('/parent-requests/:parentId/reject', rejectParentRequest);
 
 export default router;

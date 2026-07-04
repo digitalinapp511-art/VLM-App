@@ -3,15 +3,19 @@ import Interview from '../models/Interview.js';
 import User from '../models/User.js';
 import Notification from '../models/Notification.js';
 import Review from '../models/Review.js';
+import LiveClass from '../models/LiveClass.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
 import { TEACHER_STATUS } from '../config/constants.js';
 import { createNotification } from '../services/notificationService.js';
+import { generateVlmId } from '../utils/vlmIdGenerator.js';
 
 export const getTeacherProfile = asyncHandler(async (req, res) => {
   let teacher = await Teacher.findOne({ userId: req.user._id }).populate('userId', 'email mobile fullName');
   if (!teacher) {
+    const vlmTeacherId = await generateVlmId('TCH');
     teacher = await Teacher.create({
       userId: req.user._id,
+      vlmTeacherId,
       fullName: req.user.fullName || 'Teacher',
       applicationStatus: 'draft',
     });
@@ -29,8 +33,10 @@ export const updateOnboarding = asyncHandler(async (req, res) => {
   const { step, ...data } = req.body;
 
   if (!teacher) {
+    const vlmTeacherId = await generateVlmId('TCH');
     teacher = await Teacher.create({
       userId: req.user._id,
+      vlmTeacherId,
       fullName: data.fullName || 'Teacher',
       onboardingStep: step || 1,
       ...data,
@@ -90,11 +96,25 @@ export const getDashboard = asyncHandler(async (req, res) => {
   const teacher = await Teacher.findOne({ userId: req.user._id });
   if (!teacher) return res.status(404).json({ success: false, message: 'Not found' });
 
-
-
   const unreadNotifications = await Notification.countDocuments({ userId: req.user._id, isRead: false });
   const notifications = await Notification.find({ userId: req.user._id }).sort({ createdAt: -1 }).limit(5);
   const recentReviews = await Review.find({ teacherId: teacher._id }).populate('studentId').sort({ createdAt: -1 }).limit(5);
+
+  const upcomingRaw = await LiveClass.find({
+    teacherId: teacher._id,
+    status: 'approved',
+    scheduledAt: { $gte: new Date() }
+  })
+    .sort({ scheduledAt: 1 })
+    .limit(3);
+
+  const upcomingClasses = upcomingRaw.map((c) => ({
+    id: c._id,
+    type: `${c.subject} - ${c.topic}`,
+    student: `${c.class} (${c.language})`,
+    startedAt: c.scheduledAt,
+    duration: c.duration || 30,
+  }));
 
   res.json({
     success: true,
@@ -121,7 +141,7 @@ export const getDashboard = asyncHandler(async (req, res) => {
       unreadNotifications,
       notifications,
       recentReviews,
-      upcomingClasses: []
+      upcomingClasses
     },
   });
 });
@@ -186,9 +206,24 @@ export const updateProfile = asyncHandler(async (req, res) => {
   // Also update email and mobile on User model if provided
   const user = await User.findById(req.user._id);
   if (user) {
-    if (req.body.email !== undefined) user.email = req.body.email;
-    if (req.body.mobile !== undefined) user.mobile = req.body.mobile;
-    await user.save();
+    if (req.body.email !== undefined) {
+      user.email = req.body.email && req.body.email.trim() !== "" ? req.body.email.trim() : undefined;
+    }
+    if (req.body.mobile !== undefined) {
+      user.mobile = req.body.mobile && req.body.mobile.trim() !== "" ? req.body.mobile.trim() : undefined;
+    }
+    try {
+      await user.save();
+    } catch (err) {
+      if (err.code === 11000) {
+        const field = Object.keys(err.keyPattern || {})[0];
+        return res.status(400).json({ 
+          success: false, 
+          message: `${field === 'email' ? 'Email address' : 'Mobile number'} is already registered to another account.` 
+        });
+      }
+      throw err;
+    }
   }
 
   res.json({ success: true, data: teacher });

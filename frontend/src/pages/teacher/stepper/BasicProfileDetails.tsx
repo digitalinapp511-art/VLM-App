@@ -46,8 +46,17 @@ const BasicProfileDetails: React.FC = () => {
 
   useEffect(() => {
     if (profile) {
+      const loginIdentifier = (sessionStorage.getItem("vlm_email") || "").trim();
+      const isEmailLogin = loginIdentifier.includes("@");
+      
+      const defaultEmail = isEmailLogin ? (profile.user?.email || loginIdentifier) : "";
+      const defaultMobile = !isEmailLogin ? (profile.user?.mobile || loginIdentifier) : "";
+
+      const dbName = (profile.fullName || "").trim();
+      const isDefaultName = !dbName || dbName.toLowerCase() === "teacher";
+
       setForm({
-        fullName: profile.fullName || "",
+        fullName: isDefaultName ? "" : dbName,
         gender: profile.gender || "",
         dob:
           profile.dob && !isNaN(new Date(profile.dob).getTime())
@@ -57,8 +66,8 @@ const BasicProfileDetails: React.FC = () => {
         city: profile.city || "",
         state: profile.state || "",
         pincode: profile.pincode || "",
-        email: profile.user?.email || "",
-        mobile: profile.user?.mobile || "",
+        email: defaultEmail,
+        mobile: defaultMobile,
       });
 
       if (profile.profilePhoto) {
@@ -128,7 +137,14 @@ const BasicProfileDetails: React.FC = () => {
       navigate(PATHS.QUALIFICATION_DETAILS);
     } catch (err: any) {
       console.error(err);
-      toast.error(err?.response?.data?.message || err?.response?.data?.error || "Failed to save details");
+      const errMsg = err?.response?.data?.message || err?.response?.data?.error || "";
+      if (errMsg.toLowerCase().includes("mobile number")) {
+        setErrors(prev => ({ ...prev, mobile: errMsg }));
+      } else if (errMsg.toLowerCase().includes("email address")) {
+        setErrors(prev => ({ ...prev, email: errMsg }));
+      } else {
+        toast.error(errMsg || "Failed to save details");
+      }
     } finally {
       setIsSaving(false);
     }
@@ -203,7 +219,7 @@ const BasicProfileDetails: React.FC = () => {
                 onChange={(e: any) => updateField("fullName", e.target.value)}
               />
               <RegistrationField
-                icon={<VenusAndMars />}
+                icon={<User />}
                 label="Gender"
                 isSelect
                 value={form.gender}
@@ -281,7 +297,10 @@ const BasicProfileDetails: React.FC = () => {
               value={form.pincode}
               required
               error={errors.pincode}
-              onChange={(e: any) => updateField("pincode", e.target.value)}
+              onChange={(e: any) => {
+                const val = e.target.value.replace(/\D/g, "").slice(0, 6);
+                updateField("pincode", val);
+              }}
             />
           </div>
 

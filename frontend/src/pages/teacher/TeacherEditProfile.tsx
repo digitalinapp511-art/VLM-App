@@ -41,16 +41,25 @@ export default function TeacherEditProfile() {
 
   useEffect(() => {
     if (profile) {
+      const loginIdentifier = (sessionStorage.getItem("vlm_email") || "").trim();
+      const isEmailLogin = loginIdentifier.includes("@");
+      
+      const defaultEmail = isEmailLogin ? (profile.user?.email || loginIdentifier) : "";
+      const defaultMobile = !isEmailLogin ? (profile.user?.mobile || loginIdentifier) : "";
+
+      const dbName = (profile.fullName || "").trim();
+      const isDefaultName = !dbName || dbName.toLowerCase() === "teacher";
+
       setForm({
-        fullName: profile.fullName || "",
+        fullName: isDefaultName ? "" : dbName,
         gender: profile.gender || "",
         dob: profile.dob ? new Date(profile.dob).toISOString().split('T')[0] : "",
         address: profile.address || "",
         city: profile.city || "",
         state: profile.state || "",
         pincode: profile.pincode || "",
-        email: profile.user?.email || "",
-        mobile: profile.user?.mobile || "",
+        email: defaultEmail,
+        mobile: defaultMobile,
       });
       if (profile.profilePhoto) {
         setPhotoPreview(profile.profilePhoto);
@@ -85,7 +94,14 @@ export default function TeacherEditProfile() {
       navigate(PATHS.TEACHER_PROFILE);
     },
     onError: (err: any) => {
-      toast.error(err?.response?.data?.message || err?.response?.data?.error || "Failed to update profile");
+      const errMsg = err?.response?.data?.message || err?.response?.data?.error || "";
+      if (errMsg.toLowerCase().includes("mobile number")) {
+        setErrors(prev => ({ ...prev, mobile: errMsg }));
+      } else if (errMsg.toLowerCase().includes("email address")) {
+        setErrors(prev => ({ ...prev, email: errMsg }));
+      } else {
+        toast.error(errMsg || "Failed to update profile");
+      }
     }
   });
 
@@ -197,7 +213,7 @@ export default function TeacherEditProfile() {
                   "flex items-center gap-3 p-3.5 rounded-2xl border bg-black/40 transition-all",
                   errors.gender ? "border-red-500/50 bg-red-500/[0.01]" : "border-white/5"
                 )}>
-                  <VenusAndMars size={16} className="text-zinc-500" />
+                  <User size={16} className="text-zinc-500" />
                   <select
                     value={form.gender}
                     onChange={(e) => setForm(f => ({ ...f, gender: e.target.value }))}
@@ -329,7 +345,10 @@ export default function TeacherEditProfile() {
                   <input
                     type="text"
                     value={form.pincode}
-                    onChange={(e) => setForm(f => ({ ...f, pincode: e.target.value }))}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/\D/g, "").slice(0, 6);
+                      setForm(f => ({ ...f, pincode: val }));
+                    }}
                     className="bg-transparent border-none outline-none text-sm text-zinc-200 w-full"
                     placeholder="Pincode"
                   />

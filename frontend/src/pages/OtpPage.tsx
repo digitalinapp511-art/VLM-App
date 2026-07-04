@@ -16,12 +16,23 @@ import { PATHS } from "@/routes/paths";
 import type { Role, VerifyOtpResponse } from "@/types";
 import { authApi } from "@/lib/auth-api";
 
-function resolvePostOtpPath(role: Role, isNewUser: boolean): string {
+function resolvePostOtpPath(role: Role, isNewUser: boolean, responseData?: any): string {
   if (role === "teacher") {
-    return PATHS.TEACHER_REGISTRATION;
+    return isNewUser
+      ? PATHS.TEACHER_REGISTRATION
+      : PATHS.TEACHER_DASHBOARD;
   }
   if (role === "parent") {
-    return PATHS.PARENT_DASHBOARD;
+    const profile = responseData?.profile;
+    const linkedChildren = profile?.linkedChildren || [];
+    if (linkedChildren.length === 0) {
+      return PATHS.ADD_CHILD;
+    }
+    const hasApproved = linkedChildren.some((c: any) => c.status === "approved");
+    if (hasApproved) {
+      return PATHS.PARENT_DASHBOARD;
+    }
+    return PATHS.PARENT_PENDING_APPROVAL;
   }
 
   return isNewUser
@@ -69,14 +80,14 @@ export default function OtpVerificationPage() {
       { email, otp: otpValue, role },
       {
         onSuccess: (data) => {
-          navigate(resolvePostOtpPath(role, data.isNewUser), { replace: true });
+          navigate(resolvePostOtpPath(role, data.isNewUser, data), { replace: true });
         },
       }
     );
   };
 
   return (
-    <div className="relative vlm-bg-navy flex min-h-svh w-full flex-col items-center bg-[#050505] px-6 overflow-hidden">
+    <div className="relative vlm-bg-navy flex min-h-svh w-full flex-col items-center justify-center bg-[#050505] px-6 overflow-hidden">
       <BackgroundElement />
 
       <VlmWordmark role={role} />

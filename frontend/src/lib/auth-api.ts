@@ -2,8 +2,8 @@ import { apiClient } from "@/lib/api-client";
 import type { Role, VerifyOtpResponse } from "@/types";
 
 export const authApi = {
-  sendOtp: async (email: string, purpose: string = "login") => {
-    const { data } = await apiClient.post("/auth/send-otp", { email, purpose });
+  sendOtp: async (email: string, purpose: string = "login", role?: string) => {
+    const { data } = await apiClient.post("/auth/send-otp", { email, purpose, ...(role && { role }) });
     return data;
   },
 
@@ -26,9 +26,17 @@ export const authApi = {
   },
 
   logout: async () => {
-    const { data } = await apiClient.post("/auth/logout");
-    localStorage.removeItem("vlm_token");
-    return data;
+    try {
+      const { data } = await apiClient.post("/auth/logout");
+      return data;
+    } finally {
+      // Always clear all VLM session data regardless of API response
+      localStorage.removeItem("vlm_token");
+      sessionStorage.removeItem("vlm_email");
+      sessionStorage.removeItem("vlm_auth_email");
+      sessionStorage.removeItem("vlm_role");
+      sessionStorage.removeItem("vlm_sent_otp");
+    }
   },
 
   getGoogleAuthUrl: async (): Promise<{ url: string }> => {

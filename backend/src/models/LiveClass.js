@@ -9,6 +9,7 @@ const liveClassSchema = new mongoose.Schema(
     board: String,
     language: String,
     scheduledAt: Date,
+    duration: { type: Number, default: 30 },
     description: String,
     isFree: { type: Boolean, default: true },
     status: {

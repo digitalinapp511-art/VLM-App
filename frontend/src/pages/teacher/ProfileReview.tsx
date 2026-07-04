@@ -36,7 +36,9 @@ const ProfileReview: React.FC = () => {
   });
 
   const p = profile;
-  const user = p?.user;
+  const user = p?.userId || p?.user;
+  const dbName = (p?.fullName || "").trim();
+  const displayFullName = !dbName || dbName.toLowerCase() === "teacher" ? "" : dbName;
 
   return (
     <div className={cn("min-h-screen flex flex-col p-4 pb-48 relative overflow-x-hidden", bgCss)}>
@@ -61,11 +63,11 @@ const ProfileReview: React.FC = () => {
         <ReviewSectionCard title="Profile Details" onEdit={() => navigate(PATHS.BASICPROFILE_DETAILS)} className="row-span-1">
           <div className="flex flex-col items-center text-center space-y-3 mb-2">
             <Avatar className="w-16 h-16 border-2 border-blue-400/20">
-              <AvatarImage src={p?.profilePhoto ?? `https://api.dicebear.com/7.x/avataaars/svg?seed=${p?.fullName ?? 'teacher'}`} />
-              <AvatarFallback>{p?.fullName?.[0] ?? 'T'}</AvatarFallback>
+              <AvatarImage src={p?.profilePhoto || `https://api.dicebear.com/7.x/avataaars/svg?seed=${displayFullName || 'teacher'}`} />
+              <AvatarFallback>{displayFullName?.[0] ?? 'T'}</AvatarFallback>
             </Avatar>
             <div className="space-y-1">
-              <p className="text-base font-bold text-white">{isLoading ? "Loading..." : p?.fullName ?? "—"}</p>
+              <p className="text-base font-bold text-white">{isLoading ? "Loading..." : displayFullName || "—"}</p>
               <p className="text-[11px] font-medium opacity-80">{user?.email ?? "—"}</p>
               <p className="text-[11px] font-medium opacity-80">{user?.mobile ?? "—"}</p>
               <p className="text-[11px] font-medium opacity-60 leading-tight pt-1">

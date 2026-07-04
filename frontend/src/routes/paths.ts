@@ -26,6 +26,7 @@ export const PATHS = {
   MCQ: "/mcq",
   LIVE_CLASSES: "/live-classes",
   PROFILE: "/profile",
+  EDIT_PROFILE: "/profile/edit",
   WALLET: "/wallet",
   STUDENT_PROFILE_SETUP: "/student/profile/setup",
   STUDENT_NOTIFICATIONS: "/student-notifications",
@@ -63,6 +64,7 @@ export const PATHS = {
     TEACHER_CLASSES: "/teacher-classes",
     CREATE_LIVE_CLASS: "/teacher-classes/create",
     TEACHER_LIBRARY: "/teacher-library",
+    TEACHER_LIVE_SESSION: "/teacher-live-session",
 
   // Student flows
   VIDEO_UPLOAD: "/video-upload",
@@ -85,9 +87,13 @@ export const PATHS = {
 
   //Parent Flow
   ADD_CHILD:"/add-child",
+  PARENT_PENDING_APPROVAL: "/parent-pending-approval",
   PARENT_DASHBOARD:"/parent-dashboard",
   PARENT_LIVEACTIVITY:"/live-activity",
   PARENT_DOUBTHISTORY:"/doubt-history",
+  PARENT_PROFILE: "/parent/profile",
+  PARENT_ANALYTICS: "/parent/analytics",
+  PARENT_CONTROLS: "/parent/controls",
   // Legacy
   DASHBOARD: "/dashboard",
 } as const;

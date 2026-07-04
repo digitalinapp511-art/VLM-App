@@ -142,14 +142,6 @@ const TeacherLogin: React.FC = () => {
               Login with Email
             </Button>
           </div>
-
-          <LoginDivider text="or sign in with" />
-
-          {/* Social Section */}
-          <Button variant="outline" className="w-full h-14 rounded-full border border-purple-500/40 bg-transparent text-zinc-200 font-bold gap-3 hover:bg-white/5">
-            <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/smartlock/google.svg" className="w-5 h-5" alt="Google" />
-            Continue with Google
-          </Button>
         </div>
 
         {/* Footer Links */}

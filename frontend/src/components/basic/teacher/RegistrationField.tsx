@@ -126,7 +126,7 @@ const RegistrationField: React.FC<RegistrationFieldProps> = ({
               <select
                 value={value ?? ""}
                 onChange={onChange}
-                className="bg-transparent border-none outline-none text-[14px] text-zinc-300 w-full"
+                className="bg-transparent border-none outline-none text-[14px] text-zinc-300 w-full appearance-none cursor-pointer"
               >
                 <option value="" className="bg-zinc-950 text-white">Select {label}</option>
 

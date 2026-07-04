@@ -2,7 +2,11 @@ import { QrCode, Camera } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 
-export const QRSection = () => {
+interface QRSectionProps {
+  onScan: () => void;
+}
+
+export const QRSection = ({ onScan }: QRSectionProps) => {
   return (
     <div className="flex items-center gap-5">
       <div className="flex-shrink-0 w-14 h-14 rounded-2xl border border-[#D4AF37]/40 bg-[#D4AF37]/5 flex items-center justify-center">
@@ -13,6 +17,7 @@ export const QRSection = () => {
           Scan QR Code
         </Label>
         <Button 
+          onClick={onScan}
           variant="outline" 
           className="w-full h-12 rounded-xl border-[#D4AF37]/50 bg-[#D4AF37]/10 text-[#D4AF37] font-bold hover:bg-[#D4AF37]/20 flex justify-between px-6"
         >
