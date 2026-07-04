@@ -106,7 +106,26 @@ function SocketInitializer({ setActiveRequest }: { setActiveRequest: (data: any)
 
   useEffect(() => {
     const token = localStorage.getItem("vlm_token");
-    if (token) {
+    
+    // Do not connect socket on startup, auth, or onboarding paths
+    const isPublicOrOnboardingPath = [
+      "/",
+      "/role-select",
+      "/login",
+      "/otp",
+      "/coming-soon",
+      "/create-profile",
+      "/onboarding",
+      "/subject-selection",
+      "/learning-plan",
+      "/coupon",
+      "/plan-screen",
+      "/payment-failed",
+      "/add-child",
+      "/parent-pending-approval"
+    ].includes(location.pathname);
+
+    if (token && !isPublicOrOnboardingPath) {
       connectSocket();
       const socket = getSocket();
 
@@ -116,6 +135,7 @@ function SocketInitializer({ setActiveRequest }: { setActiveRequest: (data: any)
 
       return () => {
         socket.off("parent_link_request");
+        disconnectSocket();
       };
     } else {
       disconnectSocket();

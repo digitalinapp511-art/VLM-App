@@ -11,6 +11,7 @@ export const getSocket = (): Socket => {
     socketInstance = io(socketUrl, {
       auth: { token },
       autoConnect: false,
+      transports: ["websocket"],
     });
   } else {
     socketInstance.auth = { token };

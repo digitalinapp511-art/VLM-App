@@ -34,9 +34,12 @@ export default function ParentPendingApproval() {
   }, [dashboardData, children.length, initialApprovedCount]);
 
   useEffect(() => {
-    // Only auto-redirect to dashboard if they had ZERO approved children initially,
-    // meaning this was their very first child approval activation.
-    if (initialApprovedCount === 0 && children.length > 0) {
+    // Redirect to dashboard if a new child has been approved since this page loaded,
+    // or if they had zero approved children initially and now have at least one.
+    if (initialApprovedCount !== null && (
+      (initialApprovedCount === 0 && children.length > 0) || 
+      (children.length > initialApprovedCount)
+    )) {
       toast.success("Link approved! Welcome to the Parent Dashboard.");
       navigate(PATHS.PARENT_DASHBOARD, { replace: true });
     }
