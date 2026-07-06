@@ -104,21 +104,27 @@ export function useSocket(options: UseSocketOptions = {}) {
 
     // ── Student: teacher accepted ─────────────────────────────────────────
     const onSessionAccepted = (data: SessionAcceptedPayload) => {
+      console.log("[Socket] Received session_accepted on frontend!", data);
       setSessionAccepted(data);
     };
 
     // ── Student: nobody accepted (timer expired) ──────────────────────────
     const onRequestMissed = (data: SessionMissedPayload) => {
+      console.log("[Socket] Received request_missed on frontend!", data);
       setSessionMissed(data);
     };
 
     // ── Student: all teachers declined ───────────────────────────────────
     const onSessionDeclined = (data: SessionMissedPayload) => {
+      console.log("[Socket] Received session_declined on frontend!", data);
       setSessionDeclined(data);
     };
 
     // ── Chat messages ─────────────────────────────────────────────────────
-    const onNewMessage = (msg: any) => setLastMessage(msg);
+    const onNewMessage = (msg: any) => {
+      console.log("[Socket] Received new_message on frontend!", msg);
+      setLastMessage(msg);
+    };
     const onTyping = (data: { userId: string }) => setTypingUserId(data.userId);
     const onStopTyping = () => setTypingUserId(null);
 

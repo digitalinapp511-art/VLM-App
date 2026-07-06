@@ -200,9 +200,15 @@ export const getIo = () => ioInstance;
  */
 export const emitNewRequest = (teacherUserIds, requestData) => {
   const io = getIo();
-  if (!io) return;
+  if (!io) {
+    console.error('[Socket] emitNewRequest failed: ioInstance is null');
+    return;
+  }
   teacherUserIds.forEach((userId) => {
-    io.to(`user:${userId}`).emit('new_request', requestData);
+    const roomName = `user:${userId}`;
+    const room = io.sockets.adapter.rooms.get(roomName);
+    console.log(`[Socket] Emitting new_request to ${roomName}. Sockets in room:`, room ? room.size : 0);
+    io.to(roomName).emit('new_request', requestData);
   });
 };
 
@@ -212,8 +218,15 @@ export const emitNewRequest = (teacherUserIds, requestData) => {
  */
 export const emitSessionAccepted = (studentUserId, sessionData) => {
   const io = getIo();
-  if (!io) return;
-  io.to(`user:${studentUserId}`).emit('session_accepted', sessionData);
+  if (!io) {
+    console.error('[Socket] emitSessionAccepted failed: ioInstance is null');
+    return;
+  }
+  const roomName = `user:${studentUserId}`;
+  const room = io.sockets.adapter.rooms.get(roomName);
+  console.log(`[Socket] Emitting session_accepted to ${roomName}. Sockets in room:`, room ? room.size : 0);
+  console.log('[Socket] Payload:', JSON.stringify(sessionData));
+  io.to(roomName).emit('session_accepted', sessionData);
 };
 
 /**
@@ -221,6 +234,12 @@ export const emitSessionAccepted = (studentUserId, sessionData) => {
  */
 export const emitSessionDeclined = (studentUserId, data) => {
   const io = getIo();
-  if (!io) return;
-  io.to(`user:${studentUserId}`).emit('session_declined', data);
+  if (!io) {
+    console.error('[Socket] emitSessionDeclined failed: ioInstance is null');
+    return;
+  }
+  const roomName = `user:${studentUserId}`;
+  const room = io.sockets.adapter.rooms.get(roomName);
+  console.log(`[Socket] Emitting session_declined to ${roomName}. Sockets in room:`, room ? room.size : 0);
+  io.to(roomName).emit('session_declined', data);
 };
