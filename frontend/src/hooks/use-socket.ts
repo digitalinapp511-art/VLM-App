@@ -20,6 +20,7 @@ export interface IncomingRequest {
   board: string;
   language: string;
   doubtText: string;
+  doubtImage?: string;
   topic?: string;
   timerExpiresAt: string;
   student: {
@@ -80,6 +81,7 @@ export function useSocket(options: UseSocketOptions = {}) {
   // Whiteboard: remote draw actions
   const [remoteDrawAction, setRemoteDrawAction] = useState<any | null>(null);
   const [remoteClearCanvas, setRemoteClearCanvas] = useState(0);
+  const [remoteWhiteboardToggle, setRemoteWhiteboardToggle] = useState<{ show: boolean } | null>(null);
 
   // Call: ended signal
   const [callEnded, setCallEnded] = useState(false);
@@ -131,6 +133,7 @@ export function useSocket(options: UseSocketOptions = {}) {
     // ── Whiteboard ────────────────────────────────────────────────────────
     const onWhiteboardDraw = (data: any) => setRemoteDrawAction(data);
     const onWhiteboardClear = () => setRemoteClearCanvas((n) => n + 1);
+    const onWhiteboardToggle = (data: { show: boolean }) => setRemoteWhiteboardToggle(data);
 
     // ── Call end ──────────────────────────────────────────────────────────
     const onCallEnded = () => setCallEnded(true);
@@ -146,6 +149,7 @@ export function useSocket(options: UseSocketOptions = {}) {
     s.on("user_stop_typing", onStopTyping);
     s.on("whiteboard_draw", onWhiteboardDraw);
     s.on("whiteboard_clear", onWhiteboardClear);
+    s.on("whiteboard_toggle", onWhiteboardToggle);
     s.on("call_ended", onCallEnded);
 
     return () => {
@@ -160,6 +164,7 @@ export function useSocket(options: UseSocketOptions = {}) {
       s.off("user_stop_typing", onStopTyping);
       s.off("whiteboard_draw", onWhiteboardDraw);
       s.off("whiteboard_clear", onWhiteboardClear);
+      s.off("whiteboard_toggle", onWhiteboardToggle);
       s.off("call_ended", onCallEnded);
     };
   }, [autoConnect]);
@@ -204,6 +209,11 @@ export function useSocket(options: UseSocketOptions = {}) {
     s.emit("whiteboard_clear", { sessionId: sId });
   }, []);
 
+  const sendWhiteboardToggle = useCallback((sId: string, show: boolean) => {
+    const s = getSocket();
+    s.emit("whiteboard_toggle", { sessionId: sId, show });
+  }, []);
+
   const sendCallEnd = useCallback((sId: string) => {
     const s = getSocket();
     s.emit("call_end", { sessionId: sId });
@@ -224,6 +234,7 @@ export function useSocket(options: UseSocketOptions = {}) {
     typingUserId,
     remoteDrawAction,
     remoteClearCanvas,
+    remoteWhiteboardToggle,
     callEnded,
     // Actions
     sendMessage,
@@ -231,6 +242,7 @@ export function useSocket(options: UseSocketOptions = {}) {
     sendStopTyping,
     sendWhiteboardDraw,
     sendWhiteboardClear,
+    sendWhiteboardToggle,
     sendCallEnd,
     dismissIncomingRequest,
     dismissSessionAccepted,

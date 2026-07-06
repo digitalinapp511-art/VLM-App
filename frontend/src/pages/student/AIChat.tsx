@@ -37,6 +37,8 @@ export default function AIChat() {
 
   const initialQuestion = location.state?.initialQuestion;
 
+  const initialImage = location.state?.initialImage;
+
   const [sessionId, setSessionId] = useState<string>(generateSessionId());
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState("");
@@ -105,10 +107,10 @@ export default function AIChat() {
 
   // Handle initial question if sent from AskDoubt
   useEffect(() => {
-    if (initialQuestion && messages.length <= 1) {
-      handleSend(initialQuestion);
+    if ((initialQuestion || initialImage) && messages.length <= 1) {
+      handleSend(initialQuestion, initialImage);
     }
-  }, [initialQuestion]);
+  }, [initialQuestion, initialImage]);
 
   // Scroll to bottom on new messages
   useEffect(() => {
@@ -126,7 +128,9 @@ export default function AIChat() {
   const removeImage = () => {
     setSelectedImage(null);
     if (imagePreview) {
-      URL.revokeObjectURL(imagePreview);
+      if (!imagePreview.startsWith("http")) {
+        URL.revokeObjectURL(imagePreview);
+      }
       setImagePreview(null);
     }
   };
@@ -160,9 +164,10 @@ export default function AIChat() {
     }
   };
 
-  const handleSend = async (textToSend?: string) => {
+  const handleSend = async (textToSend?: string, imageToSend?: File | string | null) => {
     const text = (textToSend ?? inputValue).trim();
-    if (!text && !selectedImage) return;
+    const currentImgFile = imageToSend !== undefined ? imageToSend : selectedImage;
+    if (!text && !currentImgFile) return;
 
     if (aiCredits <= 0) {
       toast.error("Insufficient AI credits. Please recharge your wallet!");
@@ -173,8 +178,10 @@ export default function AIChat() {
       setInputValue("");
     }
 
-    const currentImgFile = selectedImage;
-    const currentImgPreview = imagePreview;
+    const currentImgPreview = (typeof currentImgFile === "string")
+      ? currentImgFile
+      : (currentImgFile ? URL.createObjectURL(currentImgFile) : null);
+
     removeImage();
 
     // Add user message

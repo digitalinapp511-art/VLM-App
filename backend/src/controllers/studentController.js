@@ -300,15 +300,58 @@ export const submitDoubtWithImages = asyncHandler(async (req, res) => {
   session.routedTeachers = teachers.map((t) => t._id);
   await session.save();
 
-  for (const teacher of teachers) {
-    await createNotification(
-      teacher.userId,
-      'new_request',
-      'New Doubt Request',
-      `${subject} - Class ${cls}`,
-      { sessionId: session._id, doubtRequestId: doubtRequest._id },
-      `/teacher/requests/${doubtRequest._id}`
-    );
+  // Emit socket event to each matched teacher's personal room
+  const io = getIo();
+  if (io) {
+    const requestPayload = {
+      requestId: doubtRequest._id.toString(),
+      sessionId: session._id.toString(),
+      sessionType: sessionType || 'chat',
+      subject,
+      class: cls,
+      board,
+      language,
+      doubtText,
+      doubtImage,
+      topic,
+      timerExpiresAt,
+      student: {
+        name: student?.fullName || '',
+        nickname: student?.nickname || '',
+        class: student?.class || '',
+        photo: student?.profilePhoto || student?.photo || '',
+      },
+    };
+
+    for (const teacher of teachers) {
+      const targetUserId = teacher.userId._id ? teacher.userId._id.toString() : teacher.userId.toString();
+      const roomName = `user:${targetUserId}`;
+      const room = io.sockets.adapter.rooms.get(roomName);
+      console.log(`Emitting new_request to ${roomName} (image). Sockets in room:`, room ? room.size : 0);
+      io.to(roomName).emit('new_request', requestPayload);
+
+      // Also persist DB notification
+      await createNotification(
+        targetUserId,
+        'new_request',
+        'New Doubt Request',
+        `${subject} - Class ${cls}`,
+        { sessionId: session._id, doubtRequestId: doubtRequest._id },
+        `/teacher/requests/${doubtRequest._id}`
+      );
+    }
+  } else {
+    // Fallback: just send DB notifications
+    for (const teacher of teachers) {
+      await createNotification(
+        teacher.userId,
+        'new_request',
+        'New Doubt Request',
+        `${subject} - Class ${cls}`,
+        { sessionId: session._id, doubtRequestId: doubtRequest._id },
+        `/teacher/requests/${doubtRequest._id}`
+      );
+    }
   }
 
   res.json({
@@ -797,10 +840,12 @@ export const submitAiChatQuery = asyncHandler(async (req, res) => {
     return res.status(400).json({ success: false, message: 'Session ID is required' });
   }
 
-  // Get image URL if uploaded
+  // Get image URL if uploaded or passed directly in body
   let imageUrl = null;
   if (req.file) {
     imageUrl = getFileUrl(req.file.filename, 'profiles');
+  } else if (req.body.imageUrl || req.body.image) {
+    imageUrl = req.body.imageUrl || req.body.image;
   }
 
   // Fetch recent history for memory inside current session (last 6 messages to reduce token size and input tokens)

@@ -84,7 +84,7 @@ export function IncomingRequestPopup({
             </div>
           </div>
 
-          <div className="rounded-2xl bg-white/[0.04] border border-white/5 p-4 space-y-1">
+          <div className="rounded-2xl bg-white/[0.04] border border-white/5 p-4 space-y-1.5">
             <p className="text-xs font-black text-white/90 leading-snug">
               {request.subject}{request.topic ? ` · ${request.topic}` : ""}
             </p>
@@ -92,6 +92,16 @@ export function IncomingRequestPopup({
               <p className="text-[11px] text-white/50 leading-relaxed line-clamp-3">
                 {request.doubtText}
               </p>
+            )}
+            {request.doubtImage && (
+              <div className="mt-2 rounded-xl overflow-hidden border border-white/10 bg-black/40">
+                <img
+                  src={request.doubtImage}
+                  alt="Doubt attachment"
+                  className="w-full h-32 object-cover cursor-pointer hover:scale-105 transition-transform"
+                  onClick={() => window.open(request.doubtImage, "_blank")}
+                />
+              </div>
             )}
           </div>
 

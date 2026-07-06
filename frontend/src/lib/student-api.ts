@@ -180,12 +180,16 @@ export const studentApi = {
     return data;
   },
 
-  sendAiChatMessage: async (query: string, sessionId: string, imageFile?: File) => {
+  sendAiChatMessage: async (query: string, sessionId: string, imageInput?: File | string) => {
     const form = new FormData();
     form.append("query", query);
     form.append("sessionId", sessionId);
-    if (imageFile) {
-      form.append("image", imageFile);
+    if (imageInput) {
+      if (typeof imageInput === "string") {
+        form.append("imageUrl", imageInput); // Send as string parameter
+      } else {
+        form.append("image", imageInput); // Send as file
+      }
     }
     const { data } = await apiClient.post("/student/ai-chat", form, {
       headers: { "Content-Type": "multipart/form-data" },

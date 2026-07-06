@@ -1,257 +1,227 @@
-import { bgCss } from "@/helper/CssHelper";
+/**
+ * StudentDashboard.tsx
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Thin orchestration layer — assembles the new VLM Academy-style dashboard.
+ *
+ * Includes:
+ *   - Hamburger Menu (3 lines) on the top left
+ *   - Slide-out Sidebar Drawer with:
+ *     - Home, My Courses, Live Classes, Rewards, Career Guide, Settings
+ *     - "Upgrade to VLM Premium" CTA cards
+ *   - VLM Academy Brand Logo in the header
+ *
+ * Component hierarchy:
+ *   StudentDashboard
+ *     ├── Sidebar Drawer      (Home, Courses, Classes, Rewards, Career, Settings, Upgrade)
+ *     ├── HeroBanner          (greeting + streak/points/level)
+ *     ├── LiveSupportBanner   (24x7 teacher support strip)
+ *     ├── QuickAccessGrid     (10-tile quick access)
+ *     ├── SubjectProgress     (circular gauge + subject bars)
+ *     ├── RewardsBanner       (purple trophy banner)
+ *     ├── MiniCards           (daily goal / upcoming test / AI tutor)
+ *     └── StudentBottomNav    (fixed bottom nav)
+ */
+import { useState } from "react";
+import DashboardLoading from "@/components/basic/DashboardLoading";
 import { useNavigate } from "react-router-dom";
 import { PATHS } from "@/routes/paths";
-import HorizontalSection from "@/components/basic/student/HorizontalSection";
-import DashboardLoading from "@/components/basic/DashboardLoading";
-import FeatureCard from "@/components/basic/student/FeatureCard";
 import {
-  Bell, GraduationCap, MessageSquare, Bot, Users,
-  ClipboardCheck, Trophy, Coins, Clock, BookOpen,
+  Bell, Menu, X, Home as HomeIcon, BookOpen, Tv, Gift, Compass, Settings, Zap, ChevronRight
 } from "lucide-react";
-import { useState, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { useStudentProfile } from "@/hooks/use-student";
-import { cn } from "@/lib/utils";
-import { apiClient } from "@/lib/api-client";
+import { motion, AnimatePresence } from "framer-motion";
 
-// Shadcn Components
-import { Card } from "@/components/ui/card";
+// Feature components
+import { useStudentDashboard } from "@/features/student/hooks/use-student-dashboard";
+import HeroBanner from "@/features/student/components/dashboard/HeroBanner";
+import LiveSupportBanner from "@/features/student/components/dashboard/LiveSupportBanner";
+import QuickAccessGrid from "@/features/student/components/dashboard/QuickAccessGrid";
+import SubjectProgress from "@/features/student/components/dashboard/SubjectProgress";
+import RewardsBanner from "@/features/student/components/dashboard/RewardsBanner";
+import MiniCards from "@/features/student/components/dashboard/MiniCards";
+import StudentBottomNav from "@/features/student/components/layout/StudentBottomNav";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
-import { GoldCoinsIcon } from "@/components/basic/GoldCoinsIcon";
+
+import logoImg from "@/assets/logo.png";
 
 export default function StudentDashboard() {
   const navigate = useNavigate();
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const {
+    isLoading,
+    nickname,
+    photo,
+    streak,
+    totalPoints,
+    level,
+    mcqCompleted,
+    mcqTotal,
+    activeTeachersCount,
+  } = useStudentDashboard();
 
-  const { data: profile, isLoading: isProfileLoading, error: profileError } = useStudentProfile();
+  if (isLoading) return <DashboardLoading />;
 
-  const { data: dashboard, isLoading: isDashboardLoading } = useQuery({
-    queryKey: ["dashboard"],
-    queryFn: async () => {
-      const res = await apiClient.get("/student/dashboard");
-      return res.data;
-    }
-  });
-
-  const p = (profile as any)?.data ?? profile;
-  const [secondsLeft, setSecondsLeft] = useState(0);
-
-  const lastSpinDateStr = (profile as any)?.lastSpinDate ?? dashboard?.data?.student?.lastSpinDate;
-
-  useEffect(() => {
-    if (profileError) {
-      const err = profileError as any;
-      if (err?.response?.status === 404) {
-        navigate(PATHS.STUDENT_PROFILE_SETUP, { replace: true });
-        return;
-      }
-    }
-
-    if (profile && !isProfileLoading) {
-      const isIncomplete =
-        !p?.fullName ||
-        !(p?.className || p?.class) ||
-        !p?.board ||
-        !p?.nickname;
-      if (isIncomplete) {
-        navigate(PATHS.STUDENT_PROFILE_SETUP, { replace: true });
-      }
-    }
-  }, [profile, isProfileLoading, profileError, navigate, p]);
-
-  // Sync Timer countdown
-  useEffect(() => {
-    if (lastSpinDateStr) {
-      const updateTimer = () => {
-        const lastSpin = new Date(lastSpinDateStr).getTime();
-        const diffMs = Date.now() - lastSpin;
-        const remainingMs = (24 * 3600 * 1000) - diffMs;
-        if (remainingMs > 0) {
-          setSecondsLeft(Math.ceil(remainingMs / 1000));
-        } else {
-          setSecondsLeft(0);
-        }
-      };
-      updateTimer();
-      const interval = setInterval(updateTimer, 1000);
-      return () => clearInterval(interval);
-    }
-  }, [lastSpinDateStr]);
-
-  const formatDuration = (totalSeconds: number) => {
-    const hrs = Math.floor(totalSeconds / 3600);
-    const mins = Math.floor((totalSeconds % 3600) / 60);
-    const secs = totalSeconds % 60;
-    return `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  const isLoading = isProfileLoading || isDashboardLoading;
-
-  if (isLoading && !dashboard) return <DashboardLoading />;
+  const menuItems = [
+    { label: "Home", icon: <HomeIcon size={20} />, to: PATHS.STUDENT_DASHBOARD },
+    { label: "My Courses", icon: <BookOpen size={20} />, to: PATHS.LIBRARY },
+    { label: "Live Classes", icon: <Tv size={20} />, to: PATHS.LIVE_CLASSES },
+    { label: "Rewards", icon: <Gift size={20} />, to: PATHS.SPINNER },
+    { label: "Career Guide", icon: <Compass size={20} />, to: PATHS.COMING_SOON },
+    { label: "Settings", icon: <Settings size={20} />, to: PATHS.EDIT_PROFILE },
+  ];
 
   return (
-    <div className={`${bgCss} min-h-svh w-full  text-white flex flex-col items-center pb-7 overflow-x-hidden`}>
+    <div className="min-h-svh bg-[#f4f6ff] pb-28 font-sans relative overflow-x-hidden">
+      
+      {/* ── Sidebar Menu Drawer ────────────────────────────────────────── */}
+      <AnimatePresence>
+        {isMenuOpen && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsMenuOpen(false)}
+              className="fixed inset-0 bg-black/40 z-[100] backdrop-blur-sm"
+            />
 
-      <div className=" max-w-xl m-auto min-h-svh w-full text-white pb-10 overflow-x-hidden">
-
-        {/* ── HEADER ── */}
-        <header className="flex items-center justify-between px-6 pt-10 pb-6">
-          <GraduationCap className="text-white/80 h-7 w-7" />
-          <div
-            className="relative cursor-pointer"
-            onClick={() => navigate(PATHS.STUDENT_NOTIFICATIONS)}
-          >
-            <Bell className="text-white/80 h-7 w-7" />
-            <span className="absolute top-0 right-0 h-2 w-2 bg-red-500 rounded-full border border-black" />
-          </div>
-        </header>
-
-        <main className="px-6 space-y-8">
-          {/* Welcome Text */}
-          <div className="animate-in fade-in slide-in-from-left duration-700">
-            <h1 className="text-3xl font-bold flex items-center gap-2">
-              Hi {p?.nickname || p?.fullName || "Student"} <span className="animate-bounce">👋</span>
-            </h1>
-          </div>
-
-          {/* ── MAIN FEATURE GRID ── */}
-          <div className="grid grid-cols-2 gap-4">
-            <FeatureCard
-              icon={<MessageSquare className="text-cyan-400" />}
-              title="ASK DOUBT"
-              bg="bg-cyan-500/10"
-              glow="shadow-[0_0_15px_rgba(34,211,238,0.2)] border-cyan-500/20"
-              to={PATHS.ASK_DOUBT}
-            />
-            <FeatureCard
-              icon={<Bot className="text-purple-500" />}
-              title="AI TUTOR"
-              bg="bg-purple-500/10"
-              glow="shadow-[0_0_15px_rgba(168,85,247,0.2)] border-purple-500/20"
-              to={PATHS.AI_CHAT}
-            />
-            <FeatureCard
-              icon={<Users className="text-yellow-500" />}
-              title="LIVE TEACHER"
-              isNew
-              bg="bg-yellow-500/10"
-              glow="shadow-[0_0_15px_rgba(234,179,8,0.2)] border-yellow-500/20"
-              to={PATHS.SHORT_LIVE_SESSION}
-            />
-            <FeatureCard
-              icon={<ClipboardCheck className="text-emerald-400" />}
-              title="DAILY MCQ TASK"
-              bg="bg-emerald-500/10"
-              desc={`Completed: ${dashboard?.mcq?.completed || 0}/${dashboard?.mcq?.total || 0}`}
-              glow="shadow-[0_0_15px_rgba(52,211,153,0.2)] border-emerald-500/20"
-              to={PATHS.MCQ}
-            />
-            <FeatureCard
-              icon={<Trophy className="text-red-500" />}
-              title="LEADERBOARD RANK"
-              desc={`Your Rank: ${p?.leaderboardRank ?? dashboard?.data?.student?.leaderboardRank ?? 4}`}
-              subDesc="↑ +3 Positions"
-              bg="bg-red-500/10"
-              glow="shadow-[0_0_15px_rgba(239,68,68,0.2)] border-red-500/20"
-              to={PATHS.LEADERBOARD}
-            />
-            <FeatureCard
-              icon={<GoldCoinsIcon />}
-              title="REWARD POINTS"
-              bg="bg-yellow-500/10"
-              desc={`Total: ${(p?.totalPoints ?? p?.wallet?.totalPoints ?? dashboard?.data?.totalPoints ?? dashboard?.data?.student?.wallet?.totalPoints ?? 0).toLocaleString()} pts`}
-              glow="shadow-[0_0_15px_rgba(234,179,8,0.2)] border-yellow-500/20"
-              to={PATHS.WALLET}
-            />
-          </div>
-
-          {/* Library Card Row */}
-          <Card
-            onClick={() => navigate(PATHS.LIBRARY)}
-            className="w-full bg-[#1a1a1a]/40 border border-cyan-500/20 rounded-[2rem] p-6 flex items-center justify-between cursor-pointer hover:bg-white/[0.03] hover:border-cyan-400/40 active:scale-[0.99] transition-all shadow-[0_0_20px_rgba(6,182,212,0.05)] text-left"
-          >
-            <div className="flex items-center gap-4">
-              <div className="h-12 w-12 rounded-2xl bg-cyan-500/10 flex items-center justify-center border border-cyan-500/20 shrink-0">
-                <BookOpen className="h-6 w-6 text-cyan-400" />
-              </div>
-              <div className="space-y-1">
-                <h3 className="text-sm font-bold tracking-widest text-white/80 uppercase">Study Material Library</h3>
-                <p className="text-xs text-white/50 leading-snug">Access PDF notes, video lessons, and previous year papers</p>
-              </div>
-            </div>
-            <Button
-              size="sm"
-              onClick={(e) => { e.stopPropagation(); navigate(PATHS.LIBRARY); }}
-              className="h-9 px-5 rounded-full bg-cyan-400 text-black text-xs font-black tracking-wider hover:bg-cyan-300 transition-all shadow-md shrink-0 uppercase"
+            {/* Drawer */}
+            <motion.div
+              initial={{ x: "-100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "-100%" }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="fixed top-0 bottom-0 left-0 w-80 bg-white z-[100] shadow-2xl flex flex-col p-6 border-r border-slate-100"
             >
-              Explore
-            </Button>
-          </Card>
-
-          {/* ── SPECIAL WIDGETS ── */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Spin & Win Card */}
-            <Card className="bg-[#1a1a1a]/40 border-purple-500/20 rounded-[2rem] p-6 text-center">
-              <h3 className="text-sm font-bold tracking-widest text-white/80">SPIN & WIN TIMER</h3>
-              <p className="text-[10px] text-white/40 mt-1">
-                {secondsLeft > 0 ? `Next Spin in: ${formatDuration(secondsLeft)}` : "Daily free spin!"}
-              </p>
-              <div className="py-6 flex justify-center">
-                <Clock className={cn("h-16 w-16 text-yellow-500 animate-pulse", secondsLeft > 0 && "opacity-40")} strokeWidth={1.5} />
-              </div>
-              <Button
-                onClick={() => navigate(PATHS.SPINNER)}
-                className={cn(
-                  "w-full h-12 rounded-2xl font-black shadow-lg transition-all",
-                  secondsLeft > 0
-                    ? "bg-neutral-800 text-white/40 border border-white/5 cursor-not-allowed hover:bg-neutral-800"
-                    : "bg-gradient-to-r from-yellow-400 to-orange-500 text-black active:scale-[0.98]"
-                )}
-              >
-                {secondsLeft > 0 ? "SPIN TODAY" : "SPIN NOW"}
-              </Button>
-            </Card>
-
-            {/* Upcoming Live Class */}
-            <Card className="bg-[#1a1a1a]/40 border-blue-500/20 rounded-[2rem] p-6 overflow-hidden relative">
-              <div className="space-y-4">
-                <div className="space-y-1">
-                  <h3 className="text-xs font-bold tracking-widest text-white/80 uppercase">Upcoming Live Class</h3>
-                  <p className="text-xs text-white/50 leading-snug">Topic: <span className="text-white">{dashboard?.liveClass?.topic || "No Class Scheduled"}</span></p>
-                  <p className="text-[10px] text-white/40 italic">Time: {dashboard?.liveClass?.time || "N/A"}</p>
+              {/* Drawer Header */}
+              <div className="flex items-center justify-between pb-6 border-b border-slate-100">
+                <div className="flex items-center gap-2">
+                  <img src={logoImg} alt="VLM Academy" className="h-8 w-auto" />
                 </div>
-                <div className="flex items-center gap-3">
-                  <Avatar className="h-10 w-10 border border-white/10">
-                    <AvatarImage src="https://github.com/shadcn.png" />
-                    <AvatarFallback>DR</AvatarFallback>
-                  </Avatar>
-                  <span className="text-xs font-bold">{dashboard?.liveClass?.teacher || "Tutor"}</span>
-                </div>
-                <Button
-                  onClick={() => navigate(PATHS.LIVE_SESSION, { state: { sessionId: dashboard?.liveClass?.sessionId } })}
-                  className="w-full h-12 rounded-2xl bg-[#1e3a8e] border border-blue-400/30 text-white font-bold shadow-[0_0_20px_rgba(37,99,235,0.3)]"
+                <button
+                  onClick={() => setIsMenuOpen(false)}
+                  className="h-8 w-8 rounded-full bg-slate-50 flex items-center justify-center text-slate-500 hover:text-slate-700 active:scale-90 transition-all"
                 >
-                  JOIN LIVE <span className="ml-2 font-mono text-[10px] opacity-70">{dashboard?.liveClass?.timer || "00:00"}</span>
-                </Button>
+                  <X size={18} />
+                </button>
               </div>
-            </Card>
-          </div>
 
-          {/* ── HORIZONTAL SCROLL SECTIONS ── */}
-          <HorizontalSection title="SHORT LIVE SESSIONS" viewAllTo={PATHS.SHORT_LIVE_SESSION} items={dashboard?.shortLiveSessions} />
-          <HorizontalSection title="SHORT VIDEO FEED" isVideo viewAllTo={PATHS.SHORT_VIDEO_FEED} items={dashboard?.shortLiveSessions} />
-        </main>
+              {/* Navigation List */}
+              <div className="flex-1 py-6 space-y-2 overflow-y-auto">
+                {menuItems.map((item) => (
+                  <button
+                    key={item.label}
+                    onClick={() => {
+                      setIsMenuOpen(false);
+                      navigate(item.to);
+                    }}
+                    className="flex items-center justify-between w-full p-3 rounded-2xl text-slate-700 hover:bg-slate-50 active:scale-[0.98] transition-all"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="text-violet-600">{item.icon}</div>
+                      <span className="text-sm font-black tracking-wide">{item.label}</span>
+                    </div>
+                    <ChevronRight size={16} className="text-slate-400" />
+                  </button>
+                ))}
 
-        {/* ── BOTTOM NAVIGATION ── */}
+                {/* Bottom Premium Upgrade Banner */}
+                <div className="mt-6 bg-gradient-to-br from-violet-600 to-indigo-700 p-5 rounded-3xl text-white relative overflow-hidden shadow-xl shadow-violet-500/20">
+                  <div className="absolute -bottom-6 -right-6 w-20 h-20 rounded-full bg-white/10 blur-lg" />
+                  <div className="relative z-10">
+                    <div className="flex items-center gap-1.5 bg-white/20 w-fit px-2.5 py-1 rounded-full text-[9px] font-black tracking-wider uppercase mb-2">
+                      <Zap size={10} className="fill-yellow-400 text-yellow-400" /> Premium
+                    </div>
+                    <p className="text-sm font-black leading-tight">Upgrade to VLM Premium</p>
+                    <p className="text-[10px] text-white/70 mt-1 leading-snug">Get unlimited live doubts and professional career counseling</p>
+                    <button
+                      onClick={() => {
+                        setIsMenuOpen(false);
+                        navigate(PATHS.PLAN_SCREEN);
+                      }}
+                      className="mt-4 w-full bg-yellow-400 hover:bg-yellow-300 text-black font-black text-xs py-2.5 rounded-2xl shadow-md transition-all active:scale-95 uppercase tracking-wider"
+                    >
+                      Upgrade Now
+                    </button>
+                  </div>
+                </div>
 
-      </div>
+              </div>
+
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* ── Top Header ─────────────────────────────────────────────────── */}
+      <header className="max-w-xl mx-auto flex items-center justify-between px-5 pt-4 pb-3">
+        {/* Left Menu Button + Logo */}
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setIsMenuOpen(true)}
+            className="h-10 w-10 rounded-full bg-white border border-slate-100 shadow-sm flex items-center justify-center text-slate-600 hover:text-slate-800 active:scale-90 transition-transform"
+          >
+            <Menu size={20} />
+          </button>
+          <img src={logoImg} alt="VLM Academy Logo" className="h-14 w-auto object-contain" />
+        </div>
+
+        {/* Right controls */}
+        <div className="flex items-center gap-3">
+          {/* Notification bell */}
+          <button
+            onClick={() => navigate(PATHS.STUDENT_NOTIFICATIONS)}
+            className="relative h-9 w-9 rounded-full bg-white border border-slate-100 shadow-sm flex items-center justify-center"
+          >
+            <Bell size={18} className="text-slate-600" />
+            <span className="absolute top-1 right-1 h-2 w-2 bg-red-500 rounded-full border border-white" />
+            {/* Notification count badge */}
+            <span className="absolute -top-1 -right-1 h-4 w-4 bg-red-500 rounded-full text-white text-[8px] font-black flex items-center justify-center">
+              3
+            </span>
+          </button>
+
+          {/* Avatar */}
+          <Avatar
+            className="h-9 w-9 border-2 border-violet-300 cursor-pointer"
+            onClick={() => navigate(PATHS.PROFILE)}
+          >
+            <AvatarImage src={photo} />
+            <AvatarFallback className="bg-violet-100 text-violet-700 font-black text-xs">
+              {nickname?.[0]?.toUpperCase() ?? "S"}
+            </AvatarFallback>
+          </Avatar>
+        </div>
+      </header>
+
+      {/* ── Content ────────────────────────────────────────────────────── */}
+      <main className="max-w-xl mx-auto space-y-4">
+        {/* 1. Hero Banner */}
+        <HeroBanner
+          nickname={nickname}
+          streak={streak}
+          totalPoints={totalPoints}
+          level={level}
+        />
+
+        {/* 2. Live Support Strip */}
+        <LiveSupportBanner activeTeachersCount={activeTeachersCount} />
+
+        {/* 3. Quick Access Grid */}
+        <QuickAccessGrid />
+
+        {/* 4. Subject Progress */}
+        <SubjectProgress />
+
+        {/* 5. Rewards Banner */}
+        <RewardsBanner />
+
+        {/* 6. Mini Cards (Daily Goal / Upcoming Test / AI Tutor) */}
+        <MiniCards mcqCompleted={mcqCompleted} mcqTotal={mcqTotal} />
+      </main>
+
+      {/* ── Fixed Bottom Nav ───────────────────────────────────────────── */}
+      <StudentBottomNav />
     </div>
   );
 }
-
-// --- Sub-Components ---
-
-
-
-
-

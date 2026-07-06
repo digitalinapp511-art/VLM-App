@@ -1,14 +1,17 @@
+/**
+ * TeacherSearching.tsx — student side
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Redesigned to match the light, gamified VLM Academy dashboard theme.
+ */
 import { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { PATHS } from "@/routes/paths";
 import { ChevronLeft, BookOpen, GraduationCap, Video, Phone, MessageCircle, WifiOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { bgCss } from "@/helper/CssHelper";
 import { cn } from "@/lib/utils";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { useSocket } from "@/hooks/use-socket";
-import { studentApi } from "@/lib/student-api";
 import { toast } from "sonner";
 
 export default function TeacherSearching() {
@@ -117,17 +120,19 @@ export default function TeacherSearching() {
   ];
 
   const sessionIcon = sessionType === "Video Call"
-    ? <Video size={16} className="text-purple-400" />
+    ? <Video size={16} className="text-purple-600" />
     : sessionType === "Audio Call"
-    ? <Phone size={16} className="text-green-400" />
-    : <MessageCircle size={16} className="text-cyan-400" />;
+    ? <Phone size={16} className="text-green-600" />
+    : <MessageCircle size={16} className="text-cyan-600" />;
+
+  const sessionIconBg = sessionType === "Video Call"
+    ? "bg-purple-100"
+    : sessionType === "Audio Call"
+    ? "bg-green-100"
+    : "bg-cyan-100";
 
   return (
-    <div className={cn("relative min-h-svh w-full text-white flex flex-col items-center px-6 pt-6 overflow-x-hidden pb-12", bgCss)}>
-
-      {/* Background glows */}
-      <div className="absolute top-[10%] left-[-20%] h-[300px] w-[300px] rounded-full bg-cyan-500/10 blur-[100px] pointer-events-none" />
-      <div className="absolute bottom-[20%] right-[-10%] h-[350px] w-[350px] rounded-full bg-purple-500/10 blur-[120px] pointer-events-none" />
+    <div className="relative min-h-svh w-full bg-[#f4f6ff] text-slate-800 flex flex-col items-center px-6 pt-6 overflow-x-hidden pb-12 font-sans">
 
       <div className="w-full max-w-md flex-1 flex flex-col justify-between h-full z-10">
 
@@ -137,34 +142,34 @@ export default function TeacherSearching() {
             variant="outline"
             size="icon"
             onClick={handleCancel}
-            className="h-10 w-10 rounded-xl border-white/10 bg-white/5 text-white backdrop-blur-md"
+            className="h-10 w-10 rounded-full border-slate-100 bg-white text-slate-600 shadow-sm hover:text-slate-800"
           >
             <ChevronLeft size={20} />
           </Button>
-          <h1 className="text-sm font-bold tracking-tight text-white/90">Finding Your Teacher</h1>
+          <h1 className="text-sm font-bold tracking-tight text-slate-800">Finding Your Teacher</h1>
           <div className="w-10" />
         </header>
 
         {/* Status */}
-        <div className="space-y-2 mt-4">
-          <h2 className="text-2xl font-black tracking-tight text-left max-w-xs leading-snug">
+        <div className="space-y-1.5 mt-4 text-center">
+          <h2 className="text-xl font-black tracking-tight text-slate-800 leading-snug">
             {noTeacher ? "No teachers available" : "Finding the best teacher for your doubt…"}
           </h2>
           <p className={cn(
-            "text-xs font-semibold tracking-wide",
-            noTeacher ? "text-red-400" : "text-cyan-400 animate-pulse"
+            "text-xs font-bold tracking-wide",
+            noTeacher ? "text-red-500" : "text-violet-600 animate-pulse"
           )}>
             {statusMessage}
           </p>
         </div>
 
         {/* Radar Animation */}
-        <div className="relative flex items-center justify-center my-10 h-64 w-full">
+        <div className="relative flex items-center justify-center my-8 h-64 w-full select-none">
 
           {/* Center VLM Logo */}
-          <div className="relative z-20 h-28 w-28 rounded-full border border-cyan-400/40 bg-[#0f1d24] flex flex-col items-center justify-center text-center shadow-[0_0_40px_rgba(6,182,212,0.3)]">
-            <span className="text-sm font-black tracking-widest text-cyan-400">VLM</span>
-            <span className="text-[8px] font-black text-white/60 tracking-widest uppercase mt-0.5 leading-none">
+          <div className="relative z-20 h-28 w-28 rounded-full border-2 border-violet-100 bg-white flex flex-col items-center justify-center text-center shadow-lg shadow-violet-500/10">
+            <span className="text-base font-black tracking-wider text-violet-600">VLM</span>
+            <span className="text-[8px] font-black text-slate-400 tracking-wider uppercase mt-0.5 leading-none">
               Doubt<br />Resolved
             </span>
           </div>
@@ -172,8 +177,8 @@ export default function TeacherSearching() {
           {/* Spinning rings */}
           {!noTeacher && (
             <>
-              <div className="absolute inset-0 m-auto h-40 w-40 border border-dashed border-cyan-500/25 rounded-full animate-spin [animation-duration:8s] pointer-events-none" />
-              <div className="absolute inset-0 m-auto h-52 w-52 border border-dashed border-purple-500/25 rounded-full animate-spin [animation-duration:12s] pointer-events-none" />
+              <div className="absolute inset-0 m-auto h-40 w-40 border border-dashed border-violet-400/30 rounded-full animate-spin [animation-duration:8s] pointer-events-none" />
+              <div className="absolute inset-0 m-auto h-52 w-52 border border-dashed border-indigo-400/30 rounded-full animate-spin [animation-duration:12s] pointer-events-none" />
             </>
           )}
 
@@ -188,12 +193,12 @@ export default function TeacherSearching() {
                 className={cn("absolute z-20 flex flex-col items-center", positions[index])}
               >
                 <div className="relative">
-                  <div className="h-14 w-14 rounded-full border-2 border-white/10 bg-neutral-900 overflow-hidden shadow-lg p-0.5">
+                  <div className="h-14 w-14 rounded-full border-2 border-white bg-slate-100 overflow-hidden shadow-md p-0.5">
                     <img src={teacher.avatar} alt={teacher.name} className="h-full w-full rounded-full object-cover" />
                   </div>
                   <span className={cn(
-                    "absolute bottom-0 right-0 h-3.5 w-3.5 rounded-full border-2 border-[#050505]",
-                    noTeacher ? "bg-red-500" : "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]"
+                    "absolute bottom-0 right-0 h-3.5 w-3.5 rounded-full border-2 border-white",
+                    noTeacher ? "bg-red-500" : "bg-emerald-500 shadow-md"
                   )} />
                 </div>
               </motion.div>
@@ -201,7 +206,7 @@ export default function TeacherSearching() {
           })}
 
           {/* Request count banner */}
-          <div className="absolute top-1/2 -translate-y-1/2 z-30 px-4 py-1.5 rounded-full border border-white/15 bg-black/80 backdrop-blur-md shadow-lg text-[9px] font-black tracking-wider uppercase text-white/95">
+          <div className="absolute bottom-2 z-30 px-4 py-1.5 rounded-full border border-slate-700 bg-slate-800 shadow-lg text-[9px] font-black tracking-wider uppercase text-white">
             {noTeacher
               ? <span className="flex items-center gap-1.5"><WifiOff size={10} /> No teachers found</span>
               : `Request sent to ${requestCount} teacher${requestCount > 1 ? "s" : ""}`
@@ -210,33 +215,33 @@ export default function TeacherSearching() {
         </div>
 
         {/* Detail Card */}
-        <Card className="border border-white/5 bg-white/[0.03] backdrop-blur-xl rounded-[1.5rem] overflow-hidden shadow-2xl shrink-0">
+        <Card className="border border-slate-100 bg-white rounded-3xl shadow-sm shrink-0">
           <CardContent className="p-5 space-y-4">
             <div className="flex items-center gap-3">
-              <div className="h-9 w-9 rounded-xl bg-cyan-500/10 flex items-center justify-center shrink-0">
-                <BookOpen size={16} className="text-cyan-400" />
+              <div className="h-9 w-9 rounded-xl bg-violet-100 flex items-center justify-center shrink-0">
+                <BookOpen size={16} className="text-violet-600" />
               </div>
               <div>
-                <span className="text-[9px] font-bold text-white/30 uppercase tracking-widest block">Subject</span>
-                <span className="text-sm font-bold text-white block mt-0.5">{subjectName}</span>
+                <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider block">Subject</span>
+                <span className="text-sm font-bold text-slate-800 block mt-0.5">{subjectName}</span>
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <div className="h-9 w-9 rounded-xl bg-purple-500/10 flex items-center justify-center shrink-0">
-                <GraduationCap size={16} className="text-purple-400" />
+              <div className="h-9 w-9 rounded-xl bg-indigo-100 flex items-center justify-center shrink-0">
+                <GraduationCap size={16} className="text-indigo-600" />
               </div>
               <div>
-                <span className="text-[9px] font-bold text-white/30 uppercase tracking-widest block">Class</span>
-                <span className="text-sm font-bold text-white block mt-0.5">{className}</span>
+                <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider block">Class</span>
+                <span className="text-sm font-bold text-slate-800 block mt-0.5">{className}</span>
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <div className="h-9 w-9 rounded-xl bg-yellow-500/10 flex items-center justify-center shrink-0">
+              <div className={cn("h-9 w-9 rounded-xl flex items-center justify-center shrink-0", sessionIconBg)}>
                 {sessionIcon}
               </div>
               <div>
-                <span className="text-[9px] font-bold text-white/30 uppercase tracking-widest block">Session Type</span>
-                <span className="text-sm font-bold text-white block mt-0.5">{sessionType}</span>
+                <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider block">Session Type</span>
+                <span className="text-sm font-bold text-slate-800 block mt-0.5">{sessionType}</span>
               </div>
             </div>
           </CardContent>
@@ -247,14 +252,14 @@ export default function TeacherSearching() {
           {noTeacher && (
             <Button
               onClick={() => navigate(PATHS.ASK_DOUBT)}
-              className="w-full h-14 rounded-full text-xs font-black tracking-widest bg-gradient-to-r from-cyan-500 to-blue-600 text-white transition-all"
+              className="w-full h-14 rounded-2xl text-xs font-black tracking-widest bg-gradient-to-r from-violet-600 to-indigo-700 text-white transition-all shadow-md shadow-violet-500/10"
             >
               Try Again
             </Button>
           )}
           <Button
             onClick={handleCancel}
-            className="w-full h-14 rounded-full text-xs font-black tracking-widest border border-white/10 bg-white/5 text-white/80 hover:bg-white/10 transition-all"
+            className="w-full h-14 rounded-2xl text-xs font-black tracking-widest border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition-all shadow-sm"
           >
             Cancel Request
           </Button>

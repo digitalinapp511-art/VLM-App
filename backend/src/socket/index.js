@@ -11,8 +11,10 @@ let ioInstance = null;
 export const initSocket = (server) => {
   const allowedOrigins = [
     process.env.FRONTEND_URL,
+    process.env.ADMIN_FRONTEND_URL,
     'http://localhost:5173',
     'http://localhost:5174',
+    'http://localhost:5175',
   ].filter(Boolean);
 
   const io = new Server(server, {
@@ -104,6 +106,15 @@ export const initSocket = (server) => {
     socket.on('whiteboard_clear', (data) => {
       socket.to(`session:${data.sessionId}`).emit('whiteboard_clear', {
         sessionId: data.sessionId,
+        senderId: socket.user.id,
+      });
+    });
+
+    socket.on('whiteboard_toggle', (data) => {
+      // data: { sessionId, show: boolean }
+      socket.to(`session:${data.sessionId}`).emit('whiteboard_toggle', {
+        sessionId: data.sessionId,
+        show: data.show,
         senderId: socket.user.id,
       });
     });

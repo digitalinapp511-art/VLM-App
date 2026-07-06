@@ -11,6 +11,7 @@ import teacherRoutes from './routes/teacherRoutes.js';
 import studentRoutes from './routes/studentRoutes.js';
 import parentRoutes from './routes/parentRoutes.js';
 import sessionRoutes from './routes/sessionRoutes.js';
+import adminRoutes from './routes/adminRoutes.js';
 
 dotenv.config();
 
@@ -18,8 +19,10 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const allowedOrigins = [
   process.env.FRONTEND_URL,
+  process.env.ADMIN_FRONTEND_URL,
   'http://localhost:5173',
   'http://localhost:5174',
+  'http://localhost:5175',
 ].filter(Boolean);
 
 export const createApp = () => {
@@ -103,6 +106,7 @@ export const createApp = () => {
   app.use('/api/student', studentRoutes);
   app.use('/api/parent', parentRoutes);
   app.use('/api/sessions', sessionRoutes);
+  app.use('/api/admin', adminRoutes);
 
   app.use(notFound);
   app.use(errorHandler);
