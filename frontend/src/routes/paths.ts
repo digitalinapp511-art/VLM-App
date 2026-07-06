@@ -48,6 +48,7 @@ export const PATHS = {
   VERIFICATION_STATUS:"/verification-status",
   TEACHER_DASHBOARD:"/teacher-dashboard",
   TEACHER_PROFILE:"/teacher-profile",
+  TEACHER_REVIEWS: "/teacher-reviews",
   TEACHER_EDIT_PROFILE:"/teacher/edit-profile",
   REWARD_CENTER: "/teacher/reward-center",
   REFER_STUDENT: "/teacher/refer-student",
@@ -65,6 +66,8 @@ export const PATHS = {
     CREATE_LIVE_CLASS: "/teacher-classes/create",
     TEACHER_LIBRARY: "/teacher-library",
     TEACHER_LIVE_SESSION: "/teacher-live-session",
+    TEACHER_VIDEO_SESSION: "/teacher-video-session",
+    TEACHER_CHAT_SESSION: "/teacher-chat-session",
 
   // Student flows
   VIDEO_UPLOAD: "/video-upload",
@@ -72,6 +75,7 @@ export const PATHS = {
   DOUBT_SUBMITTED: "/doubt-submitted",
   AUDIO_CALL: "/audio-call",
   LIVE_SESSION: "/live-session",
+  VIDEO_CALL_SESSION: "/video-call-session",
   SHORT_LIVE_SESSION: "/short-live-session",
   SESSION_FEEDBACK: "/session-feedback",
   SESSION_HISTORY: "/session-history",

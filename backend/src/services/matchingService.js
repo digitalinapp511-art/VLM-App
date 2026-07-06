@@ -24,14 +24,8 @@ export const findMatchingTeachers = async ({
   const maxTeachers = parseInt(process.env.MAX_TEACHERS_PER_REQUEST || '4', 10);
 
   const query = {
-    isApproved: true,
-    applicationStatus: TEACHER_STATUS.APPROVED,
     availabilityStatus: 'online',
-    subjects: subject,
-    classes: cls,
-    languages: language,
   };
-  if (board) query.boards = board;
 
   let teachers = await Teacher.find(query).populate('userId', 'status');
 

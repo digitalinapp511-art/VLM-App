@@ -291,7 +291,7 @@ export const getReviews = asyncHandler(async (req, res) => {
   const teacher = await Teacher.findOne({ userId: req.user._id });
   const reviews = await Review.find({ teacherId: teacher._id, isHidden: false })
     .sort({ createdAt: -1 })
-    .populate('studentId', 'nickname');
+    .populate('studentId', 'nickname fullName profilePhoto');
   res.json({ success: true, data: reviews });
 });
 

@@ -4,14 +4,20 @@ import {
   updateAvailability, getDashboard, updateProfile, scheduleInterview, getInterviewSlots,
 } from '../controllers/teacherController.js';
 import {
-  getIncomingRequests, respondToRequest, getWallet, requestWithdrawal,
+  getWallet, requestWithdrawal,
   getWithdrawals, getReviews, replyReview, createLiveClass, getLiveClasses,
   getEarningsHistory, getAnalytics,
 } from '../controllers/sharedController.js';
+import {
+  generateAgoraToken, acceptDoubtRequest, declineDoubtRequest,
+  getIncomingRequests, endSession,
+} from '../controllers/sessionController.js';
 import { protect, authorize } from '../middleware/auth.js';
 import { upload, cloudinaryUploadMiddleware, getFileUrl } from '../middleware/upload.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
 import Teacher from '../models/Teacher.js';
+import Notification from '../models/Notification.js';
+import Session from '../models/Session.js';
 
 const router = Router();
 router.use(protect, authorize('teacher'));
@@ -67,8 +73,25 @@ router.put('/profile', updateProfile);
 router.patch('/profile', updateProfile);
 router.get('/interview/slots', getInterviewSlots);
 router.post('/interview/schedule', scheduleInterview);
-router.get('/requests', getIncomingRequests);
-router.post('/requests/respond', respondToRequest);
+
+// ── Session / Doubt Request Management ────────────────────────────────────
+router.get('/incoming-requests', getIncomingRequests);
+router.post('/sessions/:requestId/accept', acceptDoubtRequest);
+router.post('/sessions/:requestId/decline', declineDoubtRequest);
+router.post('/sessions/:sessionId/end', endSession);
+router.get('/sessions/:sessionId/agora-token', generateAgoraToken);
+
+// ── Session history for teacher ────────────────────────────────────────────
+router.get('/sessions', asyncHandler(async (req, res) => {
+  const teacher = await Teacher.findOne({ userId: req.user._id });
+  if (!teacher) return res.status(404).json({ success: false, message: 'Not found' });
+  const sessions = await Session.find({ teacherId: teacher._id })
+    .populate('studentId', 'fullName class nickname profilePhoto')
+    .sort({ createdAt: -1 })
+    .limit(50);
+  res.json({ success: true, sessions });
+}));
+
 router.get('/wallet', getWallet);
 router.post('/withdraw', requestWithdrawal);
 router.get('/withdrawals', getWithdrawals);
@@ -78,5 +101,25 @@ router.post('/reviews/:id/reply', replyReview);
 router.post('/live-classes', createLiveClass);
 router.get('/live-classes', getLiveClasses);
 router.get('/analytics', getAnalytics);
+
+// ── Notifications ────────────────────────────────────────────────────────
+router.get('/notifications', asyncHandler(async (req, res) => {
+  const notifications = await Notification.find({ userId: req.user._id })
+    .sort({ createdAt: -1 }).limit(50);
+  res.json({ success: true, notifications });
+}));
+
+router.patch('/notifications/:id/read', asyncHandler(async (req, res) => {
+  await Notification.findByIdAndUpdate(req.params.id, { isRead: true });
+  res.json({ success: true });
+}));
+
+router.post('/chat/upload', upload.single('media'), cloudinaryUploadMiddleware, (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ success: false, message: 'No file uploaded' });
+  }
+  const mediaUrl = getFileUrl(req.file.filename, 'chat');
+  res.json({ success: true, url: mediaUrl });
+});
 
 export default router;

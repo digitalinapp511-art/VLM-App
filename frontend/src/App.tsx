@@ -41,6 +41,7 @@ import ReferralReward from "./pages/student/ReferralReward";
 import AIChat from "./pages/student/AIChat";
 import TeacherSearching from "./pages/student/TeacherSearching";
 import ChatSession from "./pages/student/ChatSession";
+import VideoCallSession from "./pages/student/VideoCallSession";
 import Leaderboard from "./pages/student/Leaderboard";
 import EditProfile from "./pages/student/EditProfile";
 import ProfileView from "./pages/student/ProfileView";
@@ -65,10 +66,11 @@ import LanguageSelection from "./pages/teacher/stepper/LanguageSelection";
 import DocumentUpload from "./pages/teacher/stepper/DocumentUpload";
 import InterviewScheduling from "./pages/teacher/InterviewScheduling";
 import TeacherDemoVideo from "./pages/teacher/TeacherDemoVideo";
-import ProfileReview from "./pages/teacher/ProfileReview";
-import InterviewConfirmation from "./pages/teacher/InterviewConfirmation";
+import ProfileReview from "@/pages/teacher/ProfileReview";
+import InterviewConfirmation from "@/pages/teacher/InterviewConfirmation";
 import VerificationStatus from './pages/teacher/VerificationStatus';
 import LiveClassRequestStatus from './pages/teacher/LiveClassRequestStatus';
+import Reviews from "@/pages/teacher/Reviews";
 import Dashboard from "./pages/teacher/Dashboard";
 import TeacherProfile from "./pages/teacher/TeacherProfile";
 import TeacherEditProfile from "./pages/teacher/TeacherEditProfile";
@@ -86,6 +88,8 @@ import RequestsPage from "./pages/teacher/RequestsPage";
 import CreateLiveClassRequest from "./pages/teacher/CreateLiveClassRequest";
 import RecordingLibrary from "./pages/teacher/RecordingLibrary";
 import Live_Session from "./pages/teacher/Live_Session";
+import TeacherVideoSession from "./pages/teacher/TeacherVideoSession";
+import TeacherChatSession from "./pages/teacher/ChatSession";
 
 import { useEffect, useState } from "react";
 import { connectSocket, disconnectSocket, getSocket } from "@/lib/socket";
@@ -135,10 +139,7 @@ function SocketInitializer({ setActiveRequest }: { setActiveRequest: (data: any)
 
       return () => {
         socket.off("parent_link_request");
-        disconnectSocket();
       };
-    } else {
-      disconnectSocket();
     }
   }, [location.pathname, setActiveRequest]);
 
@@ -218,6 +219,7 @@ export default function App() {
             <Route path={PATHS.MCQ} element={<Mcq />} />
             <Route path={PATHS.AUDIO_CALL} element={<AudioCall />} />
             <Route path={PATHS.LIVE_SESSION} element={<LiveSession />} />
+            <Route path={PATHS.VIDEO_CALL_SESSION} element={<VideoCallSession />} />
             <Route path={PATHS.SHORT_LIVE_SESSION} element={<ShortLiveSessions />} />
             <Route path={PATHS.SHORT_VIDEO_FEED} element={<ShortVideoFeed />} />
             <Route path={PATHS.LIBRARY} element={<Library />} />
@@ -272,6 +274,9 @@ export default function App() {
         <Route path={PATHS.CREATE_LIVE_CLASS} element={<CreateLiveClassRequest />} />
         <Route path={PATHS.TEACHER_LIBRARY} element={<RecordingLibrary />} />
         <Route path={PATHS.TEACHER_LIVE_SESSION} element={<Live_Session />} />
+        <Route path={PATHS.TEACHER_VIDEO_SESSION} element={<TeacherVideoSession />} />
+        <Route path={PATHS.TEACHER_CHAT_SESSION} element={<TeacherChatSession />} />
+        <Route path={PATHS.TEACHER_REVIEWS} element={<Reviews />} />
         
           {/* Parent Module */} 
             <Route path={PATHS.ADD_CHILD} element={<AddChild />} />

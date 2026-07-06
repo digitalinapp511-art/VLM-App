@@ -58,7 +58,6 @@ export default function ParentPendingApproval() {
 
       return () => {
         socket.off("parent_link_approved");
-        disconnectSocket();
       };
     }
   }, [refetch]);

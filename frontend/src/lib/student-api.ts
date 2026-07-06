@@ -97,6 +97,25 @@ export const studentApi = {
     return data;
   },
 
+  getAgoraToken: async (sessionId: string) => {
+    const { data } = await apiClient.get(`/student/sessions/${sessionId}/agora-token`);
+    return data.data;
+  },
+
+  createDoubt: async (payload: {
+    subject: string;
+    class?: string;
+    board?: string;
+    language?: string;
+    sessionType: "chat" | "audio" | "video" | "ai";
+    doubtText?: string;
+    doubtImage?: string;
+    topic?: string;
+  }) => {
+    const { data } = await apiClient.post("/student/doubt", payload);
+    return data;
+  },
+
   submitFeedback: async (feedbackData: any) => {
     if (!feedbackData.sessionId || String(feedbackData.sessionId).startsWith("mock-")) {
       return { success: true };
@@ -194,11 +213,6 @@ export const studentApi = {
     return data;
   },
 
-  createDoubt: async (payload: any) => {
-    const { data } = await apiClient.post("/student/doubt", payload);
-    return data;
-  },
-
   createProfile: async (payload: any) => {
     const { data } = await apiClient.put("/student/profile", payload);
     return data;
@@ -220,6 +234,13 @@ export const studentApi = {
 
   sendMessage: async (sessionId: string, content: string) => {
     const { data } = await apiClient.post(`/student/sessions/messages`, { sessionId, content });
+    return data;
+  },
+
+  uploadChatMedia: async (formData: FormData) => {
+    const { data } = await apiClient.post('/student/chat/upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
     return data;
   },
 

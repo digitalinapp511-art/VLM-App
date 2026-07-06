@@ -16,6 +16,7 @@ const sessionSchema = new mongoose.Schema(
     doubtText: String,
     doubtImage: String,
     questionType: String,
+    agoraChannel: String,
     isPreferredTeacher: { type: Boolean, default: false },
     routedTeachers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Teacher' }],
     acceptedAt: Date,

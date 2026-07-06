@@ -12,6 +12,7 @@ import {
   replyTicket, getLiveClasses, uploadShortVideo, getShortVideos, getMyVideos,
   getReferralData,
 } from '../controllers/sharedController.js';
+import { generateAgoraToken } from '../controllers/sessionController.js';
 import { protect, authorize } from '../middleware/auth.js';
 import { upload, cloudinaryUploadMiddleware, getFileUrl } from '../middleware/upload.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
@@ -74,5 +75,16 @@ router.get('/wallet/history', getStudentWalletHistory);
 router.get('/parent-requests', getParentRequests);
 router.post('/parent-requests/:parentId/approve', approveParentRequest);
 router.post('/parent-requests/:parentId/reject', rejectParentRequest);
+
+// ── Agora token for student session ──────────────────────────────────────
+router.get('/sessions/:sessionId/agora-token', generateAgoraToken);
+
+router.post('/chat/upload', upload.single('media'), cloudinaryUploadMiddleware, (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ success: false, message: 'No file uploaded' });
+  }
+  const mediaUrl = getFileUrl(req.file.filename, 'chat');
+  res.json({ success: true, url: mediaUrl });
+});
 
 export default router;

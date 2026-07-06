@@ -122,11 +122,6 @@ export const teacherApi = {
     return data;
   },
 
-  endSession: async (sessionId: string) => {
-    const { data } = await apiClient.patch(`/teacher/session/${sessionId}/end`);
-    return data;
-  },
-
   // ── Doubts ───────────────────────────────────────────────────
   getDoubts: async (status?: string) => {
     const q = status ? `?status=${status}` : '';
@@ -160,4 +155,43 @@ export const teacherApi = {
     const { data } = await apiClient.get('/teacher/live-classes');
     return data.data;
   },
+
+  // ── Real-time Session Management ─────────────────────────────────────
+  uploadChatMedia: async (formData: FormData) => {
+    const { data } = await apiClient.post('/teacher/chat/upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return data;
+  },
+
+  getIncomingRequests: async () => {
+    const { data } = await apiClient.get('/teacher/incoming-requests');
+    return data.data || [];
+  },
+
+  acceptDoubtRequest: async (requestId: string) => {
+    const { data } = await apiClient.post(`/teacher/sessions/${requestId}/accept`);
+    return data;
+  },
+
+  declineDoubtRequest: async (requestId: string) => {
+    const { data } = await apiClient.post(`/teacher/sessions/${requestId}/decline`);
+    return data;
+  },
+
+  endSession: async (sessionId: string, payload?: { summary?: string; keyNotes?: string }) => {
+    const { data } = await apiClient.post(`/teacher/sessions/${sessionId}/end`, payload || {});
+    return data;
+  },
+
+  getAgoraToken: async (sessionId: string) => {
+    const { data } = await apiClient.get(`/teacher/sessions/${sessionId}/agora-token`);
+    return data.data;
+  },
+
+  getReviews: async () => {
+    const { data } = await apiClient.get('/teacher/reviews');
+    return data.data || [];
+  },
 };
+

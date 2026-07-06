@@ -12,7 +12,11 @@ import ReferralCard from "@/components/basic/teacher/ReferralCard";
 import { PATHS } from "@/routes/paths";
 import { useNavigate } from "react-router-dom";
 import DirectRequestDialog from "@/components/basic/teacher/DirectRequestDialog";
-
+import { useSocket } from "@/hooks/use-socket";
+import { getSocket } from "@/lib/socket";
+import { IncomingRequestPopup } from "@/components/basic/teacher/IncomingRequestPopup";
+import { AnimatePresence } from "framer-motion";
+import { toast } from "sonner";
 
 const Dashboard: React.FC = () => {
 
@@ -20,6 +24,50 @@ const Dashboard: React.FC = () => {
     queryKey: ["teacherDashboard"],
     queryFn: teacherApi.getDashboard,
   });
+
+  const { incomingRequest, dismissIncomingRequest } = useSocket({ autoConnect: true });
+  const [accepting, setAccepting] = React.useState(false);
+
+  const handleAccept = async () => {
+    if (!incomingRequest) return;
+    setAccepting(true);
+    try {
+      const result = await teacherApi.acceptDoubtRequest(incomingRequest.requestId);
+      dismissIncomingRequest();
+      toast.success("Request accepted! Starting session…");
+
+      const sessionId = result?.data?.sessionId;
+      if (sessionId) {
+        if (incomingRequest.sessionType === "video") {
+          navigate(PATHS.TEACHER_VIDEO_SESSION, {
+            state: { sessionId, agoraChannel: result?.data?.agoraChannel, sessionType: "video", student: incomingRequest.student }
+          });
+        } else if (incomingRequest.sessionType === "audio") {
+          navigate(PATHS.TEACHER_VIDEO_SESSION, {
+            state: { sessionId, agoraChannel: result?.data?.agoraChannel, sessionType: "audio", student: incomingRequest.student }
+          });
+        } else {
+          navigate(PATHS.TEACHER_CHAT_SESSION, {
+            state: { sessionId, student: incomingRequest.student }
+          });
+        }
+      }
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || "Failed to accept request");
+      setAccepting(false);
+    }
+  };
+
+  const handleDecline = async () => {
+    if (!incomingRequest) return;
+    try {
+      await teacherApi.declineDoubtRequest(incomingRequest.requestId);
+      dismissIncomingRequest();
+      toast.info("Request declined");
+    } catch {
+      dismissIncomingRequest();
+    }
+  };
 
   const [showRequest, setShowRequest] = React.useState(false);
   const teacher = data?.teacher;
@@ -61,8 +109,27 @@ const Dashboard: React.FC = () => {
     };
   }, [teacher?.availabilityStatus]);
 
+  React.useEffect(() => {
+    const s = getSocket();
+    if (s) s.emit("teacher_online");
+    return () => {
+      if (s) s.emit("teacher_offline");
+    };
+  }, []);
+
   return (
     <div className={cn("min-h-screen p-4 pb-28 flex flex-col items-center", bgCss)}>
+      <AnimatePresence>
+        {incomingRequest && (
+          <IncomingRequestPopup
+            request={incomingRequest}
+            onAccept={handleAccept}
+            onDecline={handleDecline}
+            accepting={accepting}
+          />
+        )}
+      </AnimatePresence>
+
       <div className="w-full max-w-xl space-y-6">
         <DirectRequestDialog
           open={showRequest}
@@ -138,7 +205,13 @@ const Dashboard: React.FC = () => {
           <StatsCard title="Wallet Balance" value={isLoading ? "..." : `₹${stats?.walletBalance ?? 0}`} subValue="withdrawable" variant="purple" onClick={() => navigate(PATHS.TEACHER_WALLET)} />
           <StatsCard title="Total Sessions" value={isLoading ? "..." : String(stats?.totalSessions ?? 0)} subValue="sessions" icon={<History size={14} />} onClick={() => navigate(PATHS.TEACHER_SESSION_HISTORY)} />
           <StatsCard title="Missed Requests" value={isLoading ? "..." : String(stats?.missedRequests ?? 0)} subValue="missed" onClick={() => navigate(PATHS.TEACHER_REQUESTS)} />
-          <StatsCard title="Rating" value={isLoading ? "..." : String(stats?.rating ?? 0)} subValue={`${stats?.rating ?? 0} | ${data?.recentReviews?.length ?? 0} reviews`} icon={<Star size={14} fill="currentColor" className="text-yellow-500" />} />
+          <StatsCard 
+            title="Rating" 
+            value={isLoading ? "..." : String(typeof stats?.rating === 'number' ? stats.rating.toFixed(1) : 0)} 
+            subValue={`${typeof stats?.rating === 'number' ? stats.rating.toFixed(1) : 0} | ${data?.recentReviews?.length ?? 0} reviews`} 
+            icon={<Star size={14} fill="currentColor" className="text-yellow-500" />} 
+            onClick={() => navigate(PATHS.TEACHER_REVIEWS)}
+          />
         </div>
 
         {/* Classes & Notifications */}
@@ -191,7 +264,7 @@ const Dashboard: React.FC = () => {
                 }
               ];
               return notificationsToDisplay.slice(0, 3).map((n: any) => (
-                <NotificationItem key={n.id} icon={<Bell size={14} className="text-yellow-500" />} text={n.message} student={n.title} color="bg-yellow-500/10" />
+                <NotificationItem key={n.id || n._id || Math.random().toString()} icon={<Bell size={14} className="text-yellow-500" />} text={n.message} student={n.title} color="bg-yellow-500/10" />
               ));
             })()}
           </div>
@@ -205,21 +278,28 @@ const Dashboard: React.FC = () => {
               {isLoading ? (
                 <p className="text-xs text-zinc-500">Loading...</p>
               ) : (() => {
-                const reviewsToDisplay = data?.recentReviews?.length > 0 ? data.recentReviews : [
-                  {
-                    id: "review-1",
-                    comment: "Great teacher! The explanation for calculus concepts was very clear and easy to understand.",
-                    student: "Aarav Mehta"
-                  },
-                  {
-                    id: "review-2",
-                    comment: "Very patient and answered all my doubts step-by-step.",
-                    student: "Diya Patel"
-                  }
-                ];
-                return reviewsToDisplay.slice(0, 2).map((r: any) => (
-                  <ReviewItem key={r.id} text={r.comment ?? "No comment"} student={r.student} />
-                ));
+                const reviews = data?.recentReviews || [];
+                if (reviews.length === 0) {
+                  return <p className="text-xs text-zinc-500 py-4">No reviews yet. Keep teaching to earn your first review!</p>;
+                }
+                return (
+                  <>
+                    {reviews.slice(0, 4).map((r: any) => (
+                      <ReviewItem 
+                        key={r.id || r._id} 
+                        text={r.feedback ?? "No comment"} 
+                        student={r.studentId?.fullName ?? "Student"} 
+                        time={new Date(r.createdAt).toLocaleDateString()}
+                      />
+                    ))}
+                    <button 
+                      onClick={() => navigate(PATHS.TEACHER_REVIEWS)}
+                      className="w-full mt-4 py-2 text-xs font-bold text-cyan-400 hover:text-cyan-300 transition-colors uppercase tracking-wider bg-white/5 rounded-xl hover:bg-white/10"
+                    >
+                      Show all reviews
+                    </button>
+                  </>
+                );
               })()}
             </div>
           </div>

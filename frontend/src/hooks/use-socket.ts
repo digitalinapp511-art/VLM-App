@@ -1,0 +1,232 @@
+/**
+ * use-socket.ts
+ * Shared React hook for socket.io real-time events.
+ * Provides live data for:
+ *  - incoming doubt requests (teacher side)
+ *  - session_accepted / session_missed / session_declined (student side)
+ */
+import { useEffect, useState, useCallback } from "react";
+import { getSocket, connectSocket, disconnectSocket } from "@/lib/socket";
+import type { Socket } from "socket.io-client";
+
+// ── Types ─────────────────────────────────────────────────────────────────
+
+export interface IncomingRequest {
+  requestId: string;
+  sessionId: string;
+  sessionType: "chat" | "audio" | "video";
+  subject: string;
+  class: string;
+  board: string;
+  language: string;
+  doubtText: string;
+  topic?: string;
+  timerExpiresAt: string;
+  student: {
+    name: string;
+    nickname?: string;
+    class: string;
+    photo?: string;
+  };
+}
+
+export interface SessionAcceptedPayload {
+  sessionId: string;
+  sessionType: "chat" | "audio" | "video";
+  teacherName: string;
+  teacherPhoto?: string;
+  teacherRating?: number;
+  agoraChannel: string;
+  requestId: string;
+}
+
+export interface SessionMissedPayload {
+  requestId: string;
+  sessionId?: string;
+  message: string;
+}
+
+// ── Hook ──────────────────────────────────────────────────────────────────
+
+interface UseSocketOptions {
+  /** Connect immediately on mount. Default: true */
+  autoConnect?: boolean;
+  /** Joined session ID for room events (chat, whiteboard) */
+  sessionId?: string;
+}
+
+export function useSocket(options: UseSocketOptions = {}) {
+  const { autoConnect = true, sessionId } = options;
+
+  const [socket, setSocket] = useState<Socket | null>(null);
+  const [isConnected, setIsConnected] = useState(false);
+
+  // Teacher-side: incoming doubt request
+  const [incomingRequest, setIncomingRequest] = useState<IncomingRequest | null>(null);
+
+  // Student-side: session accepted by teacher
+  const [sessionAccepted, setSessionAccepted] = useState<SessionAcceptedPayload | null>(null);
+
+  // Student-side: no teacher found
+  const [sessionMissed, setSessionMissed] = useState<SessionMissedPayload | null>(null);
+
+  // Student-side: all teachers declined
+  const [sessionDeclined, setSessionDeclined] = useState<SessionMissedPayload | null>(null);
+
+  // Chat: real-time messages
+  const [lastMessage, setLastMessage] = useState<any | null>(null);
+  const [typingUserId, setTypingUserId] = useState<string | null>(null);
+
+  // Whiteboard: remote draw actions
+  const [remoteDrawAction, setRemoteDrawAction] = useState<any | null>(null);
+  const [remoteClearCanvas, setRemoteClearCanvas] = useState(0);
+
+  // Call: ended signal
+  const [callEnded, setCallEnded] = useState(false);
+
+  useEffect(() => {
+    if (!autoConnect) return;
+
+    connectSocket();
+    const s = getSocket();
+    setSocket(s);
+    setIsConnected(s.connected);
+
+    // ── Connection events ────────────────────────────────────────────────
+    const onConnect = () => setIsConnected(true);
+    const onDisconnect = () => setIsConnected(false);
+
+    // ── Teacher: incoming request popup ──────────────────────────────────
+    const onNewRequest = (data: IncomingRequest) => {
+      console.log('Received new_request on frontend!', data);
+      setIncomingRequest(data);
+    };
+
+    // ── Student: teacher accepted ─────────────────────────────────────────
+    const onSessionAccepted = (data: SessionAcceptedPayload) => {
+      setSessionAccepted(data);
+    };
+
+    // ── Student: nobody accepted (timer expired) ──────────────────────────
+    const onRequestMissed = (data: SessionMissedPayload) => {
+      setSessionMissed(data);
+    };
+
+    // ── Student: all teachers declined ───────────────────────────────────
+    const onSessionDeclined = (data: SessionMissedPayload) => {
+      setSessionDeclined(data);
+    };
+
+    // ── Chat messages ─────────────────────────────────────────────────────
+    const onNewMessage = (msg: any) => setLastMessage(msg);
+    const onTyping = (data: { userId: string }) => setTypingUserId(data.userId);
+    const onStopTyping = () => setTypingUserId(null);
+
+    // ── Whiteboard ────────────────────────────────────────────────────────
+    const onWhiteboardDraw = (data: any) => setRemoteDrawAction(data);
+    const onWhiteboardClear = () => setRemoteClearCanvas((n) => n + 1);
+
+    // ── Call end ──────────────────────────────────────────────────────────
+    const onCallEnded = () => setCallEnded(true);
+
+    s.on("connect", onConnect);
+    s.on("disconnect", onDisconnect);
+    s.on("new_request", onNewRequest);
+    s.on("session_accepted", onSessionAccepted);
+    s.on("request_missed", onRequestMissed);
+    s.on("session_declined", onSessionDeclined);
+    s.on("new_message", onNewMessage);
+    s.on("user_typing", onTyping);
+    s.on("user_stop_typing", onStopTyping);
+    s.on("whiteboard_draw", onWhiteboardDraw);
+    s.on("whiteboard_clear", onWhiteboardClear);
+    s.on("call_ended", onCallEnded);
+
+    return () => {
+      s.off("connect", onConnect);
+      s.off("disconnect", onDisconnect);
+      s.off("new_request", onNewRequest);
+      s.off("session_accepted", onSessionAccepted);
+      s.off("request_missed", onRequestMissed);
+      s.off("session_declined", onSessionDeclined);
+      s.off("new_message", onNewMessage);
+      s.off("user_typing", onTyping);
+      s.off("user_stop_typing", onStopTyping);
+      s.off("whiteboard_draw", onWhiteboardDraw);
+      s.off("whiteboard_clear", onWhiteboardClear);
+      s.off("call_ended", onCallEnded);
+    };
+  }, [autoConnect]);
+
+  // Join/leave session room
+  useEffect(() => {
+    const s = getSocket();
+    if (!s || !sessionId) return;
+    s.emit("join_session", sessionId);
+    return () => {
+      s.emit("leave_session", sessionId);
+    };
+  }, [sessionId]);
+
+  // ── Emit helpers ─────────────────────────────────────────────────────────
+
+  const sendMessage = useCallback(
+    (messageData: { sessionId: string; content: string; type?: string; mediaUrl?: string }) => {
+      const s = getSocket();
+      s.emit("send_message", messageData);
+    },
+    []
+  );
+
+  const sendTyping = useCallback((sId: string) => {
+    const s = getSocket();
+    s.emit("typing", { sessionId: sId });
+  }, []);
+
+  const sendStopTyping = useCallback((sId: string) => {
+    const s = getSocket();
+    s.emit("stop_typing", { sessionId: sId });
+  }, []);
+
+  const sendWhiteboardDraw = useCallback((sId: string, payload: any) => {
+    const s = getSocket();
+    s.emit("whiteboard_draw", { sessionId: sId, ...payload });
+  }, []);
+
+  const sendWhiteboardClear = useCallback((sId: string) => {
+    const s = getSocket();
+    s.emit("whiteboard_clear", { sessionId: sId });
+  }, []);
+
+  const sendCallEnd = useCallback((sId: string) => {
+    const s = getSocket();
+    s.emit("call_end", { sessionId: sId });
+  }, []);
+
+  const dismissIncomingRequest = useCallback(() => setIncomingRequest(null), []);
+  const dismissSessionAccepted = useCallback(() => setSessionAccepted(null), []);
+
+  return {
+    socket,
+    isConnected,
+    // Events
+    incomingRequest,
+    sessionAccepted,
+    sessionMissed,
+    sessionDeclined,
+    lastMessage,
+    typingUserId,
+    remoteDrawAction,
+    remoteClearCanvas,
+    callEnded,
+    // Actions
+    sendMessage,
+    sendTyping,
+    sendStopTyping,
+    sendWhiteboardDraw,
+    sendWhiteboardClear,
+    sendCallEnd,
+    dismissIncomingRequest,
+    dismissSessionAccepted,
+  };
+}

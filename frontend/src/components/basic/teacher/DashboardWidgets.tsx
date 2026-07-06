@@ -48,13 +48,13 @@ export const NotificationItem: React.FC<{ icon: React.ReactNode; text: string; s
   </div>
 );
 
-export const ReviewItem: React.FC<{ text: string; student: string }> = ({ text, student }) => (
+export const ReviewItem: React.FC<{ text: string; student: string; time?: string }> = ({ text, student, time }) => (
   <div className="space-y-1 py-1">
     <div className="flex justify-between items-center">
       <div className="flex gap-0.5 text-yellow-500">
         {[...Array(5)].map((_, i) => <Star key={i} size={10} fill="currentColor" />)}
       </div>
-      <span className="text-[9px] font-bold text-zinc-600 uppercase">2h ago</span>
+      {time && <span className="text-[9px] font-bold text-zinc-600 uppercase">{time}</span>}
     </div>
     <p className="text-[12px] font-medium text-zinc-300">{text}</p>
     <p className="text-[10px] text-zinc-500">Student: {student}</p>
