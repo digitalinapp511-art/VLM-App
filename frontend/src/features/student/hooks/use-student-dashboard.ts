@@ -80,18 +80,21 @@ export function useStudentDashboard() {
   // ── Normalised accessors ──────────────────────────────────────────────────
   const profile = isBypass ? mockProfile : ((profileRaw as any)?.data ?? profileRaw ?? {});
   const dashboard = (dashboardRaw as any)?.data ?? dashboardRaw ?? {};
+  const studentData = dashboard?.student ?? {};
   const mcq = isBypass ? mockMcq : ((mcqRaw as any)?.data ?? mcqRaw ?? {});
 
-  const nickname = profile?.nickname || profile?.fullName || "Student";
-  const photo = profile?.photo ?? "";
+  const nickname = profile?.nickname || profile?.fullName || studentData?.nickname || studentData?.fullName || "Student";
+  const photo = profile?.profilePhoto || profile?.photo || studentData?.profilePhoto || "";
   const totalPoints =
     profile?.wallet?.totalPoints ??
-    dashboard?.student?.wallet?.totalPoints ??
+    studentData?.wallet?.totalPoints ??
+    dashboard?.wallet?.totalPoints ??
+    dashboard?.totalPoints ??
     0;
-  const streak = profile?.streak ?? dashboard?.student?.streak ?? 0;
-  const level = profile?.level ?? dashboard?.student?.level ?? "Silver";
+  const streak = profile?.streak ?? studentData?.streak ?? dashboard?.streak ?? 0;
+  const level = profile?.level ?? studentData?.level ?? dashboard?.level ?? "Silver";
   const lastSpinDate =
-    profile?.lastSpinDate ?? dashboard?.student?.lastSpinDate ?? null;
+    profile?.lastSpinDate ?? studentData?.lastSpinDate ?? dashboard?.lastSpinDate ?? null;
 
   // MCQ progress
   const mcqCompleted = dashboard?.mcq?.completed ?? mcq?.completed ?? 0;

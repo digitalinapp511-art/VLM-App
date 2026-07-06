@@ -10,17 +10,15 @@ import {
   History,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { bgCss } from "@/helper/CssHelper";
 import { motion, AnimatePresence } from "framer-motion";
 
+// Shadcn & UI Components
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
-
 import { useQueryClient } from "@tanstack/react-query";
 import { authApi } from "@/lib/auth-api";
 import { useStudentProfile } from "@/hooks/use-student";
 import LoadingSkeleton from "@/components/basic/student/LoadingSkeleton";
+import { toast } from "sonner";
 
 export default function ProfileView() {
   const navigate = useNavigate();
@@ -51,40 +49,45 @@ export default function ProfileView() {
   if (isLoading) return <LoadingSkeleton />;
 
   const p = (profile as any)?.data ?? profile;
-  console.log("ProfileView data:", p);
 
   return (
-    <div className={cn("relative min-h-svh w-full text-white flex flex-col items-center px-6 pt-8 overflow-x-hidden pb-32", bgCss)}>
-      <div className="max-w-md w-full flex flex-col gap-6">
+    <div className="relative min-h-svh w-full bg-[#f4f6ff] text-slate-800 flex flex-col items-center px-5 pt-4 overflow-x-hidden pb-32 font-sans">
+      <div className="max-w-md w-full flex flex-col gap-5">
         
         {/* ── HEADER ── */}
-        <header className="relative w-full flex items-center justify-center mb-6 z-20">
-          <h1 className="text-lg font-bold tracking-[0.1em] uppercase">My Profile</h1>
+        <header className="flex w-full items-center gap-4 pb-2 border-b border-slate-100 shrink-0">
+          <button
+            onClick={() => navigate(PATHS.STUDENT_DASHBOARD)}
+            className="h-10 w-10 rounded-full bg-white border border-slate-100 shadow-sm flex items-center justify-center text-slate-600 hover:text-slate-800 active:scale-90 transition-transform"
+          >
+            <ChevronLeft size={20} />
+          </button>
+          <h1 className="text-sm font-black tracking-tight text-slate-800">My Profile</h1>
         </header>
 
         {/* ── PROFILE AVATAR BLOCK ── */}
-        <div className="flex flex-col items-center gap-4 p-8 rounded-[32px] border border-white/5 bg-white/[0.02] backdrop-blur-md w-full">
+        <div className="flex flex-col items-center gap-4 p-6 rounded-3xl border border-slate-100 bg-white shadow-sm w-full">
           <div className="relative">
-            <div className="relative h-24 w-24 rounded-full border-4 border-cyan-400 bg-black flex items-center justify-center shadow-[0_0_25px_rgba(34,211,238,0.25)] overflow-hidden">
+            <div className="relative h-24 w-24 rounded-full border-4 border-violet-400 bg-slate-50 flex items-center justify-center shadow-md overflow-hidden">
               {p?.profilePhoto ? (
                 <img src={p.profilePhoto} alt="Profile" className="w-full h-full object-cover" />
               ) : (
-                <User size={40} className="text-cyan-400" />
+                <User size={38} className="text-violet-500" />
               )}
             </div>
           </div>
 
-          <div className="text-center mt-2 space-y-0.5">
-            <h2 className="text-2xl font-black text-white tracking-tight">{p?.fullName || "Student"}</h2>
-            <p className="text-cyan-400 text-xs font-bold tracking-widest uppercase mt-1">
+          <div className="text-center space-y-1">
+            <h2 className="text-xl font-black text-slate-800 tracking-tight">{p?.fullName || "Student"}</h2>
+            <p className="text-violet-600 text-xs font-black tracking-wider uppercase">
               Student Profile
             </p>
-            {(p?.vlmStudentId) && (
-              <div className="mt-3 inline-flex items-center gap-1.5 bg-cyan-500/10 border border-cyan-500/20 rounded-full px-3 py-1">
-                <span className="text-[10px] text-cyan-400 font-bold tracking-widest uppercase">
+            {p?.vlmStudentId && (
+              <div className="mt-2 inline-flex items-center gap-1.5 bg-violet-50 border border-violet-100 rounded-full px-3 py-1">
+                <span className="text-[9px] text-violet-500 font-black tracking-wider uppercase">
                   ID:
                 </span>
-                <span className="text-[10px] font-mono font-bold text-white tracking-widest">
+                <span className="text-[10px] font-mono font-black text-slate-700 tracking-wider">
                   {p.vlmStudentId}
                 </span>
                 <button
@@ -93,16 +96,17 @@ export default function ProfileView() {
                   onClick={() => {
                     navigator.clipboard.writeText(p.vlmStudentId);
                     setCopied(true);
+                    toast.success("VLM ID copied to clipboard");
                     setTimeout(() => setCopied(false), 2000);
                   }}
-                  className="text-cyan-400/60 hover:text-cyan-400 transition-colors cursor-pointer flex items-center gap-1 ml-1"
+                  className="text-violet-500 hover:text-violet-700 transition-colors cursor-pointer flex items-center gap-0.5 ml-1"
                 >
-                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
                   </svg>
                   {copied && (
-                    <span className="text-[8px] font-bold text-cyan-400 animate-pulse">
-                      Copied!
+                    <span className="text-[8px] font-black text-violet-500 animate-pulse">
+                      Copied
                     </span>
                   )}
                 </button>
@@ -112,59 +116,58 @@ export default function ProfileView() {
         </div>
 
         {/* ── PROFILE DETAILS CARD ── */}
-        <div className="p-6 rounded-[32px] border border-white/5 bg-white/[0.02] backdrop-blur-md space-y-6 w-full">
-          <div className="flex items-center justify-between border-b border-white/5 pb-4 px-1">
-            <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-widest flex items-center gap-2">
-              <User size={16} /> Basic Information
+        <div className="p-5 rounded-3xl border border-slate-100 bg-white shadow-sm space-y-5 w-full">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-3 px-0.5">
+            <h3 className="text-xs font-black text-slate-400 uppercase tracking-wide flex items-center gap-2">
+              <User size={15} className="text-violet-600" /> Basic Information
             </h3>
             <Button
               onClick={() => navigate(PATHS.EDIT_PROFILE)}
-              size="sm"
-              className="h-8 px-4 rounded-full text-xs font-bold border border-cyan-400/20 bg-cyan-400/10 hover:bg-cyan-400/20 text-cyan-400 transition-all cursor-pointer"
+              className="h-8 px-4 rounded-2xl text-[10px] font-black border border-violet-200 bg-violet-50 hover:bg-violet-100 text-violet-600 transition-all cursor-pointer shadow-sm"
             >
               Edit Details
             </Button>
           </div>
 
-          <div className="space-y-4">
-            <ProfileFieldWrapper icon={<User size={18} className="text-zinc-500 mr-3" />} label="Full Name" value={p?.fullName} />
-            <ProfileFieldWrapper icon={<User size={18} className="text-zinc-500 mr-3" />} label="Nickname" value={p?.nickname} />
-            <ProfileFieldWrapper icon={<BookOpen size={18} className="text-zinc-500 mr-3" />} label="Class" value={p?.class ? `Class ${p.class}th` : undefined} />
-            <ProfileFieldWrapper icon={<Globe size={18} className="text-zinc-500 mr-3" />} label="City" value={p?.city} />
+          <div className="space-y-3.5">
+            <ProfileFieldWrapper icon={<User size={16} className="text-violet-600 mr-2.5" />} label="Full Name" value={p?.fullName} />
+            <ProfileFieldWrapper icon={<User size={16} className="text-violet-600 mr-2.5" />} label="Nickname" value={p?.nickname} />
+            <ProfileFieldWrapper icon={<BookOpen size={16} className="text-violet-600 mr-2.5" />} label="Class" value={p?.class ? `Class ${p.class}th` : undefined} />
+            <ProfileFieldWrapper icon={<Globe size={16} className="text-violet-600 mr-2.5" />} label="City" value={p?.city} />
           </div>
         </div>
 
         {/* ── HISTORY / NAVIGATION CARD ── */}
-        <div className="p-4 rounded-[32px] border border-white/5 bg-white/[0.02] backdrop-blur-md w-full">
+        <div className="p-3 rounded-3xl border border-slate-100 bg-white shadow-sm w-full">
           <div 
             onClick={() => navigate(PATHS.SESSION_HISTORY)}
-            className="flex items-center justify-between p-4 rounded-2xl border border-white/5 bg-black/40 cursor-pointer hover:bg-black/60 transition-all active:scale-[0.99]"
+            className="flex items-center justify-between p-3 rounded-2xl border border-slate-50 bg-slate-50/50 cursor-pointer hover:bg-slate-50 transition-all active:scale-[0.99]"
           >
-            <div className="flex items-center gap-4">
-              <div className="h-10 w-10 rounded-xl bg-purple-500/10 flex items-center justify-center">
-                <History size={18} className="text-purple-400" />
+            <div className="flex items-center gap-3">
+              <div className="h-9 w-9 rounded-xl bg-violet-100 flex items-center justify-center">
+                <History size={16} className="text-violet-600" />
               </div>
               <div className="text-left">
-                <span className="text-sm font-bold text-white block">Session History</span>
-                <span className="text-[10px] text-white/40 block mt-0.5">Click to view past chats and calls</span>
+                <span className="text-xs font-black text-slate-800 block">Session History</span>
+                <span className="text-[9px] text-slate-400 block mt-0.5">Click to view past chats and calls</span>
               </div>
             </div>
-            <ChevronLeft size={16} className="text-white/30 rotate-180" />
+            <ChevronLeft size={16} className="text-slate-400 rotate-180" />
           </div>
         </div>
 
         {/* ── LOGOUT CARD ── */}
-        <div className="p-4 rounded-[32px] border border-red-500/10 bg-red-500/[0.01] backdrop-blur-md w-full">
+        <div className="p-3 rounded-3xl border border-red-100 bg-white shadow-sm w-full">
           <Button
             onClick={() => setShowLogoutModal(true)}
             variant="ghost"
-            className="w-full h-14 rounded-2xl border border-red-500/20 bg-red-950/10 text-red-400 font-bold hover:bg-red-950/20 hover:text-red-300 hover:border-red-500/40 flex justify-between px-4 transition-all duration-300"
+            className="w-full h-12 rounded-2xl border border-red-100 bg-red-50/40 text-red-500 font-black hover:bg-red-50 hover:text-red-600 flex justify-between px-3 transition-all duration-300 shadow-sm"
           >
             <span className="flex items-center gap-2">
-              <LogOut size={18} />
+              <LogOut size={16} />
               Log Out
             </span>
-            <ChevronLeft size={18} className="rotate-180 opacity-50" />
+            <ChevronLeft size={16} className="rotate-180 opacity-50" />
           </Button>
         </div>
 
@@ -179,37 +182,36 @@ export default function ProfileView() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setShowLogoutModal(false)}
-              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              className="absolute inset-0 bg-black/40 backdrop-blur-sm"
             />
 
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 10 }}
-              className="relative w-full max-w-sm rounded-[32px] border border-white/10 bg-zinc-900/90 p-8 text-center shadow-2xl backdrop-blur-xl"
+              className="relative w-full max-w-sm rounded-[32px] border border-slate-100 bg-white p-8 text-center shadow-2xl text-slate-800"
             >
-              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-red-500/10 text-red-500 mb-6">
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-red-50 text-red-500 mb-6 border border-red-100">
                 <LogOut size={28} />
               </div>
 
-              <h3 className="text-xl font-black text-white tracking-tight">
+              <h3 className="text-lg font-black text-slate-800 tracking-tight">
                 Log Out?
               </h3>
-              <p className="mt-2 text-sm text-zinc-400 font-medium">
+              <p className="mt-2 text-xs text-slate-400 font-bold leading-relaxed">
                 Are you sure you want to log out of your student account?
               </p>
 
-              <div className="mt-8 flex flex-col gap-3">
+              <div className="mt-6 flex flex-col gap-3">
                 <Button
                   onClick={handleLogout}
-                  className="w-full h-12 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold tracking-wide transition-all active:scale-[0.98]"
+                  className="w-full h-11 rounded-2xl bg-red-500 hover:bg-red-600 text-white font-black transition-all active:scale-[0.98] shadow-sm"
                 >
                   Log Out
                 </Button>
                 <Button
                   onClick={() => setShowLogoutModal(false)}
-                  variant="outline"
-                  className="w-full h-12 rounded-xl border-white/10 bg-white/5 text-white hover:bg-white/10 font-bold tracking-wide transition-all active:scale-[0.98]"
+                  className="w-full h-11 rounded-2xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 font-black transition-all active:scale-[0.98] shadow-sm"
                 >
                   Cancel
                 </Button>
@@ -234,10 +236,10 @@ function ProfileFieldWrapper({
 }) {
   return (
     <div className="space-y-1 text-left">
-      <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider ml-2">{label}</label>
-      <div className="flex items-center p-4 rounded-2xl bg-black/40 border border-white/5 text-white">
+      <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider ml-1">{label}</label>
+      <div className="flex items-center p-3 rounded-2xl bg-slate-50 border border-slate-100 text-slate-700">
         {icon}
-        <span className="flex-1 text-sm font-semibold truncate text-white/95">{value || "Not set"}</span>
+        <span className="flex-1 text-xs font-bold truncate text-slate-700">{value || "Not set"}</span>
       </div>
     </div>
   );
