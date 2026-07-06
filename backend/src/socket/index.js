@@ -18,6 +18,10 @@ export const initSocket = (server) => {
   const io = new Server(server, {
     cors: {
       origin: (origin, callback) => {
+        // In development, allow any origin (e.g., local IP addresses for mobile testing)
+        if (process.env.NODE_ENV !== 'production') {
+          return callback(null, true);
+        }
         if (!origin || allowedOrigins.some((o) => origin === o || origin.endsWith('.vercel.app'))) {
           callback(null, true);
         } else {
