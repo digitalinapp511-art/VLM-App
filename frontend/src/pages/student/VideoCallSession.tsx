@@ -107,7 +107,7 @@ export default function VideoCallSession() {
               videoTrack.play(localVideoRef.current);
             }
           } catch (e) {
-            toast.warn("Camera failed to start. Continuing with audio only.");
+            toast.error("Camera failed to start. Continuing with audio only.");
           }
         }
 
