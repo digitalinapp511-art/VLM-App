@@ -2,12 +2,32 @@ import http from 'http';
 import { createApp } from './app.js';
 import { connectDB } from './config/db.js';
 import { initSocket } from './socket/index.js';
+import User from './models/User.js';
 
 const app = createApp();
 const server = http.createServer(app);
 
+const seedAdmin = async () => {
+  try {
+    const adminExists = await User.findOne({ email: 'admin@vlm.com' });
+    if (!adminExists) {
+      await User.create({
+        email: 'admin@vlm.com',
+        password: 'AdminPassword123',
+        roles: ['admin'],
+        activeRole: 'admin',
+        isEmailVerified: true
+      });
+      console.log('Seeded default admin user: admin@vlm.com / AdminPassword123');
+    }
+  } catch (err) {
+    console.error('Failed to seed admin user:', err.message);
+  }
+};
+
 const start = async () => {
   await connectDB();
+  await seedAdmin();
   initSocket(server);
 
   const PORT = process.env.PORT || 5000;

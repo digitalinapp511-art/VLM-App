@@ -970,3 +970,23 @@ export const submitAiChatQuery = asyncHandler(async (req, res) => {
     res.status(500).json({ success: false, message: 'AI Tutor connection failed' });
   }
 });
+
+export const getStudentStats = asyncHandler(async (req, res) => {
+  const student = await Student.findOne({ userId: req.user._id });
+  if (!student) {
+    return res.status(404).json({ success: false, message: 'Student not found' });
+  }
+
+  res.json({
+    success: true,
+    data: {
+      overallProgress: 72,
+      subjectProgress: [
+        { name: "Mathematics", progress: 80 },
+        { name: "Science", progress: 70 },
+        { name: "English", progress: 65 },
+        { name: "Social Science", progress: 60 }
+      ]
+    }
+  });
+});

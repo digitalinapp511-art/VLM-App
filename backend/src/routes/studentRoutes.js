@@ -4,7 +4,8 @@ import {
   activateTrial, submitDoubt, getDailyMcq, submitMcq, toggleFavoriteTeacher, getSubjects,
   getChapters, claimSpinReward, getStudentWalletHistory, submitDoubtWithImages, getDoubtById,
   getAvailableTeachers, getParentRequests, approveParentRequest, rejectParentRequest,
-  getAiChatHistory, submitAiChatQuery, getAiChatSessions, deleteAiChatSession, clearAllAiChatHistory
+  getAiChatHistory, submitAiChatQuery, getAiChatSessions, deleteAiChatSession, clearAllAiChatHistory,
+  getStudentStats
 } from '../controllers/studentController.js';
 import {
   getSessionHistory, getSessionMessages, sendMessage, resolveSession,
@@ -41,6 +42,7 @@ router.get('/chapters', getChapters);
 router.post('/profile', createStudentProfile);
 router.put('/profile', createStudentProfile);
 router.get('/dashboard', getDashboard);
+router.get('/stats', getStudentStats);
 router.get('/ai-chat/history', getAiChatHistory);
 router.get('/ai-chat/sessions', getAiChatSessions);
 router.delete('/ai-chat/session/:sessionId', deleteAiChatSession);

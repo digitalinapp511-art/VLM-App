@@ -9,10 +9,11 @@ import { Outlet } from "react-router-dom";
 import StudentBottomNav from "@/features/student/components/layout/StudentBottomNav";
 
 export default function StudentLayout() {
+
   return (
     <div className="flex min-h-svh flex-col bg-[#f4f6ff]">
       {/* Page content */}
-      <div className="flex-1">
+      <div className="flex-1 bg-[#f4f6ff]">
         <Outlet />
       </div>
 

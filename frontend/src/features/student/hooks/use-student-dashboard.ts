@@ -4,40 +4,45 @@
  * Central data-fetching hook for the Student Dashboard.
  * Combines profile + dashboard API calls into one clean object consumed
  * by the dashboard page and its child components.
+ *
+ * Fully supports dev_bypass_auth mode to prevent slow/hanging API requests.
  */
-import { useQuery } from "@tanstack/react-query";
-import { useStudentProfile } from "@/hooks/use-student";
+import { useDashboard } from "@/hooks/use-student";
 import { studentApi } from "@/lib/student-api";
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { PATHS } from "@/routes/paths";
+import { useQuery } from "@tanstack/react-query";
 
 export function useStudentDashboard() {
   const navigate = useNavigate();
+  const isBypass = localStorage.getItem("dev_bypass_auth") === "true";
 
   // ── Profile ───────────────────────────────────────────────────────────────
   const {
     data: profileRaw,
     isLoading: isProfileLoading,
     error: profileError,
-  } = useStudentProfile();
-
-  // ── Dashboard aggregated data ─────────────────────────────────────────────
-  const { data: dashboardRaw, isLoading: isDashboardLoading } = useQuery({
-    queryKey: ["student-dashboard"],
-    queryFn: studentApi.getDashboard,
-    staleTime: 60_000,
+  } = useQuery({
+    queryKey: ["studentProfile"],
+    queryFn: studentApi.getProfile,
+    enabled: !isBypass,
   });
 
+  // ── Dashboard aggregated data ─────────────────────────────────────────────
+  const { data: dashboardRaw, isLoading: isDashboardLoading } = useDashboard();
+
   // ── MCQ daily task ────────────────────────────────────────────────────────
-  const { data: mcqRaw } = useQuery({
+  const { data: mcqRaw, isLoading: isMcqLoading } = useQuery({
     queryKey: ["student-mcq-daily"],
     queryFn: () => studentApi.getDailyMcq(),
     staleTime: 60_000,
+    enabled: !isBypass,
   });
 
-  // ── Redirect guards ───────────────────────────────────────────────────────
+  // ── Redirect guards (skipped in bypass mode) ──────────────────────────────
   useEffect(() => {
+    if (isBypass) return;
     if (profileError) {
       const err = profileError as any;
       if (err?.response?.status === 404) {
@@ -56,12 +61,26 @@ export function useStudentDashboard() {
         navigate(PATHS.STUDENT_PROFILE_SETUP, { replace: true });
       }
     }
-  }, [profileRaw, isProfileLoading, profileError, navigate]);
+  }, [profileRaw, isProfileLoading, profileError, navigate, isBypass]);
+
+  // Mock fallbacks for dev bypass mode
+  const mockProfile = {
+    fullName: "Rahul Sharma",
+    nickname: "Rahul",
+    class: "10th",
+    className: "10th",
+    board: "CBSE",
+    streak: 5,
+    wallet: { totalPoints: 1250 },
+    level: "Gold",
+    photo: ""
+  };
+  const mockMcq = { completed: 8, total: 10 };
 
   // ── Normalised accessors ──────────────────────────────────────────────────
-  const profile = (profileRaw as any)?.data ?? profileRaw ?? {};
+  const profile = isBypass ? mockProfile : ((profileRaw as any)?.data ?? profileRaw ?? {});
   const dashboard = (dashboardRaw as any)?.data ?? dashboardRaw ?? {};
-  const mcq = (mcqRaw as any)?.data ?? mcqRaw ?? {};
+  const mcq = isBypass ? mockMcq : ((mcqRaw as any)?.data ?? mcqRaw ?? {});
 
   const nickname = profile?.nickname || profile?.fullName || "Student";
   const photo = profile?.photo ?? "";
@@ -84,8 +103,12 @@ export function useStudentDashboard() {
   // Online teachers count
   const activeTeachersCount = dashboard?.activeTeachersCount ?? 50;
 
+  const isLoading = isBypass
+    ? false
+    : (isProfileLoading || isDashboardLoading || isMcqLoading);
+
   return {
-    isLoading: isProfileLoading || isDashboardLoading,
+    isLoading,
     profile,
     nickname,
     photo,
