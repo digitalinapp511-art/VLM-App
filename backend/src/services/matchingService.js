@@ -17,11 +17,10 @@ const DEFAULT_WEIGHTS = {
 };
 
 export const findMatchingTeachers = async ({
-  subject, class: cls, language, board, preferredTeacherId, limit = 4,
+  subject, class: cls, language, board, preferredTeacherId,
 }) => {
   const settings = await AdminSettings.findOne({ key: 'matching_weights' });
   const weights = settings?.value || DEFAULT_WEIGHTS;
-  const maxTeachers = parseInt(process.env.MAX_TEACHERS_PER_REQUEST || '4', 10);
 
   const query = {
     availabilityStatus: 'online',
@@ -45,7 +44,7 @@ export const findMatchingTeachers = async ({
     return scoreB - scoreA;
   });
 
-  return teachers.slice(0, limit || maxTeachers);
+  return teachers;
 };
 
 const calculateScore = (teacher, weights, preferredId) => {

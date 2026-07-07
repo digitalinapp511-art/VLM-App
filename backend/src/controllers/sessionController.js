@@ -76,6 +76,10 @@ export const acceptDoubtRequest = asyncHandler(async (req, res) => {
   const teacher = await Teacher.findOne({ userId: req.user._id });
   if (!teacher) return res.status(404).json({ success: false, message: 'Teacher not found' });
 
+  if (teacher.availabilityStatus === 'busy') {
+    return res.status(400).json({ success: false, message: 'You are already in an active session' });
+  }
+
   const request = await DoubtRequest.findById(req.params.requestId);
   if (!request || request.status !== 'searching') {
     return res.status(400).json({ success: false, message: 'Request not available or already taken' });
@@ -206,6 +210,10 @@ export const declineDoubtRequest = asyncHandler(async (req, res) => {
 export const getIncomingRequests = asyncHandler(async (req, res) => {
   const teacher = await Teacher.findOne({ userId: req.user._id });
   if (!teacher) return res.status(404).json({ success: false, message: 'Teacher not found' });
+
+  if (teacher.availabilityStatus === 'busy') {
+    return res.json({ success: true, data: [] });
+  }
 
   const requests = await DoubtRequest.find({
     'routedTeachers.teacherId': teacher._id,

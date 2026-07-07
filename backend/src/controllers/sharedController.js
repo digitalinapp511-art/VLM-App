@@ -35,7 +35,13 @@ export const getIncomingRequests = asyncHandler(async (req, res) => {
 
 export const respondToRequest = asyncHandler(async (req, res) => {
   const teacher = await Teacher.findOne({ userId: req.user._id });
+  if (!teacher) return res.status(404).json({ success: false, message: 'Teacher not found' });
+
   const { requestId, action } = req.body;
+
+  if (action === 'accept' && teacher.availabilityStatus === 'busy') {
+    return res.status(400).json({ success: false, message: 'You are already in an active session' });
+  }
 
   const request = await DoubtRequest.findById(requestId);
   if (!request || request.status !== 'searching') {
@@ -48,6 +54,7 @@ export const respondToRequest = asyncHandler(async (req, res) => {
   if (rtIndex === -1) return res.status(400).json({ success: false, message: 'Not routed to you' });
 
   if (action === 'accept') {
+    teacher.availabilityStatus = 'busy';
     request.routedTeachers[rtIndex].status = 'accepted';
     request.routedTeachers[rtIndex].respondedAt = new Date();
     request.assignedTeacherId = teacher._id;
