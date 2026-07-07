@@ -12,9 +12,6 @@ import { asyncHandler } from '../middleware/errorHandler.js';
 import { emitSessionAccepted, emitSessionDeclined } from '../socket/index.js';
 import { createNotification } from '../services/notificationService.js';
 
-const APP_ID = process.env.AGORA_APP_ID;
-const APP_CERTIFICATE = process.env.AGORA_APP_CERTIFICATE;
-
 /**
  * Generate an Agora RTC token for a session.
  * GET /api/student/sessions/:sessionId/agora-token  (student)
@@ -28,7 +25,10 @@ export const generateAgoraToken = asyncHandler(async (req, res) => {
     return res.status(404).json({ success: false, message: 'Session not found' });
   }
 
-  if (!APP_ID || !APP_CERTIFICATE) {
+  const appId = process.env.AGORA_APP_ID;
+  const appCertificate = process.env.AGORA_APP_CERTIFICATE;
+
+  if (!appId || !appCertificate) {
     return res.status(500).json({ success: false, message: 'Agora not configured' });
   }
 
@@ -41,8 +41,8 @@ export const generateAgoraToken = asyncHandler(async (req, res) => {
   const privilegeExpiredTs = currentTimestamp + expirationSeconds;
 
   const token = RtcTokenBuilder.buildTokenWithUid(
-    APP_ID,
-    APP_CERTIFICATE,
+    appId,
+    appCertificate,
     channelName,
     uid,
     role,
@@ -61,7 +61,7 @@ export const generateAgoraToken = asyncHandler(async (req, res) => {
     data: {
       token,
       channelName,
-      appId: APP_ID,
+      appId: appId,
       uid,
       sessionId,
     },
