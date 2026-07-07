@@ -215,7 +215,7 @@ export default function TeacherVideoSession() {
         }
       }
     }
-  }, [remoteJoined, joined, remoteVideoRef.current]);
+  }, [remoteJoined, joined, showWhiteboard, remoteVideoRef.current]);
 
   useEffect(() => {
     if (callEnded) {
