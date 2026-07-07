@@ -8,6 +8,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { getSocket, connectSocket, disconnectSocket } from "@/lib/socket";
 import type { Socket } from "socket.io-client";
+import { apiClient } from "@/lib/api-client";
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
@@ -93,6 +94,40 @@ export function useSocket(options: UseSocketOptions = {}) {
     const s = getSocket();
     setSocket(s);
     setIsConnected(s.connected);
+
+    // Fetch pending requests on mount so the teacher doesn't have to manually refresh the page
+    const checkPendingRequests = async () => {
+      try {
+        const role = localStorage.getItem("vlm_role");
+        if (role === "teacher") {
+          const res = await apiClient.get('/teacher/incoming-requests');
+          if (res.data?.success && Array.isArray(res.data.data) && res.data.data.length > 0) {
+            const req = res.data.data[0];
+            setIncomingRequest({
+              requestId: req._id,
+              sessionId: req.sessionId || "",
+              sessionType: req.sessionType || "video",
+              subject: req.subject || "",
+              class: req.class || "",
+              board: req.board || "",
+              language: req.language || "",
+              doubtText: req.doubtText || "",
+              doubtImage: req.doubtImage || "",
+              topic: req.topic || "",
+              timerExpiresAt: req.timerExpiresAt || "",
+              student: {
+                name: req.studentId?.fullName || "Student",
+                photo: req.studentId?.profilePhoto || "",
+                class: req.studentId?.class || "10",
+              },
+            });
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load teacher pending requests:", err);
+      }
+    };
+    checkPendingRequests();
 
     // ── Connection events ────────────────────────────────────────────────
     const onConnect = () => setIsConnected(true);
