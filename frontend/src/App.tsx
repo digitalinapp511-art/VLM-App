@@ -138,8 +138,35 @@ function SocketInitializer({ setActiveRequest }: { setActiveRequest: (data: any)
       const socket = getSocket();
 
       socket.on("parent_link_request", (data: any) => {
-        setActiveRequest(data);
+        setActiveRequest({
+          requestId: data.requestId || "",
+          parentName: data.parentName || "A parent",
+          parentId: data.parentId || "",
+          parentEmailOrMobile: data.parentEmail || data.parentMobile || "",
+        });
       });
+
+      // Poll pending requests on mount so offline/reconnecting users don't miss notifications
+      const checkPendingRequests = async () => {
+        try {
+          const role = localStorage.getItem("vlm_role");
+          if (role === "student") {
+            const res = await apiClient.get("/student/parent-requests");
+            if (res.data?.success && Array.isArray(res.data.data) && res.data.data.length > 0) {
+              const req = res.data.data[0];
+              setActiveRequest({
+                requestId: req.requestId,
+                parentName: req.fullName,
+                parentId: req._id,
+                parentEmailOrMobile: req.email || req.mobile || "",
+              });
+            }
+          }
+        } catch (err) {
+          console.error("Failed to load pending parent requests:", err);
+        }
+      };
+      checkPendingRequests();
 
       return () => {
         socket.off("parent_link_request");
