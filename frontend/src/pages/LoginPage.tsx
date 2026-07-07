@@ -42,7 +42,7 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const emailRef = useRef<HTMLInputElement>(null);
   const phoneRef = useRef<HTMLInputElement>(null);
-  const role = (sessionStorage.getItem("vlm_role") ?? "teacher") as import("@/types").Role;
+  const role = (localStorage.getItem("vlm_role") ?? sessionStorage.getItem("vlm_role") ?? "student") as import("@/types").Role;
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   // const [password, setPassword] = useState("");
