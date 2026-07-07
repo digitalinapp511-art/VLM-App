@@ -152,7 +152,7 @@ export default function AskDoubt() {
   });
 
   return (
-    <div className="min-h-svh w-full bg-[#f4f6ff] text-slate-800 flex flex-col items-center pb-28 overflow-x-hidden font-sans">
+    <div className="min-h-svh w-full bg-[#f4f6ff] dark:bg-[#0b081e] text-slate-800 dark:text-slate-100 flex flex-col items-center pb-28 overflow-x-hidden font-sans transition-colors duration-300">
       
       {/* Hidden inputs */}
       <input
@@ -175,14 +175,14 @@ export default function AskDoubt() {
       <header className="w-full max-w-xl flex items-center justify-between px-6 py-6 mt-4">
         <button
           onClick={() => navigate(-1)}
-          className="h-10 w-10 rounded-full bg-white border border-slate-100 shadow-sm flex items-center justify-center text-slate-600 hover:text-slate-800 active:scale-90 transition-transform"
+          className="h-10 w-10 rounded-full bg-white dark:bg-[#161233] border border-slate-100 dark:border-slate-800 shadow-sm flex items-center justify-center text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-white active:scale-90 transition-transform"
         >
           <ChevronLeft size={20} />
         </button>
-        <h1 className="text-base font-black text-slate-800 tracking-tight">Ask Your Doubt</h1>
+        <h1 className="text-base font-black text-slate-800 dark:text-white tracking-tight">Ask Your Doubt</h1>
         <button
           onClick={() => navigate(PATHS.STUDENT_NOTIFICATIONS)}
-          className="relative h-10 w-10 rounded-full bg-white border border-slate-100 shadow-sm flex items-center justify-center text-slate-600 hover:text-slate-800 active:scale-90 transition-transform"
+          className="relative h-10 w-10 rounded-full bg-white dark:bg-[#161233] border border-slate-100 dark:border-slate-800 shadow-sm flex items-center justify-center text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-white active:scale-90 transition-transform"
         >
           <Bell size={18} />
           <span className="absolute top-2 right-2 h-2 w-2 bg-red-500 rounded-full border border-white" />
@@ -192,22 +192,22 @@ export default function AskDoubt() {
       <main className="w-full max-w-xl px-4 space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-500">
         
         {/* ── INPUT SECTION CARD ── */}
-        <Card className="border-slate-100 bg-white rounded-3xl overflow-hidden shadow-sm">
+        <Card className="border-slate-100 dark:border-slate-800 bg-white dark:bg-[#161233] rounded-3xl overflow-hidden shadow-sm">
           <CardContent className="p-5 space-y-4">
             
             {/* Subject Select */}
             <div className="space-y-1.5">
-              <Label className="text-slate-700 text-xs font-black">Select Subject</Label>
+              <Label className="text-slate-700 dark:text-slate-300 text-xs font-black">Select Subject</Label>
               <Select onValueChange={(val: string | null) => {
                 const selectedId = String(val ?? "");
                 const sub = subjects?.find((s: { id: string; name: string }) => s.id === selectedId);
                 setSelectedSubjectName(sub?.name ?? "");
                 setSelectedSubjectId(selectedId);
               }}>
-                <SelectTrigger className="rounded-2xl w-full border-slate-200 bg-white text-slate-800 focus:ring-violet-500/50">
+                <SelectTrigger className="rounded-2xl w-full border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-855 dark:text-slate-250 focus:ring-violet-500/50">
                   <SelectValue placeholder="Select Subject" />
                 </SelectTrigger>
-                <SelectContent className="bg-white border-slate-200 text-slate-800">
+                <SelectContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-850 text-slate-855 dark:text-white">
                   {subjects?.map((s: { id: string; name: string }) => (
                     <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
                   ))}
@@ -217,12 +217,12 @@ export default function AskDoubt() {
 
             {/* Chapter Select */}
             <div className="space-y-1.5">
-              <Label className="text-slate-700 text-xs font-black">Select Chapter</Label>
+              <Label className="text-slate-700 dark:text-slate-300 text-xs font-black">Select Chapter</Label>
               <Select onValueChange={(value: string | null) => setSelectedChapterId(value ?? "")}>
-                <SelectTrigger className="w-full rounded-2xl border-slate-200 bg-white text-slate-800 focus:ring-violet-500/50">
+                <SelectTrigger className="w-full rounded-2xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-855 dark:text-slate-250 focus:ring-violet-500/50">
                   <SelectValue placeholder="Select Chapter" />
                 </SelectTrigger>
-                <SelectContent className="bg-white border-slate-200 text-slate-800">
+                <SelectContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-850 text-slate-855 dark:text-white">
                   {chapters?.map((c: Chapter) => {
                     const value = typeof c === "string" ? c : c.id ?? c.name ?? "";
                     const label = typeof c === "string" ? c : c.name ?? value;
@@ -234,15 +234,15 @@ export default function AskDoubt() {
 
             {/* Detailed Question Area */}
             <div className="space-y-1.5 relative">
-              <Label className="text-slate-700 text-xs font-black">Type your question</Label>
+              <Label className="text-slate-700 dark:text-slate-300 text-xs font-black">Type your question</Label>
               <Textarea
                 placeholder="Type your detailed question here..."
-                className="min-h-[160px] rounded-2xl border-slate-200 bg-white text-slate-800 placeholder:text-slate-300 p-4 focus-visible:ring-violet-500/50"
+                className="min-h-[160px] rounded-2xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-855 dark:text-slate-100 placeholder:text-slate-300 dark:placeholder:text-slate-600 p-4 focus-visible:ring-violet-500/50"
                 maxLength={1000}
                 value={question}
                 onChange={(e) => setQuestion(e.target.value)}
               />
-              <span className="absolute bottom-4 right-4 text-[9px] text-slate-400 font-bold tracking-widest">
+              <span className="absolute bottom-4 right-4 text-[9px] text-slate-400 dark:text-slate-500 font-bold tracking-widest">
                 {question.length} / 1000
               </span>
             </div>
@@ -252,8 +252,8 @@ export default function AskDoubt() {
         {/* ── ATTACH IMAGE SECTION ── */}
         <div className="space-y-2 px-1">
           <div className="flex justify-between items-center">
-            <Label className="text-slate-800 text-xs font-black">Attach Image (Optional)</Label>
-            <span className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">
+            <Label className="text-slate-800 dark:text-slate-200 text-xs font-black">Attach Image (Optional)</Label>
+            <span className="text-[9px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest">
               {selectedImage ? "Added: 1/3" : "Added: 0/3"}
             </span>
           </div>
@@ -261,14 +261,14 @@ export default function AskDoubt() {
             <Button
               variant="outline"
               onClick={() => cameraInputRef.current?.click()}
-              className="h-12 rounded-2xl border-slate-200 bg-white text-slate-600 hover:bg-slate-50 gap-2 font-bold transition-all shadow-sm"
+              className="h-12 rounded-2xl border-slate-200 dark:border-slate-800 bg-white dark:bg-[#161233] text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-850 gap-2 font-bold transition-all shadow-sm"
             >
               <Camera className="h-4 w-4 text-violet-600" /> Take Photo
             </Button>
             <Button
               variant="outline"
               onClick={() => fileInputRef.current?.click()}
-              className="h-12 rounded-2xl border-slate-200 bg-white text-slate-600 hover:bg-slate-50 gap-2 font-bold transition-all shadow-sm"
+              className="h-12 rounded-2xl border-slate-200 dark:border-slate-800 bg-white dark:bg-[#161233] text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-850 gap-2 font-bold transition-all shadow-sm"
             >
               <ImageIcon className="h-4 w-4 text-violet-600" /> Upload Image
             </Button>
@@ -277,19 +277,19 @@ export default function AskDoubt() {
 
         {/* ── IMAGE PREVIEW ── */}
         {imagePreview && (
-          <div className="relative mx-1 border border-slate-200 bg-white p-3 rounded-2xl flex items-center justify-between shadow-sm">
+          <div className="relative mx-1 border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#161233] p-3 rounded-2xl flex items-center justify-between shadow-sm">
             <div className="flex items-center gap-3">
-              <img src={imagePreview} alt="Preview" className="h-14 w-14 object-cover rounded-xl border border-slate-100" />
+              <img src={imagePreview} alt="Preview" className="h-14 w-14 object-cover rounded-xl border border-slate-100 dark:border-slate-850" />
               <div>
-                <p className="text-xs font-black text-slate-800">Attached Doubt Photo</p>
-                <p className="text-[10px] text-slate-400">
+                <p className="text-xs font-black text-slate-800 dark:text-white">Attached Doubt Photo</p>
+                <p className="text-[10px] text-slate-400 dark:text-slate-500">
                   {selectedImage?.size ? (selectedImage.size / 1024 / 1024).toFixed(2) + " MB" : ""}
                 </p>
               </div>
             </div>
             <button
               onClick={removeImage}
-              className="h-8 w-8 rounded-full bg-red-50 text-red-500 hover:bg-red-100 flex items-center justify-center font-bold text-xs"
+              className="h-8 w-8 rounded-full bg-red-50 dark:bg-red-500/10 text-red-500 hover:bg-red-100 dark:hover:bg-red-500/25 flex items-center justify-center font-bold text-xs"
             >
               <X size={14} />
             </button>
@@ -298,7 +298,7 @@ export default function AskDoubt() {
 
         {/* ── SESSION TYPE SELECTION ── */}
         <div className="space-y-2 px-1">
-          <Label className="text-slate-800 text-xs font-black">Choose Session Type</Label>
+          <Label className="text-slate-800 dark:text-slate-200 text-xs font-black">Choose Session Type</Label>
           {/* Scrollable list with negative margins to prevent corner clipping */}
           <div className="flex overflow-x-auto gap-3 px-2 py-3 -mx-2 -my-2 snap-x no-scrollbar">
             <SessionCard
@@ -355,22 +355,24 @@ function SessionCard({ icon, title, desc, active, onClick }: any) {
     <Card
       onClick={onClick}
       className={cn(
-        "cursor-pointer flex-none w-[120px] shrink-0 rounded-2xl transition-all duration-300 border-slate-200/80 shadow-sm",
-        active ? "bg-violet-50 border-violet-400 text-violet-700 ring-1 ring-violet-400" : "bg-white hover:bg-slate-50 text-slate-600"
+        "cursor-pointer flex-none w-[120px] shrink-0 rounded-2xl transition-all duration-300 border-slate-200/80 dark:border-slate-800 shadow-sm",
+        active 
+          ? "bg-violet-50 dark:bg-violet-950/30 border-violet-400 dark:border-violet-500 text-violet-700 dark:text-violet-300 ring-1 ring-violet-400 dark:ring-violet-500" 
+          : "bg-white dark:bg-[#161233] hover:bg-slate-50 dark:hover:bg-slate-850 text-slate-600 dark:text-slate-400"
       )}
     >
       <CardContent className="p-3 flex flex-col items-center text-center gap-2">
         <div className={cn(
           "p-2.5 rounded-xl transition-colors",
-          active ? "bg-violet-600 text-white shadow-md shadow-violet-500/20" : "bg-slate-100 text-slate-400"
+          active ? "bg-violet-600 text-white shadow-md shadow-violet-500/20" : "bg-slate-100 dark:bg-slate-900 text-slate-400"
         )}>
           {icon}
         </div>
         <div className="space-y-0.5">
-          <p className={cn("text-[9px] font-black uppercase tracking-tight", active ? "text-violet-700" : "text-slate-800")}>
+          <p className={cn("text-[9px] font-black uppercase tracking-tight", active ? "text-violet-700 dark:text-violet-300" : "text-slate-800 dark:text-slate-200")}>
             {title}
           </p>
-          <p className="text-[8px] text-slate-400 leading-tight">{desc}</p>
+          <p className="text-[8px] text-slate-400 dark:text-slate-500 leading-tight">{desc}</p>
         </div>
       </CardContent>
     </Card>

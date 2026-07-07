@@ -28,6 +28,8 @@ import SessionFeedback from "./pages/student/SessionFeedBack";
 import SessionHistory from "./pages/student/SessionHistory";
 import ShortLiveSessions from "./pages/student/ShortLiveSession";
 import ShortVideoFeed from "./pages/student/ShortVideoFeed";
+import CreatorProfile from "./pages/student/CreatorProfile";
+import StudentWallet from "./pages/student/Wallet";
 import Library from "./pages/student/Library";
 import UseSubscription from "./pages/student/UseSubscription";
 import UseRecharge from "./pages/student/UseRecharge";
@@ -91,6 +93,7 @@ import RecordingLibrary from "./pages/teacher/RecordingLibrary";
 import Live_Session from "./pages/teacher/Live_Session";
 import TeacherVideoSession from "./pages/teacher/TeacherVideoSession";
 import TeacherChatSession from "./pages/teacher/ChatSession";
+import ResolveDoubtPage from "./pages/teacher/ResolveDoubtPage";
 
 import { useEffect, useState } from "react";
 import { connectSocket, disconnectSocket, getSocket } from "@/lib/socket";
@@ -212,7 +215,7 @@ export default function App() {
                 <Route path={PATHS.LIVE_CLASSES} element={<LiveClasses />} />
                 <Route path={PATHS.PROFILE} element={<ProfileView />} />
                 <Route path={PATHS.EDIT_PROFILE} element={<EditProfile />} />
-                <Route path={PATHS.WALLET} element={<Profile />} />
+                <Route path={PATHS.WALLET} element={<StudentWallet />} />
                 <Route path={PATHS.VIDEO_UPLOAD} element={<VideoUpload />} />
                 <Route path={PATHS.REFERRAL_REWARD} element={<ReferralReward />} />
               </Route>
@@ -225,6 +228,7 @@ export default function App() {
               <Route path={PATHS.VIDEO_CALL_SESSION} element={<VideoCallSession />} />
               <Route path={PATHS.SHORT_LIVE_SESSION} element={<ShortLiveSessions />} />
               <Route path={PATHS.SHORT_VIDEO_FEED} element={<ShortVideoFeed />} />
+              <Route path={PATHS.CREATOR_PROFILE} element={<CreatorProfile />} />
               <Route path={PATHS.LIBRARY} element={<Library />} />
               <Route path={PATHS.USE_SUBSCRIPTION} element={<UseSubscription />} />
               <Route path={PATHS.USE_RECHARGE} element={<UseRecharge />} />
@@ -279,7 +283,9 @@ export default function App() {
         <Route path={PATHS.TEACHER_LIBRARY} element={<RecordingLibrary />} />
         <Route path={PATHS.TEACHER_LIVE_SESSION} element={<Live_Session />} />
         <Route path={PATHS.TEACHER_VIDEO_SESSION} element={<TeacherVideoSession />} />
+        <Route path={PATHS.TEACHER_AUDIO_SESSION} element={<TeacherVideoSession />} />
         <Route path={PATHS.TEACHER_CHAT_SESSION} element={<TeacherChatSession />} />
+        <Route path={PATHS.TEACHER_RESOLVE_DOUBT} element={<ResolveDoubtPage />} />
         <Route path={PATHS.TEACHER_REVIEWS} element={<Reviews />} />
         
           {/* Parent Module */} 
@@ -307,15 +313,15 @@ export default function App() {
 
       {/* Real-time parent link request popup modal */}
       {activeRequest && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-300">
-          <div className="bg-[#121212] border border-white/10 rounded-[32px] w-full max-w-sm p-6 space-y-6 shadow-2xl relative text-center">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="bg-white dark:bg-[#121212] border border-slate-100 dark:border-white/10 rounded-[32px] w-full max-w-sm p-6 space-y-6 shadow-2xl relative text-center transition-colors duration-300">
             
             {/* Pulsing indicator */}
             <div className="flex justify-center pt-2">
               <div className="relative flex items-center justify-center w-16 h-16">
-                <div className="absolute inset-0 rounded-full bg-cyan-500/10 animate-ping duration-1000" />
-                <div className="w-12 h-12 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center">
-                  <svg className="w-6 h-6 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <div className="absolute inset-0 rounded-full bg-violet-500/10 dark:bg-cyan-500/10 animate-ping duration-1000" />
+                <div className="w-12 h-12 rounded-2xl bg-violet-500/10 dark:bg-cyan-500/10 border border-violet-500/20 dark:border-cyan-500/20 flex items-center justify-center">
+                  <svg className="w-6 h-6 text-violet-600 dark:text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
                   </svg>
                 </div>
@@ -324,9 +330,9 @@ export default function App() {
 
             {/* Content text info */}
             <div className="space-y-2">
-              <h3 className="text-lg font-bold text-white tracking-tight">Parent Link Request</h3>
-              <p className="text-xs text-zinc-400 leading-relaxed px-2">
-                <span className="text-white font-extrabold">{activeRequest.parentName}</span> ({activeRequest.parentEmailOrMobile}) 
+              <h3 className="text-lg font-black tracking-tight text-slate-800 dark:text-white">Parent Link Request</h3>
+              <p className="text-xs text-slate-500 dark:text-zinc-400 leading-relaxed px-2 font-medium">
+                <span className="text-slate-800 dark:text-white font-extrabold">{activeRequest.parentName}</span> ({activeRequest.parentEmailOrMobile}) 
                 wants to link with your account to track your learning progress.
               </p>
             </div>
@@ -335,14 +341,14 @@ export default function App() {
             <div className="flex flex-col gap-2 pt-2">
               <button 
                 onClick={handleApprove}
-                className="w-full h-11 rounded-2xl bg-cyan-500 hover:bg-cyan-400 text-zinc-950 text-xs font-bold transition-colors cursor-pointer shadow-lg border-none"
+                className="w-full h-11 rounded-2xl bg-gradient-to-r from-violet-600 to-fuchsia-500 dark:from-cyan-500 dark:to-cyan-400 text-white dark:text-zinc-950 text-xs font-black transition-colors cursor-pointer shadow-md border-none"
               >
                 Approve & Link
               </button>
               
               <button 
                 onClick={handleReject}
-                className="w-full h-11 rounded-2xl bg-white/5 border border-white/10 text-white text-xs font-bold hover:bg-white/10 transition-colors cursor-pointer"
+                className="w-full h-11 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-600 dark:text-white text-xs font-bold hover:bg-slate-100 dark:hover:bg-white/10 transition-colors cursor-pointer"
               >
                 Decline
               </button>

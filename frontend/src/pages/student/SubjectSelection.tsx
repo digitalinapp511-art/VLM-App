@@ -181,12 +181,16 @@ export default function SubjectSelection() {
 // ── Skeleton Loader ──
 function LoadingSkeleton() {
   return (
-    <div className="p-6 space-y-12 bg-black min-h-screen flex flex-col items-center">
-      <div className="w-full flex justify-between"><Skeleton className="h-12 w-12 rounded-2xl bg-white/5" /><Skeleton className="h-8 w-40 bg-white/5" /><div className="w-12" /></div>
-      <Skeleton className="h-10 w-64 bg-white/5" />
+    <div className="p-6 space-y-12 bg-[#f4f6ff] dark:bg-[#0b081e] min-h-screen flex flex-col items-center transition-colors duration-300">
+      <div className="w-full flex justify-between">
+        <Skeleton className="h-12 w-12 rounded-2xl bg-slate-200 dark:bg-slate-800" />
+        <Skeleton className="h-8 w-40 bg-slate-200 dark:bg-slate-800" />
+        <div className="w-12" />
+      </div>
+      <Skeleton className="h-10 w-64 bg-slate-200 dark:bg-slate-800" />
       <div className="grid grid-cols-3 gap-4 w-full max-w-2xl">
         {[...Array(9)].map((_, i) => (
-          <Skeleton key={i} className="aspect-square rounded-[1.5rem] bg-white/5" />
+          <Skeleton key={i} className="aspect-square rounded-[1.5rem] bg-slate-200 dark:bg-slate-800" />
         ))}
       </div>
     </div>

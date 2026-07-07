@@ -69,6 +69,8 @@ export default function TeacherSearching() {
               rating: data.teacherRating,
             },
             subjectName,
+            doubtId: (data as any).doubtId || doubtId,
+            requestId: (data as any).doubtId || doubtId,
           },
         });
       } else if (data.sessionType === "audio") {
@@ -82,6 +84,8 @@ export default function TeacherSearching() {
               photo: data.teacherPhoto,
             },
             subjectName,
+            doubtId: (data as any).doubtId || doubtId,
+            requestId: (data as any).doubtId || doubtId,
           },
         });
       } else {
@@ -93,6 +97,8 @@ export default function TeacherSearching() {
               photo: data.teacherPhoto,
             },
             subjectName,
+            doubtId: (data as any).doubtId || doubtId,
+            requestId: (data as any).doubtId || doubtId,
           },
         });
       }
@@ -132,44 +138,44 @@ export default function TeacherSearching() {
     : "bg-cyan-100";
 
   return (
-    <div className="relative min-h-svh w-full bg-[#f4f6ff] text-slate-800 flex flex-col items-center px-6 pt-6 overflow-x-hidden pb-12 font-sans">
+    <div className="relative h-[100dvh] w-full bg-[#f4f6ff] dark:bg-[#0b081e] text-slate-800 dark:text-slate-100 flex flex-col items-center px-6 py-6 overflow-hidden transition-colors duration-300 font-sans">
 
-      <div className="w-full max-w-md flex-1 flex flex-col justify-between h-full z-10">
+      <div className="w-full max-w-md flex-1 flex flex-col justify-between h-full z-10 overflow-hidden">
 
         {/* Header */}
-        <header className="relative flex w-full items-center justify-between mb-4">
+        <header className="relative flex w-full items-center justify-between mb-2 shrink-0">
           <Button
             variant="outline"
             size="icon"
             onClick={handleCancel}
-            className="h-10 w-10 rounded-full border-slate-100 bg-white text-slate-600 shadow-sm hover:text-slate-800"
+            className="h-9 w-9 rounded-xl border border-slate-200 dark:border-[#221c4e] bg-white dark:bg-[#161233] text-slate-600 dark:text-slate-400 shadow-sm hover:text-slate-800 dark:hover:text-white"
           >
-            <ChevronLeft size={20} />
+            <ChevronLeft size={18} />
           </Button>
-          <h1 className="text-sm font-bold tracking-tight text-slate-800">Finding Your Teacher</h1>
-          <div className="w-10" />
+          <h1 className="text-xs font-black uppercase tracking-wider text-slate-450">Finding Your Teacher</h1>
+          <div className="w-9" />
         </header>
 
         {/* Status */}
-        <div className="space-y-1.5 mt-4 text-center">
-          <h2 className="text-xl font-black tracking-tight text-slate-800 leading-snug">
+        <div className="space-y-1 text-center shrink-0">
+          <h2 className="text-base font-black tracking-tight text-slate-850 dark:text-white leading-snug">
             {noTeacher ? "No teachers available" : "Finding the best teacher for your doubt…"}
           </h2>
           <p className={cn(
-            "text-xs font-bold tracking-wide",
-            noTeacher ? "text-red-500" : "text-violet-600 animate-pulse"
+            "text-[10px] font-bold tracking-wide uppercase",
+            noTeacher ? "text-rose-500" : "text-violet-600 dark:text-violet-400 animate-pulse"
           )}>
             {statusMessage}
           </p>
         </div>
 
         {/* Radar Animation */}
-        <div className="relative flex items-center justify-center my-8 h-64 w-full select-none">
+        <div className="relative flex-1 flex items-center justify-center min-h-[160px] max-h-[220px] w-full select-none my-4">
 
           {/* Center VLM Logo */}
-          <div className="relative z-20 h-28 w-28 rounded-full border-2 border-violet-100 bg-white flex flex-col items-center justify-center text-center shadow-lg shadow-violet-500/10">
-            <span className="text-base font-black tracking-wider text-violet-600">VLM</span>
-            <span className="text-[8px] font-black text-slate-400 tracking-wider uppercase mt-0.5 leading-none">
+          <div className="relative z-20 h-20 w-20 rounded-full border-2 border-violet-100 dark:border-[#221c4e] bg-white dark:bg-[#161233] flex flex-col items-center justify-center text-center shadow-lg shadow-violet-500/5">
+            <span className="text-sm font-black tracking-wider text-violet-600 dark:text-violet-400">VLM</span>
+            <span className="text-[7px] font-black text-slate-400 dark:text-slate-500 tracking-wider uppercase mt-0.5 leading-none">
               Doubt<br />Resolved
             </span>
           </div>
@@ -177,14 +183,14 @@ export default function TeacherSearching() {
           {/* Spinning rings */}
           {!noTeacher && (
             <>
-              <div className="absolute inset-0 m-auto h-40 w-40 border border-dashed border-violet-400/30 rounded-full animate-spin [animation-duration:8s] pointer-events-none" />
-              <div className="absolute inset-0 m-auto h-52 w-52 border border-dashed border-indigo-400/30 rounded-full animate-spin [animation-duration:12s] pointer-events-none" />
+              <div className="absolute inset-0 m-auto h-28 w-28 border border-dashed border-violet-400/30 rounded-full animate-spin [animation-duration:8s] pointer-events-none" />
+              <div className="absolute inset-0 m-auto h-36 w-36 border border-dashed border-indigo-400/30 rounded-full animate-spin [animation-duration:12s] pointer-events-none" />
             </>
           )}
 
           {/* Teacher avatars */}
           {teachers.map((teacher, index) => {
-            const positions = ["top-6 left-6", "top-6 right-6", "bottom-6 left-6", "bottom-6 right-6"];
+            const positions = ["top-2 left-8", "top-2 right-8", "bottom-2 left-8", "bottom-2 right-8"];
             return (
               <motion.div
                 key={teacher.id}
@@ -193,12 +199,12 @@ export default function TeacherSearching() {
                 className={cn("absolute z-20 flex flex-col items-center", positions[index])}
               >
                 <div className="relative">
-                  <div className="h-14 w-14 rounded-full border-2 border-white bg-slate-100 overflow-hidden shadow-md p-0.5">
+                  <div className="h-10 w-10 rounded-full border-2 border-white dark:border-[#161233] bg-slate-100 dark:bg-slate-900 overflow-hidden shadow-md p-0.5">
                     <img src={teacher.avatar} alt={teacher.name} className="h-full w-full rounded-full object-cover" />
                   </div>
                   <span className={cn(
-                    "absolute bottom-0 right-0 h-3.5 w-3.5 rounded-full border-2 border-white",
-                    noTeacher ? "bg-red-500" : "bg-emerald-500 shadow-md"
+                    "absolute bottom-0 right-0 h-3 w-3 rounded-full border border-white dark:border-[#161233]",
+                    noTeacher ? "bg-rose-500" : "bg-emerald-500 shadow-md"
                   )} />
                 </div>
               </motion.div>
@@ -206,60 +212,45 @@ export default function TeacherSearching() {
           })}
 
           {/* Request count banner */}
-          <div className="absolute bottom-2 z-30 px-4 py-1.5 rounded-full border border-slate-700 bg-slate-800 shadow-lg text-[9px] font-black tracking-wider uppercase text-white">
+          <div className="absolute bottom-2 z-30 px-3 py-1 rounded-full border border-slate-700 bg-slate-800 shadow-lg text-[8px] font-black tracking-wider uppercase text-white">
             {noTeacher
-              ? <span className="flex items-center gap-1.5"><WifiOff size={10} /> No teachers found</span>
+              ? <span className="flex items-center gap-1.5"><WifiOff size={8} /> No teachers found</span>
               : `Request sent to ${requestCount} teacher${requestCount > 1 ? "s" : ""}`
             }
           </div>
         </div>
 
-        {/* Detail Card */}
-        <Card className="border border-slate-100 bg-white rounded-3xl shadow-sm shrink-0">
-          <CardContent className="p-5 space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="h-9 w-9 rounded-xl bg-violet-100 flex items-center justify-center shrink-0">
-                <BookOpen size={16} className="text-violet-600" />
-              </div>
-              <div>
-                <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider block">Subject</span>
-                <span className="text-sm font-bold text-slate-800 block mt-0.5">{subjectName}</span>
-              </div>
+        {/* Compact 3-Column Detail Card */}
+        <Card className="border border-slate-100 dark:border-[#221c4e] bg-white dark:bg-[#161233] rounded-[2rem] shadow-xs shrink-0 w-full mt-2">
+          <CardContent className="p-3.5 grid grid-cols-3 gap-2 text-center divide-x divide-slate-100 dark:divide-slate-800">
+            <div className="flex flex-col items-center justify-center">
+              <span className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest block">Subject</span>
+              <span className="text-xs font-black text-slate-800 dark:text-white truncate max-w-full block mt-0.5">{subjectName}</span>
             </div>
-            <div className="flex items-center gap-3">
-              <div className="h-9 w-9 rounded-xl bg-indigo-100 flex items-center justify-center shrink-0">
-                <GraduationCap size={16} className="text-indigo-600" />
-              </div>
-              <div>
-                <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider block">Class</span>
-                <span className="text-sm font-bold text-slate-800 block mt-0.5">{className}</span>
-              </div>
+            <div className="flex flex-col items-center justify-center">
+              <span className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest block">Class</span>
+              <span className="text-xs font-black text-slate-800 dark:text-white truncate max-w-full block mt-0.5">{className}</span>
             </div>
-            <div className="flex items-center gap-3">
-              <div className={cn("h-9 w-9 rounded-xl flex items-center justify-center shrink-0", sessionIconBg)}>
-                {sessionIcon}
-              </div>
-              <div>
-                <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider block">Session Type</span>
-                <span className="text-sm font-bold text-slate-800 block mt-0.5">{sessionType}</span>
-              </div>
+            <div className="flex flex-col items-center justify-center">
+              <span className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest block">Type</span>
+              <span className="text-xs font-black text-slate-800 dark:text-white truncate max-w-full block mt-0.5">{sessionType}</span>
             </div>
           </CardContent>
         </Card>
 
         {/* Action buttons */}
-        <div className="mt-6 w-full space-y-3">
+        <div className="mt-4 w-full space-y-2 shrink-0">
           {noTeacher && (
             <Button
               onClick={() => navigate(PATHS.ASK_DOUBT)}
-              className="w-full h-14 rounded-2xl text-xs font-black tracking-widest bg-gradient-to-r from-violet-600 to-indigo-700 text-white transition-all shadow-md shadow-violet-500/10"
+              className="w-full h-12 rounded-2xl text-xs font-black tracking-widest bg-gradient-to-r from-violet-600 to-fuchsia-500 hover:from-violet-500 hover:to-fuchsia-400 text-white shadow-md border-none active:scale-95 transition-all cursor-pointer"
             >
               Try Again
             </Button>
           )}
           <Button
             onClick={handleCancel}
-            className="w-full h-14 rounded-2xl text-xs font-black tracking-widest border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition-all shadow-sm"
+            className="w-full h-12 rounded-2xl text-xs font-black tracking-widest border border-slate-200 dark:border-[#221c4e] bg-white dark:bg-[#161233] text-slate-700 dark:text-slate-350 hover:bg-slate-50 dark:hover:bg-slate-900 active:scale-95 transition-all shadow-sm cursor-pointer"
           >
             Cancel Request
           </Button>

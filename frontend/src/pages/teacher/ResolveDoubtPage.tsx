@@ -4,13 +4,34 @@ import { ShieldCheck, ChevronRight } from "lucide-react";
 import { bgCss } from "@/helper/CssHelper";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { useLocation, useNavigate } from "react-router-dom";
+import { PATHS } from "@/routes/paths";
+import { toast } from "sonner";
 
 import SessionSummaryCard from "@/components/basic/teacher/SessionSummaryCard";
 import StarRating from "@/components/basic/teacher/StarRating";
 
 const ResolveDoubtPage: React.FC = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  const {
+    sessionId = "CHAT-VLM-EL-29341",
+    studentName = "Eleanor Reed",
+    subjectName = "Physics",
+    teacherName = "Dr. Elena Petrova",
+    role = "Physics Faculty",
+  } = location.state || {};
+
+  const doubtId = sessionId.slice(-6).toUpperCase();
+
   const sessionSummary = 
-    "Focus: Newton's Laws and Free Body Diagrams. We worked through Example 4 and simplified force equations. Hope you feel more confident with optimization problems.";
+    `Focus: ${subjectName} session completed. We covered core definitions, solved practice problems, and clarified the key questions. Keep reviewing to lock in the concepts!`;
+
+  const handleResolve = () => {
+    toast.success("Doubt successfully marked as Resolved!");
+    navigate(PATHS.TEACHER_DASHBOARD);
+  };
 
   return (
     <div className={cn("min-h-screen flex items-center justify-center p-6 relative overflow-hidden", bgCss)}>
@@ -44,15 +65,15 @@ const ResolveDoubtPage: React.FC = () => {
               Resolve Your Doubt
             </h1>
             <p className="text-zinc-500 text-xs font-bold tracking-widest uppercase opacity-80">
-              Doubt #D29341-EL
+              Doubt #{doubtId}
             </p>
           </div>
         </div>
 
         {/* Summary Card Component */}
         <SessionSummaryCard 
-          teacherName="Dr. Elena Petrova"
-          role="Physics Faculty"
+          teacherName={teacherName}
+          role={role}
           summary={sessionSummary}
           avatarUrl="https://api.dicebear.com/7.x/avataaars/svg?seed=Elena"
         />
@@ -64,8 +85,9 @@ const ResolveDoubtPage: React.FC = () => {
         <div className="mt-6">
           <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
             <Button 
+              onClick={handleResolve}
               className={cn(
-                "w-full h-16 rounded-[2rem] text-lg font-black uppercase tracking-widest",
+                "w-full h-16 rounded-[2rem] text-lg font-black uppercase tracking-widest cursor-pointer",
                 "bg-gradient-to-r from-[#2b4b9b] to-[#1a2e5d] hover:brightness-110",
                 "border border-cyan-400/20 shadow-[0_10px_40px_rgba(34,211,238,0.25)] text-white group"
               )}
@@ -79,7 +101,7 @@ const ResolveDoubtPage: React.FC = () => {
         {/* Footer Info */}
         <footer className="mt-8 text-center">
           <p className="text-[10px] text-zinc-600 font-bold uppercase tracking-widest opacity-60">
-            Chat ID: CHAT-VLM-EL-29341 | Student: Eleanor Reed
+            Session ID: {sessionId} | Student: {studentName}
           </p>
         </footer>
       </motion.div>
@@ -87,7 +109,8 @@ const ResolveDoubtPage: React.FC = () => {
       {/* Tertiary Skip Action */}
       <div className="fixed bottom-10 left-1/2 -translate-x-1/2">
         <button 
-          className="text-cyan-400/80 hover:text-cyan-400 text-[13px] font-bold underline underline-offset-4 tracking-wide transition-all"
+          onClick={() => navigate(PATHS.TEACHER_DASHBOARD)}
+          className="text-cyan-400/80 hover:text-cyan-400 text-[13px] font-bold underline underline-offset-4 tracking-wide transition-all cursor-pointer bg-transparent border-none"
         >
           Skip for now
         </button>

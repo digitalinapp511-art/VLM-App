@@ -6,15 +6,15 @@ const AudioWaveform: React.FC = () => {
     <div className="w-full h-16 flex items-center justify-center relative overflow-hidden">
       <svg width="100%" height="100%" viewBox="0 0 400 100" preserveAspectRatio="none">
         {/* Static part of waveform */}
-        <line x1="0" y1="50" x2="160" y2="50" stroke="#22d3ee" strokeWidth="2" />
-        <line x1="240" y1="50" x2="400" y2="50" stroke="#22d3ee" strokeWidth="2" />
+        <line x1="0" y1="50" x2="160" y2="50" stroke="#7c3aed" strokeWidth="2.5" />
+        <line x1="240" y1="50" x2="400" y2="50" stroke="#7c3aed" strokeWidth="2.5" />
         
         {/* Animated dynamic part */}
         <motion.path
           d="M 160 50 L 170 30 L 180 70 L 190 20 L 200 80 L 210 10 L 220 90 L 230 40 L 240 50"
           fill="none"
           stroke="url(#waveGradient)"
-          strokeWidth="3"
+          strokeWidth="3.5"
           strokeLinecap="round"
           strokeLinejoin="round"
           animate={{
@@ -33,9 +33,9 @@ const AudioWaveform: React.FC = () => {
         
         <defs>
           <linearGradient id="waveGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="#22d3ee" />
-            <stop offset="50%" stopColor="#a855f7" />
-            <stop offset="100%" stopColor="#22d3ee" />
+            <stop offset="0%" stopColor="#7c3aed" />
+            <stop offset="50%" stopColor="#db2777" />
+            <stop offset="100%" stopColor="#7c3aed" />
           </linearGradient>
         </defs>
       </svg>

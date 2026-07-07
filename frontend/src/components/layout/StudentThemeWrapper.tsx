@@ -14,14 +14,18 @@ export default function StudentThemeWrapper() {
   useEffect(() => {
     const root = document.documentElement;
     const wasDark = root.classList.contains("dark");
-    if (wasDark) {
-      root.classList.remove("dark");
-      root.classList.add("light");
-    }
+    const savedTheme = localStorage.getItem("vlm_student_theme") || "light";
+
+    root.classList.remove("light", "dark");
+    root.classList.add(savedTheme);
+
     return () => {
+      root.classList.remove("light", "dark");
+      // Restore previous theme state when exiting student layout
       if (wasDark) {
-        root.classList.remove("light");
         root.classList.add("dark");
+      } else {
+        root.classList.add("light");
       }
     };
   }, []);

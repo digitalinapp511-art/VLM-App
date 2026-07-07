@@ -60,6 +60,12 @@ export const createStudentProfile = asyncHandler(async (req, res) => {
       ...req.body,
     });
   }
+
+  // Delete any pending MCQ task for today to force a new customized one matching newly saved subjects
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  await McqTask.deleteMany({ studentId: student._id, date: { $gte: today }, status: 'pending' }).catch(() => {});
+
   res.json({ success: true, data: student });
 });
 
@@ -437,17 +443,82 @@ export const getDailyMcq = asyncHandler(async (req, res) => {
   let task = await McqTask.findOne({ studentId: student._id, class: selectedClass, date: { $gte: today } });
   if (!task) {
     const subjects = student.subjects?.length ? student.subjects : ['Math', 'Science', 'English'];
-    const questions = [];
-    for (let i = 0; i < 20; i++) {
-      const subj = subjects[i % subjects.length];
-      questions.push({
-        subject: subj,
-        question: `Sample ${subj} question ${i + 1} for Class ${selectedClass}?`,
-        options: ['Option A', 'Option B', 'Option C', 'Option D'],
-        correctAnswer: Math.floor(Math.random() * 4),
-        explanation: `Explanation for question ${i + 1}`,
+    const weakSubjects = student.weakSubjects?.length ? student.weakSubjects : [];
+    
+    let questions = [];
+
+    // Call LLM to generate exactly 15 customized MCQ questions
+    const apiKey = process.env.AICREDITS_API_KEY || 'sk-live-a92f285a97499b113c4bb6ef0098e42ac4a0875f83afb0903512abb77491db96';
+    const baseUrl = process.env.AICREDITS_BASE_URL || 'https://aicredits.in/v1';
+
+    try {
+      const response = await fetch(`${baseUrl}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          messages: [
+            {
+              role: 'system',
+              content: `You are an educational assistant that generates daily MCQ test tasks for students. Generate exactly 15 MCQ questions in JSON format. The response must be a valid JSON array containing exactly 15 objects with the following schema:
+[
+  {
+    "subject": "string",
+    "question": "string",
+    "options": ["string", "string", "string", "string"],
+    "correctAnswer": 0/1/2/3 (index of correct option),
+    "explanation": "string"
+  }
+]`
+            },
+            {
+              role: 'user',
+              content: `Generate exactly 15 multiple choice questions for a Class ${selectedClass} student.
+The student takes the following subjects: ${subjects.join(', ')}.
+The student's weak subjects are: ${weakSubjects.join(', ')}. Please weight the questions to focus more (approx 50-60%) on these weak subjects so they can practice and improve.
+Return ONLY a valid JSON array, do not wrap in markdown or backticks.`
+            }
+          ],
+          max_tokens: 2000
+        })
       });
+
+      if (response.ok) {
+        const responseData = await response.json();
+        const replyText = responseData.choices?.[0]?.message?.content || '';
+        let cleaned = replyText.trim();
+        if (cleaned.startsWith("```")) {
+          cleaned = cleaned.replace(/^```json\s*/i, "").replace(/```$/, "").trim();
+        }
+        const parsed = JSON.parse(cleaned);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          questions = parsed.slice(0, 15);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to generate MCQs using LLM:", err.message);
     }
+
+    // Fallback if LLM fails or returns invalid format
+    if (questions.length < 15) {
+      questions = [];
+      for (let i = 0; i < 15; i++) {
+        const subj = weakSubjects.length && i % 2 === 0
+          ? weakSubjects[Math.floor(Math.random() * weakSubjects.length)]
+          : subjects[i % subjects.length];
+        questions.push({
+          subject: subj,
+          question: `Practice ${subj} problem ${i + 1} for Class ${selectedClass}`,
+          options: ['Option A', 'Option B', 'Option C', 'Option D'],
+          correctAnswer: Math.floor(Math.random() * 4),
+          explanation: `Practice makes perfect. Solution for question ${i + 1}`,
+        });
+      }
+    }
+
     task = await McqTask.create({
       studentId: student._id,
       class: selectedClass,
@@ -615,6 +686,52 @@ export const claimSpinReward = asyncHandler(async (req, res) => {
   student.markModified('wallet');
   await student.save();
   res.json({ success: true, message: `Successfully claimed ${amount} ${rewardType}`, data: student });
+});
+
+export const rechargeWallet = asyncHandler(async (req, res) => {
+  const { amount, points, aiCredits, humanChatCredits, redeemedPoints } = req.body;
+  const student = await Student.findOne({ userId: req.user._id });
+  if (!student) {
+    return res.status(404).json({ success: false, message: 'Student not found' });
+  }
+
+  // Update wallet values (points cannot be bought; only aiCredits and humanChatCredits are bought)
+  student.wallet.balance = (student.wallet.balance || 0) + (amount || 0);
+  
+  if (redeemedPoints) {
+    student.wallet.totalPoints = Math.max(0, student.wallet.totalPoints - redeemedPoints);
+    student.totalPoints = Math.max(0, student.totalPoints - redeemedPoints);
+  }
+  
+  if (aiCredits) student.wallet.aiCredits = (student.wallet.aiCredits || 0) + aiCredits;
+  if (humanChatCredits) student.wallet.humanChatCredits = (student.wallet.humanChatCredits || 0) + humanChatCredits;
+
+  student.markModified('wallet');
+  await student.save();
+
+  // Create wallet transaction for recharge
+  await WalletTransaction.create({
+    userId: req.user._id,
+    role: 'student',
+    points: 0,
+    amount: amount || 0,
+    earningType: 'purchase',
+    description: `Recharge: Bought ${aiCredits || 0} AI / ${humanChatCredits || 0} Doubt Credits`,
+  });
+
+  // Create wallet transaction for redeemed points
+  if (redeemedPoints) {
+    await WalletTransaction.create({
+      userId: req.user._id,
+      role: 'student',
+      points: -redeemedPoints,
+      amount: 0,
+      earningType: 'redeem',
+      description: `Redeemed points discount for recharge`,
+    });
+  }
+
+  res.json({ success: true, message: 'Recharge successful!', data: student });
 });
 
 export const getStudentWalletHistory = asyncHandler(async (req, res) => {
@@ -977,16 +1094,62 @@ export const getStudentStats = asyncHandler(async (req, res) => {
     return res.status(404).json({ success: false, message: 'Student not found' });
   }
 
+  const { timeframe } = req.query;
+  let dateFilter = {};
+
+  if (timeframe === 'month') {
+    const monthAgo = new Date();
+    monthAgo.setDate(monthAgo.getDate() - 30);
+    dateFilter = { createdAt: { $gte: monthAgo } };
+  } else if (timeframe === 'year') {
+    const yearAgo = new Date();
+    yearAgo.setDate(yearAgo.getDate() - 365);
+    dateFilter = { createdAt: { $gte: yearAgo } };
+  } else {
+    // default: week
+    const weekAgo = new Date();
+    weekAgo.setDate(weekAgo.getDate() - 7);
+    dateFilter = { createdAt: { $gte: weekAgo } };
+  }
+
+  // Get student's subjects list or fall back to default
+  const subjectsList = (student.subjects && student.subjects.length > 0)
+    ? student.subjects
+    : ["Mathematics", "Science", "English", "Social Science"];
+
+  const subjectProgress = [];
+  let totalProgress = 0;
+
+  for (const sub of subjectsList) {
+    // Count resolved sessions in this subject for this student
+    const resolvedSessionsCount = await Session.countDocuments({
+      studentId: student._id,
+      subject: new RegExp(`^${sub}$`, 'i'),
+      isResolved: true,
+      ...dateFilter
+    });
+
+    // Baseline progress (e.g. 50%) + 10% for each resolved doubt (max 100%)
+    // Add a deterministic offset based on the character length of the subject name
+    const nameOffset = (sub.length * 3) % 25;
+    const progress = Math.min(100, 50 + nameOffset + (resolvedSessionsCount * 10));
+
+    subjectProgress.push({
+      name: sub,
+      progress
+    });
+    totalProgress += progress;
+  }
+
+  const overallProgress = subjectProgress.length > 0
+    ? Math.round(totalProgress / subjectProgress.length)
+    : 0;
+
   res.json({
     success: true,
     data: {
-      overallProgress: 72,
-      subjectProgress: [
-        { name: "Mathematics", progress: 80 },
-        { name: "Science", progress: 70 },
-        { name: "English", progress: 65 },
-        { name: "Social Science", progress: 60 }
-      ]
+      overallProgress,
+      subjectProgress
     }
   });
 });

@@ -177,10 +177,10 @@ export default function ShortLiveSessions() {
 // ── Skeleton Loader ──
 function LoadingSkeleton() {
   return (
-    <div className="p-6 space-y-8 bg-black min-h-screen">
-      <Skeleton className="h-12 w-64 bg-white/5" />
+    <div className="p-6 space-y-8 bg-[#f4f6ff] dark:bg-[#0b081e] min-h-screen transition-colors duration-300">
+      <Skeleton className="h-12 w-64 bg-slate-200 dark:bg-slate-800" />
       {[1, 2, 3].map(i => (
-        <Skeleton key={i} className="h-64 rounded-[2.5rem] bg-white/5" />
+        <Skeleton key={i} className="h-64 rounded-[2.5rem] bg-slate-200 dark:bg-slate-800" />
       ))}
     </div>
   );

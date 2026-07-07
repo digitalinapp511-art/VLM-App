@@ -1,28 +1,31 @@
 import { Button } from "@base-ui/react";
 import { cn } from "@/lib/utils";
-export default function ControlAction({ icon, label, active, variant, onClick }: any) {
-    const glowStyles = {
-        cyan: active ? "border-[#00f2ff] shadow-[0_0_20px_rgba(0,242,255,0.4)] bg-cyan-400 text-black " : "border-white/90 text-white/80",
-        red: "border-[#ff4d4d] bg-[#ff4d4d] shadow-[0_0_20px_rgba(255,77,77,0.4)] text-white",
-    };
 
+export default function ControlAction({ icon, label, active, variant, onClick }: any) {
+    const isRed = variant === "red";
+    
     return (
-        <div className={cn("flex flex-col justify-center items-center space-y-3")}>
+        <div className="flex flex-col justify-center items-center space-y-2 shrink-0">
             <Button
                 onClick={onClick}
-                // variant="outline"
-                // size="lg"
                 className={cn(
-                    "h-16 w-16  rounded-full border-2 flex flex-col justify-center items-center transition-all duration-300 ",
-                    glowStyles[variant as keyof typeof glowStyles],
-
+                    "h-14 w-14 rounded-full border-2 flex flex-col justify-center items-center transition-all duration-350 active:scale-90 cursor-pointer",
+                    isRed
+                      ? "border-rose-600 bg-rose-600 text-white shadow-md shadow-rose-500/20"
+                      : active
+                        ? "border-cyan-500 bg-cyan-500 text-white dark:border-cyan-400 dark:bg-cyan-400 dark:text-slate-950 shadow-md shadow-cyan-550/20"
+                        : "border-slate-200 bg-slate-50 text-slate-450 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-500"
                 )}
             >
                 {icon}
             </Button>
             <span className={cn(
-                "text-[10px] font-bold tracking-widest uppercase",
-                variant === 'red' ? "text-[#ff4d4d]" : active ? "text-cyan-400" : "text-white/30"
+                "text-[9px] font-black tracking-widest uppercase",
+                isRed 
+                  ? "text-rose-650 dark:text-rose-500" 
+                  : active 
+                    ? "text-cyan-600 dark:text-cyan-400" 
+                    : "text-slate-400 dark:text-slate-500"
             )}>
                 {label}
             </span>

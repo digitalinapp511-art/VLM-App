@@ -40,7 +40,7 @@ const NAV_ITEMS: NavItem[] = [
   {
     label: "Test Series",
     icon: <ClipboardList size={20} />,
-    to: PATHS.MCQ,
+    to: PATHS.COMING_SOON,
   },
   {
     label: "Profile",
@@ -49,31 +49,42 @@ const NAV_ITEMS: NavItem[] = [
   },
 ];
 
-export default function StudentBottomNav() {
+import { Plus } from "lucide-react";
+
+interface StudentBottomNavProps {
+  onFabClick?: () => void;
+}
+
+export default function StudentBottomNav({ onFabClick }: StudentBottomNavProps) {
   const navigate = useNavigate();
   const { pathname } = useLocation();
+  const isShortsPage = pathname === PATHS.SHORT_VIDEO_FEED;
 
   return (
-    <nav className="fixed bottom-0 inset-x-0 z-50 bg-white border-t border-slate-100 shadow-[0_-4px_20px_rgba(0,0,0,0.06)]">
-      <div className="max-w-xl mx-auto flex items-end justify-around px-4 pb-3 pt-2">
+    <nav className="fixed bottom-0 inset-x-0 z-50 bg-white dark:bg-[#110d2c] border-t border-slate-100 dark:border-[#221c4e] shadow-[0_-4px_20px_rgba(0,0,0,0.06)] transition-colors duration-300">
+      <div className="max-w-3xl mx-auto flex items-center justify-around px-4 py-1">
         {NAV_ITEMS.map((item) => {
           const isActive = pathname === item.to;
 
           if (item.isFab) {
+            const label = isShortsPage ? "Add" : item.label;
+            const icon = isShortsPage ? <Plus size={22} /> : item.icon;
+            const clickHandler = (isShortsPage && onFabClick) ? onFabClick : () => navigate(item.to);
+
             return (
               <button
                 key={item.label}
-                onClick={() => navigate(item.to)}
-                className="relative -top-5 flex flex-col items-center gap-1"
+                onClick={clickHandler}
+                className="relative flex flex-col items-center justify-end h-11 pb-0.5 w-16 active:scale-95 transition-transform"
               >
-                {/* FAB circle */}
-                <div className="h-14 w-14 rounded-full flex items-center justify-center text-white shadow-lg shadow-violet-400/40 active:scale-90 transition-all"
+                {/* FAB circle - Half submerged with white/dark border cutout */}
+                <div className="absolute -top-5 h-11 w-11 rounded-full flex items-center justify-center text-white border-4 border-white dark:border-[#110d2c] shadow-sm"
                   style={{ background: "linear-gradient(135deg, #7c3aed, #a855f7)" }}
                 >
-                  {item.icon}
+                  {icon}
                 </div>
-                <span className="text-[10px] font-black text-violet-600">
-                  {item.label}
+                <span className="text-[9px] font-black text-violet-600 dark:text-violet-400">
+                  {label}
                 </span>
               </button>
             );
@@ -84,19 +95,12 @@ export default function StudentBottomNav() {
               key={item.label}
               onClick={() => navigate(item.to)}
               className={cn(
-                "flex flex-col items-center gap-1 px-2 py-1 rounded-xl transition-all",
-                isActive ? "text-violet-600" : "text-slate-400"
+                "flex flex-col items-center justify-center gap-0.5 py-1 rounded-xl transition-all",
+                isActive ? "text-violet-600 dark:text-violet-400" : "text-slate-400 dark:text-slate-500"
               )}
             >
               {item.icon}
-              <span
-                className={cn(
-                  "text-[10px] font-bold",
-                  isActive ? "text-violet-600" : "text-slate-400"
-                )}
-              >
-                {item.label}
-              </span>
+              <span className="text-[9px] font-black">{item.label}</span>
             </button>
           );
         })}

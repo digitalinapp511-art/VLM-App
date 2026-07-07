@@ -26,9 +26,13 @@ import DashboardLoading from "@/components/basic/DashboardLoading";
 import { useNavigate } from "react-router-dom";
 import { PATHS } from "@/routes/paths";
 import {
-  Bell, Menu, X, Home as HomeIcon, BookOpen, Tv, Gift, Compass, Settings, Zap, ChevronRight
+  Bell, Menu, X, Home as HomeIcon, BookOpen, Tv, Gift, Compass, Settings, Zap, ChevronRight, Wallet
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { useQuery } from "@tanstack/react-query";
+import { studentApi } from "@/lib/student-api";
 
 // Feature components
 import { useStudentDashboard } from "@/features/student/hooks/use-student-dashboard";
@@ -43,9 +47,14 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 import logoImg from "@/assets/logo.png";
 
+import { Sun, Moon, ShieldAlert } from "lucide-react";
+import { toast } from "sonner";
+
 export default function StudentDashboard() {
   const navigate = useNavigate();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [showSettingsPopup, setShowSettingsPopup] = useState(false);
+
   const {
     isLoading,
     nickname,
@@ -53,24 +62,66 @@ export default function StudentDashboard() {
     streak,
     totalPoints,
     level,
+    lastSpinDate,
     mcqCompleted,
     mcqTotal,
     activeTeachersCount,
   } = useStudentDashboard();
 
+  const { data: rawNotifications } = useQuery<any>({
+    queryKey: ["studentNotifications"],
+    queryFn: studentApi.getNotifications,
+    staleTime: 60_000,
+  });
+
+  const notificationsList = Array.isArray(rawNotifications?.data)
+    ? rawNotifications.data
+    : Array.isArray(rawNotifications)
+      ? rawNotifications
+      : [];
+
+  const unreadCount = notificationsList.filter((n: any) => !n.isRead && n.type !== 'parent_link_request').length;
+
+  const [appTheme, setAppTheme] = useState<"light" | "dark">(() => {
+    return (localStorage.getItem("vlm_student_theme") as "light" | "dark") || "light";
+  });
+
+  const [devBypass, setDevBypass] = useState<boolean>(() => {
+    const hasToken = !!localStorage.getItem("vlm_token");
+    return localStorage.getItem("dev_bypass_auth") === "true" && !hasToken;
+  });
+
+  const handleThemeChange = (selectedTheme: "light" | "dark") => {
+    setAppTheme(selectedTheme);
+    localStorage.setItem("vlm_student_theme", selectedTheme);
+    const root = document.documentElement;
+    root.classList.remove("light", "dark");
+    root.classList.add(selectedTheme);
+    toast.success(`Theme switched to ${selectedTheme} mode`);
+  };
+
+  const handleBypassToggle = (enabled: boolean) => {
+    setDevBypass(enabled);
+    localStorage.setItem("dev_bypass_auth", enabled ? "true" : "false");
+    toast.success(enabled ? "Demo mode enabled" : "Demo mode disabled");
+    setTimeout(() => {
+      window.location.reload();
+    }, 800);
+  };
+
   if (isLoading) return <DashboardLoading />;
 
   const menuItems = [
-    { label: "Home", icon: <HomeIcon size={20} />, to: PATHS.STUDENT_DASHBOARD },
-    { label: "My Courses", icon: <BookOpen size={20} />, to: PATHS.LIBRARY },
-    { label: "Live Classes", icon: <Tv size={20} />, to: PATHS.LIVE_CLASSES },
-    { label: "Rewards", icon: <Gift size={20} />, to: PATHS.SPINNER },
-    { label: "Career Guide", icon: <Compass size={20} />, to: PATHS.COMING_SOON },
-    { label: "Settings", icon: <Settings size={20} />, to: PATHS.EDIT_PROFILE },
+    { label: "Home", icon: <HomeIcon size={20} />, onClick: () => navigate(PATHS.STUDENT_DASHBOARD) },
+    { label: "My Courses", icon: <BookOpen size={20} />, onClick: () => navigate(PATHS.LIBRARY) },
+    { label: "Live Classes", icon: <Tv size={20} />, onClick: () => navigate(PATHS.LIVE_CLASSES) },
+    { label: "Rewards", icon: <Gift size={20} />, onClick: () => navigate(PATHS.SPINNER) },
+    { label: "Career Guide", icon: <Compass size={20} />, onClick: () => navigate(PATHS.COMING_SOON) },
+    { label: "Settings", icon: <Settings size={20} />, onClick: () => setShowSettingsPopup(true) },
   ];
 
   return (
-    <div className="min-h-svh bg-[#f4f6ff] pb-28 font-sans relative overflow-x-hidden">
+    <div className="h-svh w-full flex flex-col bg-[#f4f6ff] dark:bg-[#0b081e] font-sans relative overflow-hidden transition-colors duration-300">
       
       {/* ── Sidebar Menu Drawer ────────────────────────────────────────── */}
       <AnimatePresence>
@@ -91,10 +142,10 @@ export default function StudentDashboard() {
               animate={{ x: 0 }}
               exit={{ x: "-100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="fixed top-0 bottom-0 left-0 w-80 bg-white z-[100] shadow-2xl flex flex-col p-6 border-r border-slate-100"
+              className="fixed top-0 bottom-0 left-0 w-80 bg-white dark:bg-[#110d2c] z-[100] shadow-2xl flex flex-col p-6 border-r border-slate-100 dark:border-slate-800"
             >
               {/* Drawer Header */}
-              <div className="flex items-center justify-between pb-6 border-b border-slate-100">
+              <div className="flex items-center justify-between pb-6 border-b border-slate-100 dark:border-slate-800">
                 <div className="flex items-center gap-2">
                   <img src={logoImg} alt="VLM Academy" className="h-8 w-auto" />
                 </div>
@@ -113,7 +164,7 @@ export default function StudentDashboard() {
                     key={item.label}
                     onClick={() => {
                       setIsMenuOpen(false);
-                      navigate(item.to);
+                      item.onClick();
                     }}
                     className="flex items-center justify-between w-full p-3 rounded-2xl text-slate-700 hover:bg-slate-50 active:scale-[0.98] transition-all"
                   >
@@ -154,12 +205,12 @@ export default function StudentDashboard() {
       </AnimatePresence>
 
       {/* ── Top Header ─────────────────────────────────────────────────── */}
-      <header className="max-w-xl mx-auto flex items-center justify-between px-5 pt-4 pb-3">
+      <header className="w-full max-w-3xl mx-auto flex items-center justify-between px-5 pt-4 pb-3 z-10 shrink-0">
         {/* Left Menu Button + Logo */}
         <div className="flex items-center gap-3">
           <button
             onClick={() => setIsMenuOpen(true)}
-            className="h-10 w-10 rounded-full bg-white border border-slate-100 shadow-sm flex items-center justify-center text-slate-600 hover:text-slate-800 active:scale-90 transition-transform"
+            className="h-10 w-10 rounded-full bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-sm flex items-center justify-center text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-white active:scale-90 transition-transform"
           >
             <Menu size={20} />
           </button>
@@ -167,18 +218,29 @@ export default function StudentDashboard() {
         </div>
 
         {/* Right controls */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
+          {/* Wallet Button */}
+          <button
+            onClick={() => navigate(PATHS.WALLET)}
+            className="h-9 w-9 rounded-full bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-sm flex items-center justify-center cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+          >
+            <Wallet size={18} className="text-violet-600 dark:text-violet-400" />
+          </button>
+
           {/* Notification bell */}
           <button
             onClick={() => navigate(PATHS.STUDENT_NOTIFICATIONS)}
-            className="relative h-9 w-9 rounded-full bg-white border border-slate-100 shadow-sm flex items-center justify-center"
+            className="relative h-9 w-9 rounded-full bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-sm flex items-center justify-center"
           >
-            <Bell size={18} className="text-slate-600" />
-            <span className="absolute top-1 right-1 h-2 w-2 bg-red-500 rounded-full border border-white" />
-            {/* Notification count badge */}
-            <span className="absolute -top-1 -right-1 h-4 w-4 bg-red-500 rounded-full text-white text-[8px] font-black flex items-center justify-center">
-              3
-            </span>
+            <Bell size={18} className="text-slate-600 dark:text-slate-300" />
+            {unreadCount > 0 && (
+              <>
+                <span className="absolute top-1 right-1 h-2 w-2 bg-red-500 rounded-full border border-white dark:border-slate-900" />
+                <span className="absolute -top-1 -right-1 h-4 w-4 bg-red-500 rounded-full text-white text-[8px] font-black flex items-center justify-center">
+                  {unreadCount}
+                </span>
+              </>
+            )}
           </button>
 
           {/* Avatar */}
@@ -195,7 +257,7 @@ export default function StudentDashboard() {
       </header>
 
       {/* ── Content ────────────────────────────────────────────────────── */}
-      <main className="max-w-xl mx-auto space-y-4">
+      <main className="flex-1 w-full max-w-3xl mx-auto overflow-y-auto space-y-4 px-5 pb-28 no-scrollbar">
         {/* 1. Hero Banner */}
         <HeroBanner
           nickname={nickname}
@@ -214,7 +276,7 @@ export default function StudentDashboard() {
         <SubjectProgress />
 
         {/* 5. Rewards Banner */}
-        <RewardsBanner />
+        <RewardsBanner lastSpinDate={lastSpinDate} />
 
         {/* 6. Mini Cards (Daily Goal / Upcoming Test / AI Tutor) */}
         <MiniCards mcqCompleted={mcqCompleted} mcqTotal={mcqTotal} />
@@ -222,6 +284,88 @@ export default function StudentDashboard() {
 
       {/* ── Fixed Bottom Nav ───────────────────────────────────────────── */}
       <StudentBottomNav />
+
+      {/* ── SETTINGS MODAL POPUP ── */}
+      <AnimatePresence>
+        {showSettingsPopup && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowSettingsPopup(false)}
+              className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            />
+
+            {/* Modal Body */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              className="relative w-full max-w-sm rounded-[32px] border border-slate-100 dark:border-slate-800 bg-white dark:bg-[#161233] p-6 shadow-2xl text-slate-800 dark:text-slate-100"
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
+                <div className="flex items-center gap-2">
+                  <div className="h-8 w-8 rounded-full bg-violet-50 dark:bg-violet-950/30 flex items-center justify-center text-violet-600 dark:text-violet-400">
+                    <Settings size={18} />
+                  </div>
+                  <span className="text-sm font-black text-slate-800 dark:text-slate-100">App Settings</span>
+                </div>
+                <button
+                  onClick={() => setShowSettingsPopup(false)}
+                  className="h-7 w-7 rounded-full bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-slate-400 dark:text-slate-300 hover:text-slate-600 dark:hover:text-white transition-colors"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+
+              {/* Settings Content */}
+              <div className="py-5 space-y-5">
+                {/* 1. App Theme */}
+                <div className="flex flex-col gap-1.5 text-left">
+                  <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider ml-1">App Theme</label>
+                  <div className="grid grid-cols-2 gap-2.5 p-1 bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl">
+                    <button
+                      type="button"
+                      onClick={() => handleThemeChange("light")}
+                      className={cn(
+                        "py-2 rounded-xl text-xs font-black transition-all active:scale-[0.98]",
+                        appTheme === "light"
+                          ? "bg-white dark:bg-slate-800 text-violet-600 dark:text-violet-400 shadow-sm border border-slate-100 dark:border-slate-700"
+                          : "text-slate-400 dark:text-slate-300 hover:text-slate-600"
+                      )}
+                    >
+                      ☀️ Light
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleThemeChange("dark")}
+                      className={cn(
+                        "py-2 rounded-xl text-xs font-black transition-all active:scale-[0.98]",
+                        appTheme === "dark"
+                          ? "bg-violet-600 text-white shadow-sm"
+                          : "text-slate-400 dark:text-slate-300 hover:text-slate-600"
+                      )}
+                    >
+                      🌙 Dark
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Close Footer Button */}
+              <Button
+                onClick={() => setShowSettingsPopup(false)}
+                className="w-full h-11 rounded-2xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-black transition-all shadow-sm"
+              >
+                Close Settings
+              </Button>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

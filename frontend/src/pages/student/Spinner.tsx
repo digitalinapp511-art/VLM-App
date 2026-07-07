@@ -10,14 +10,14 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useQueryClient } from "@tanstack/react-query";
 
 const SEGMENTS = [
-  { label: "50", sub: "POINTS", color: "#1a1a2e" },
-  { label: "₹100", sub: "OFF", color: "#16213e" },
-  { label: "10", sub: "CREDITS", color: "#1a1a2e" },
-  { label: "25", sub: "POINTS", color: "#16213e" },
-  { label: "TRY", sub: "AGAIN", color: "#1a1a2e" },
-  { label: "5", sub: "CREDITS", color: "#16213e" },
-  { label: "100", sub: "POINTS", color: "#1a1a2e" },
-  { label: "TRY", sub: "AGAIN", color: "#16213e" },
+  { label: "50", sub: "POINTS", color: "#ff4b5c" },
+  { label: "₹100", sub: "OFF", color: "#ff9233" },
+  { label: "10", sub: "CREDITS", color: "#ffcd3c" },
+  { label: "25", sub: "POINTS", color: "#3de6af" },
+  { label: "TRY", sub: "AGAIN", color: "#20d3f2" },
+  { label: "5", sub: "CREDITS", color: "#4b89ff" },
+  { label: "100", sub: "POINTS", color: "#7c3aed" },
+  { label: "TRY", sub: "AGAIN", color: "#a855f7" },
 ];
 
 export default function SpinnerPage() {
@@ -30,9 +30,10 @@ export default function SpinnerPage() {
   const [secondsLeft, setSecondsLeft] = useState(0);
   const [showRewardModal, setShowRewardModal] = useState(false);
   const [wonReward, setWonReward] = useState<{ label: string; sub: string } | null>(null);
+  const [localLastSpin, setLocalLastSpin] = useState<string | null>(null);
 
   const p = (profile as any)?.data ?? profile;
-  const lastSpinDateStr = p?.lastSpinDate;
+  const lastSpinDateStr = localLastSpin || p?.lastSpinDate;
 
   // ── Sync Timer with Last Spin Date from DB ──
   useEffect(() => {
@@ -76,6 +77,7 @@ export default function SpinnerPage() {
     // After animation ends (5s)
     setTimeout(async () => {
       setIsSpinning(false);
+      setLocalLastSpin(new Date().toISOString());
       const normalizedDegree = (totalNewRotation % 360);
       const stopAngle = (360 - normalizedDegree) % 360;
       const segmentIndex = Math.floor(stopAngle / (360 / SEGMENTS.length));
@@ -108,11 +110,11 @@ export default function SpinnerPage() {
   };
 
   return (
-    <div className="relative flex min-h-svh w-full flex-col items-center bg-[#050505] px-6 py-8 overflow-hidden text-white">
+    <div className="relative flex min-h-svh w-full flex-col items-center bg-[#f4f6ff] dark:bg-[#0b081e] px-6 py-8 overflow-hidden text-slate-800 dark:text-slate-100 transition-colors duration-300">
       
       {/* Background Decor */}
-      <div className="absolute top-[10%] left-[-10%] h-64 w-64 bg-cyan-500/10 blur-[100px]" />
-      <Star className="absolute top-10 left-10 text-white/10" size={16} />
+      <div className="absolute top-[10%] left-[-10%] h-64 w-64 bg-violet-600/5 dark:bg-cyan-500/10 blur-[100px]" />
+      <Star className="absolute top-10 left-10 text-slate-200 dark:text-white/10" size={16} />
 
       {/* ── HEADER ── */}
       <header className="relative w-full max-w-sm flex items-center justify-between mb-8 z-20">
@@ -120,13 +122,13 @@ export default function SpinnerPage() {
           variant="outline"
           size="icon"
           onClick={() => navigate(PATHS.STUDENT_DASHBOARD)}
-          className="h-10 w-10 rounded-xl border-white/10 bg-white/5 text-white backdrop-blur-md"
+          className="h-10 w-10 rounded-full bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-sm flex items-center justify-center text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-white active:scale-95 transition-all"
         >
           <ChevronLeft size={20} />
         </Button>
         <div className="text-center flex-1 pr-10">
-          <h1 className="text-lg font-bold tracking-[0.15em] uppercase font-serif">VLM Academy</h1>
-          <p className="text-[8px] tracking-[0.3em] text-white/30 font-bold uppercase mt-0.5">Learn Without Limits</p>
+          <h1 className="text-lg font-black tracking-tight text-slate-800 dark:text-slate-100">VLM Academy</h1>
+          <p className="text-[9px] tracking-wider text-slate-400 dark:text-slate-500 font-bold mt-0.5 uppercase">Learn Without Limits</p>
         </div>
       </header>
 
@@ -134,19 +136,23 @@ export default function SpinnerPage() {
       <div className="relative flex items-center justify-center w-full max-w-[340px] aspect-square">
         
         {/* Fixed Pointer */}
-        <div className="absolute -top-4 z-40 drop-shadow-[0_0_10px_rgba(34,211,238,0.8)]">
-          <div className="w-0 h-0 border-l-[15px] border-l-transparent border-r-[15px] border-r-transparent border-t-[25px] border-t-cyan-400" />
+        <div className="absolute -top-4 z-40 drop-shadow-[0_0_10px_rgba(124,58,237,0.5)]">
+          <div className="w-0 h-0 border-l-[15px] border-l-transparent border-r-[15px] border-r-transparent border-t-[25px] border-t-violet-500" />
         </div>
 
         {/* Outer Static Border */}
-        <div className="absolute inset-0 rounded-full border-[10px] border-[#1a1a1a] shadow-2xl z-10" />
+        <div className="absolute inset-0 rounded-full border-[10px] border-white dark:border-[#1a1a1a] shadow-2xl z-10" />
 
-        {/* Hardware Accelerated Rotating Wheel */}
-        <div
-          className="relative w-full h-full rounded-full border border-white/5 overflow-hidden transition-transform duration-[5000ms]"
+        {/* Hardware Accelerated Rotating Wheel using Framer Motion */}
+        <motion.div
+          className="relative w-full h-full rounded-full border border-white/5 overflow-hidden shadow-inner"
+          animate={{ rotate: rotation }}
+          transition={{
+            type: "tween",
+            duration: 5,
+            ease: [0.15, 0, 0.15, 1] // Smooth stop
+          }}
           style={{ 
-            transform: `rotate(${rotation}deg)`,
-            transitionTimingFunction: 'cubic-bezier(0.15, 0, 0.15, 1)', // Smooth stop
             willChange: 'transform', // Forces GPU rendering
             background: `conic-gradient(from 0deg, ${SEGMENTS.map((s, i) => `${s.color} ${i * 45}deg ${(i + 1) * 45}deg`).join(", ")})` 
           }}
@@ -159,21 +165,21 @@ export default function SpinnerPage() {
             >
               <div className="flex flex-col items-center pointer-events-none">
                 <span className="text-xl font-black text-white leading-none">{seg.label}</span>
-                <span className="text-[7px] font-bold tracking-widest text-white/30 mt-1 uppercase">{seg.sub}</span>
+                <span className="text-[7px] font-black tracking-widest text-white/70 mt-1 uppercase">{seg.sub}</span>
               </div>
             </div>
           ))}
-        </div>
+        </motion.div>
 
         {/* Center Hub */}
-        <div className="absolute z-30 h-16 w-16 bg-[#0a0a0a] rounded-full border-[4px] border-[#f5a623] flex items-center justify-center shadow-2xl">
-          <ChevronDown className="text-[#f5a623] h-8 w-8" />
+        <div className="absolute z-30 h-16 w-16 bg-white dark:bg-[#0a0a0a] rounded-full border-[4px] border-violet-500 flex items-center justify-center shadow-2xl">
+          <ChevronDown className="text-violet-500 h-8 w-8" />
         </div>
       </div>
 
       {/* ── SPIN BUTTON ── */}
       <div className="mt-5 w-full max-w-sm relative">
-        <div className="absolute inset-0 bg-blue-600/20 blur-3xl rounded-full" />
+        <div className="absolute inset-0 bg-violet-600/10 dark:bg-violet-600/20 blur-3xl rounded-full" />
         <Button
           onClick={handleSpin}
           disabled={!canSpin || isSpinning}
@@ -195,22 +201,24 @@ export default function SpinnerPage() {
       </div>
 
       {/* ── TIMER CARD ── */}
-      <Card className="mt-4 w-full max-w-[340px] border-white/5 bg-[#111]/60 backdrop-blur-xl rounded-md py-4">
-        <CardContent className="flex flex-col items-center space-y-5 p-0">
-          <div className="text-center space-y-1">
-            <h3 className="text-[11px] font-black tracking-[0.2em] text-white">DAILY REWARDS</h3>
-            <p className="text-[10px] text-white/30 uppercase font-bold tracking-tighter">Next free spin in:</p>
-          </div>
+      {!canSpin && (
+        <Card className="mt-4 w-full max-w-[340px] border-slate-100 dark:border-[#221c4e] bg-white dark:bg-[#161233] shadow-sm rounded-3xl py-4">
+          <CardContent className="flex flex-col items-center space-y-5 p-0">
+            <div className="text-center space-y-1">
+              <h3 className="text-[11px] font-black tracking-[0.2em] text-slate-800 dark:text-slate-100">DAILY REWARDS</h3>
+              <p className="text-[10px] text-slate-400 dark:text-slate-500 uppercase font-bold tracking-tighter">Next free spin in:</p>
+            </div>
 
-          <div className="flex items-center gap-3">
-             <TimerBox value={h} />
-             <span className="text-white/20 font-bold">:</span>
-             <TimerBox value={m} />
-             <span className="text-white/20 font-bold">:</span>
-             <TimerBox value={s} />
-          </div>
-        </CardContent>
-      </Card>
+            <div className="flex items-center gap-3">
+               <TimerBox value={h} />
+               <span className="text-slate-350 dark:text-slate-655 font-bold">:</span>
+               <TimerBox value={m} />
+               <span className="text-slate-350 dark:text-slate-655 font-bold">:</span>
+               <TimerBox value={s} />
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* ── CUSTOM REWARD POPUP ── */}
       <AnimatePresence>
@@ -264,8 +272,8 @@ export default function SpinnerPage() {
 
 function TimerBox({ value }: { value: string }) {
   return (
-    <div className="h-10 w-10 rounded-2xl border border-cyan-500/30 bg-black flex items-center justify-center shadow-[inset_0_0_15px_rgba(34,211,238,0.1)]">
-      <span className="text-xl font-bold text-white font-mono tabular-nums">{value}</span>
+    <div className="h-10 w-10 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 flex items-center justify-center shadow-sm">
+      <span className="text-xl font-bold text-slate-800 dark:text-slate-100 font-mono tabular-nums">{value}</span>
     </div>
   );
 }

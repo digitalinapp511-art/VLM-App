@@ -27,7 +27,7 @@ export default function HeroBanner({
 
   return (
     <div
-      className="relative mx-4 mt-4 rounded-3xl overflow-hidden"
+      className="relative mx-0 mt-4 rounded-3xl overflow-hidden w-full"
       style={{
         background: "linear-gradient(135deg, #1a0a5e 0%, #3b1fa8 50%, #5b35d5 100%)",
         minHeight: 180,
@@ -37,7 +37,7 @@ export default function HeroBanner({
       <div className="absolute -top-8 -right-8 w-40 h-40 rounded-full bg-purple-400/20 blur-2xl" />
       <div className="absolute bottom-0 left-0 w-28 h-28 rounded-full bg-blue-400/20 blur-2xl" />
 
-      <div className="relative z-10 p-5 pr-32">
+      <div className="relative z-10 p-5 pr-[5.5rem] sm:pr-32">
         {/* Greeting */}
         <p className="text-white/70 text-sm font-semibold">
           Hello, <span className="text-yellow-400 font-black">{nickname}!</span> 👋
@@ -47,13 +47,13 @@ export default function HeroBanner({
         {/* CTA */}
         <button
           onClick={() => navigate(PATHS.LIBRARY)}
-          className="mt-4 flex items-center gap-2 bg-yellow-400 hover:bg-yellow-300 text-black font-black text-xs px-5 py-2.5 rounded-full transition-all shadow-lg shadow-yellow-400/30 active:scale-95"
+          className="mt-4 flex items-center gap-2 bg-yellow-400 hover:bg-yellow-300 text-black font-black text-[11px] sm:text-xs px-4 sm:px-5 py-2 sm:py-2.5 rounded-full transition-all shadow-lg shadow-yellow-400/30 active:scale-95"
         >
-          Continue Learning <ArrowRight size={14} />
+          Continue Learning <ArrowRight size={13} />
         </button>
 
         {/* Stats row */}
-        <div className="mt-5 flex items-center gap-5">
+        <div className="mt-5 flex items-center gap-3.5 sm:gap-5">
           <StatBadge
             icon={<Flame size={13} className="text-orange-400" />}
             value={streak}
@@ -74,7 +74,7 @@ export default function HeroBanner({
 
       {/* 3-D mascot */}
       <div
-        className="absolute right-2 bottom-0 w-32 h-44 flex items-end justify-center overflow-hidden select-none pointer-events-none"
+        className="absolute right-1 bottom-0 w-[5rem] sm:w-32 h-[7.5rem] sm:h-44 flex items-end justify-center overflow-hidden select-none pointer-events-none"
         aria-hidden
       >
         <img src="/avatar.png" alt="Mascot" className="w-full h-auto object-contain" />

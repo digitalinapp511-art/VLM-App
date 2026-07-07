@@ -261,7 +261,15 @@ export default function ChatSession() {
       });
     } catch { /* ignore */ }
     toast.success("Session completed! Earnings credited.");
-    navigate(PATHS.TEACHER_DASHBOARD);
+    navigate(PATHS.TEACHER_RESOLVE_DOUBT, {
+      state: {
+        sessionId,
+        studentName: student?.name || "Student",
+        subjectName,
+        teacherName: "You",
+        role: "Faculty",
+      }
+    });
   };
 
   const formatTimer = (totalSeconds: number) => {

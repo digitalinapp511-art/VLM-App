@@ -173,11 +173,22 @@ export function useSocket(options: UseSocketOptions = {}) {
   useEffect(() => {
     const s = getSocket();
     if (!s || !sessionId) return;
-    s.emit("join_session", sessionId);
+    
+    const joinRoom = () => {
+      s.emit("join_session", sessionId);
+      console.log(`[Socket] Joined session room: session:${sessionId}`);
+    };
+
+    if (s.connected) {
+      joinRoom();
+    }
+
+    s.on("connect", joinRoom);
     return () => {
+      s.off("connect", joinRoom);
       s.emit("leave_session", sessionId);
     };
-  }, [sessionId]);
+  }, [sessionId, isConnected]);
 
   // ── Emit helpers ─────────────────────────────────────────────────────────
 

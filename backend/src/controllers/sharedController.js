@@ -254,6 +254,11 @@ export const markNotificationRead = asyncHandler(async (req, res) => {
   res.json({ success: true });
 });
 
+export const markAllNotificationsRead = asyncHandler(async (req, res) => {
+  await Notification.updateMany({ userId: req.user._id, isRead: false }, { isRead: true });
+  res.json({ success: true });
+});
+
 export const createTicket = asyncHandler(async (req, res) => {
   const ticket = await SupportTicket.create({
     userId: req.user._id,

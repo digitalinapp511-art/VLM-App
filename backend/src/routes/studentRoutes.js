@@ -2,14 +2,14 @@ import { Router } from 'express';
 import {
   createStudentProfile, getStudentProfile, getDashboard, getPlans,
   activateTrial, submitDoubt, getDailyMcq, submitMcq, toggleFavoriteTeacher, getSubjects,
-  getChapters, claimSpinReward, getStudentWalletHistory, submitDoubtWithImages, getDoubtById,
+  getChapters, claimSpinReward, getStudentWalletHistory, rechargeWallet, submitDoubtWithImages, getDoubtById,
   getAvailableTeachers, getParentRequests, approveParentRequest, rejectParentRequest,
   getAiChatHistory, submitAiChatQuery, getAiChatSessions, deleteAiChatSession, clearAllAiChatHistory,
   getStudentStats
 } from '../controllers/studentController.js';
 import {
   getSessionHistory, getSessionMessages, sendMessage, resolveSession,
-  getNotifications, markNotificationRead, createTicket, getTickets, getTicket,
+  getNotifications, markNotificationRead, markAllNotificationsRead, createTicket, getTickets, getTicket,
   replyTicket, getLiveClasses, uploadShortVideo, getShortVideos, getMyVideos,
   getReferralData,
 } from '../controllers/sharedController.js';
@@ -63,6 +63,7 @@ router.get('/sessions/:sessionId/messages', getSessionMessages);
 router.post('/sessions/messages', sendMessage);
 router.post('/sessions/resolve', resolveSession);
 router.get('/notifications', getNotifications);
+router.put('/notifications/read-all', markAllNotificationsRead);
 router.put('/notifications/:id/read', markNotificationRead);
 router.post('/tickets', createTicket);
 router.get('/tickets', getTickets);
@@ -74,6 +75,7 @@ router.get('/videos', getShortVideos);
 router.get('/videos/mine', getMyVideos);
 router.get('/referral', getReferralData);
 router.get('/wallet/history', getStudentWalletHistory);
+router.post('/wallet/recharge', rechargeWallet);
 router.get('/parent-requests', getParentRequests);
 router.post('/parent-requests/:parentId/approve', approveParentRequest);
 router.post('/parent-requests/:parentId/reject', rejectParentRequest);

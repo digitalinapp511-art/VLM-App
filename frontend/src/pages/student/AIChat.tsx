@@ -229,13 +229,13 @@ export default function AIChat() {
   };
 
   return (
-    <div className="relative h-svh w-full bg-[#f4f6ff] text-slate-800 flex flex-col items-center overflow-hidden font-sans">
+    <div className="relative h-svh w-full bg-[#f4f6ff] dark:bg-[#0b081e] text-slate-800 dark:text-slate-100 flex flex-col items-center overflow-hidden font-sans transition-colors duration-300">
       
       {/* Main Container constrained to mobile viewport height */}
       <div className="w-full max-w-md flex-1 flex flex-col h-full overflow-hidden px-4 pt-4 pb-3 z-10">
         
         {/* ── HEADER ── */}
-        <header className="flex w-full items-center justify-between pb-3 border-b border-slate-100 shrink-0">
+        <header className="flex w-full items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800 shrink-0">
           <div className="flex items-center gap-2">
             <Button 
               variant="outline" 
@@ -247,7 +247,7 @@ export default function AIChat() {
                   navigate(PATHS.STUDENT_DASHBOARD);
                 }
               }}
-              className="h-9 w-9 rounded-full border-slate-100 bg-white text-slate-600 shadow-sm"
+              className="h-9 w-9 rounded-full border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 shadow-sm"
             >
               <ChevronLeft size={18} />
             </Button>
@@ -255,13 +255,13 @@ export default function AIChat() {
               variant="outline" 
               size="icon" 
               onClick={() => setShowHistoryModal(true)}
-              className="h-9 w-9 rounded-full border-slate-100 bg-white text-slate-600 shadow-sm"
+              className="h-9 w-9 rounded-full border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 shadow-sm"
               title="Chat History"
             >
               <History size={16} />
             </Button>
             <div className="flex flex-col">
-              <h1 className="text-xs font-black tracking-tight text-slate-800 leading-tight">AI Tutor</h1>
+              <h1 className="text-xs font-black tracking-tight text-slate-800 dark:text-slate-100 leading-tight">AI Tutor</h1>
             </div>
           </div>
 
@@ -280,14 +280,14 @@ export default function AIChat() {
                 ]);
                 toast.success("New chat session started");
               }}
-              className="h-8 px-3 rounded-xl text-[10px] font-black border border-violet-200 bg-violet-50 text-violet-600 hover:bg-violet-100 transition-all cursor-pointer shadow-sm"
+              className="h-8 px-3 rounded-xl text-[10px] font-black border border-violet-200 dark:border-violet-900/30 bg-violet-50 dark:bg-violet-950/20 text-violet-600 dark:text-violet-400 hover:bg-violet-100 dark:hover:bg-violet-950/40 transition-all cursor-pointer shadow-sm"
             >
               New Chat
             </Button>
             {/* AI Credits Badge */}
-            <div className="px-3 py-1 rounded-xl border border-slate-200 bg-white shadow-sm text-center">
-              <p className="text-[7px] text-slate-400 font-bold uppercase tracking-wider">Credits</p>
-              <p className="text-[10px] font-black text-violet-600 tracking-wide">
+            <div className="px-3 py-1 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm text-center">
+              <p className="text-[7px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider">Credits</p>
+              <p className="text-[10px] font-black text-violet-600 dark:text-violet-400 tracking-wide">
                 {aiCredits} / 2000
               </p>
             </div>
@@ -307,14 +307,14 @@ export default function AIChat() {
                   className={cn("flex flex-col w-full", isUser ? "items-end" : "items-start")}
                 >
                   {/* Sender Tag */}
-                  <span className="text-[9px] text-slate-400 font-black tracking-wider mb-1 px-1">
+                  <span className="text-[9px] text-slate-400 dark:text-slate-500 font-black tracking-wider mb-1 px-1">
                     {isUser ? studentName : "VLM AI Tutor"}
                   </span>
 
                   <div className="flex items-start gap-2 max-w-[85%]">
                     {/* Bot Icon on AI side */}
                     {!isUser && (
-                      <div className="h-7 w-7 rounded-full border border-violet-200 bg-violet-100 text-violet-600 flex items-center justify-center shrink-0 shadow-sm mt-0.5">
+                      <div className="h-7 w-7 rounded-full border border-violet-200 dark:border-violet-800 bg-violet-100 dark:bg-violet-950/40 text-violet-600 dark:text-violet-400 flex items-center justify-center shrink-0 shadow-sm mt-0.5">
                         <Bot size={14} />
                       </div>
                     )}
@@ -325,11 +325,11 @@ export default function AIChat() {
                         "rounded-2xl p-3 text-xs leading-relaxed whitespace-pre-wrap flex flex-col gap-2 shadow-sm",
                         isUser
                           ? "bg-gradient-to-r from-violet-600 to-indigo-700 text-white rounded-tr-none"
-                          : "bg-white text-slate-800 rounded-tl-none border border-slate-100"
+                          : "bg-white dark:bg-[#161233] text-slate-800 dark:text-slate-100 rounded-tl-none border border-slate-100 dark:border-[#221c4e]"
                       )}
                     >
                       {msg.image && (
-                        <div className="max-w-[200px] rounded-lg overflow-hidden border border-slate-100 bg-slate-50">
+                        <div className="max-w-[200px] rounded-lg overflow-hidden border border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900">
                           <img src={msg.image} alt="Doubt Context" className="w-full h-auto object-cover max-h-40" />
                         </div>
                       )}
@@ -346,14 +346,14 @@ export default function AIChat() {
                 animate={{ opacity: 1, y: 0 }}
                 className="flex flex-col items-start"
               >
-                <span className="text-[9px] text-slate-400 font-black tracking-wider mb-1">
+                <span className="text-[9px] text-slate-400 dark:text-slate-500 font-black tracking-wider mb-1">
                   VLM AI Tutor
                 </span>
                 <div className="flex items-center gap-2">
-                  <div className="h-7 w-7 rounded-full border border-violet-200 bg-violet-100 text-violet-600 flex items-center justify-center shrink-0">
+                  <div className="h-7 w-7 rounded-full border border-violet-200 dark:border-violet-800 bg-violet-100 dark:bg-violet-950/40 text-violet-600 dark:text-violet-400 flex items-center justify-center shrink-0">
                     <Bot size={14} />
                   </div>
-                  <div className="bg-white rounded-2xl rounded-tl-none px-3.5 py-2.5 border border-slate-100 shadow-sm flex items-center gap-1">
+                  <div className="bg-white dark:bg-[#161233] rounded-2xl rounded-tl-none px-3.5 py-2.5 border border-slate-100 dark:border-[#221c4e] shadow-sm flex items-center gap-1">
                     <span className="h-1.5 w-1.5 rounded-full bg-violet-500 animate-bounce [animation-delay:-0.3s]" />
                     <span className="h-1.5 w-1.5 rounded-full bg-violet-500 animate-bounce [animation-delay:-0.15s]" />
                     <span className="h-1.5 w-1.5 rounded-full bg-violet-500 animate-bounce" />
@@ -375,15 +375,15 @@ export default function AIChat() {
 
         {/* Image Preview Block above input bar */}
         {imagePreview && (
-          <div className="relative mt-2 p-2 bg-white border border-slate-200 rounded-xl shrink-0 flex items-center gap-3 shadow-sm">
-            <div className="relative h-12 w-12 rounded-lg overflow-hidden border border-slate-100 bg-slate-50">
+          <div className="relative mt-2 p-2 bg-white dark:bg-[#161233] border border-slate-200 dark:border-[#221c4e] rounded-xl shrink-0 flex items-center gap-3 shadow-sm">
+            <div className="relative h-12 w-12 rounded-lg overflow-hidden border border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900">
               <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
             </div>
-            <span className="text-xs text-slate-700 truncate max-w-[200px]">Attached Photo</span>
+            <span className="text-xs text-slate-700 dark:text-slate-200 truncate max-w-[200px]">Attached Photo</span>
             <button 
               type="button"
               onClick={removeImage}
-              className="ml-auto h-6 w-6 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center cursor-pointer transition-colors"
+              className="ml-auto h-6 w-6 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 flex items-center justify-center cursor-pointer transition-colors"
             >
               <X size={12} />
             </button>
@@ -391,7 +391,7 @@ export default function AIChat() {
         )}
 
         {/* ── INPUT BAR AT BOTTOM ── */}
-        <div className="relative flex items-center gap-2 mt-1 bg-white border border-slate-200 p-1.5 rounded-2xl shrink-0 shadow-sm">
+        <div className="relative flex items-center gap-2 mt-1 bg-white dark:bg-[#161233] border border-slate-200 dark:border-[#221c4e] p-1.5 rounded-2xl shrink-0 shadow-sm">
           {/* Image Attach Button */}
           <button 
             type="button"
@@ -402,9 +402,9 @@ export default function AIChat() {
               input.onchange = (e) => handleImageSelect(e as any);
               input.click();
             }}
-            className="h-9 w-9 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-500 flex items-center justify-center transition-all cursor-pointer shrink-0"
+            className="h-9 w-9 rounded-xl bg-slate-50 dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 flex items-center justify-center transition-all cursor-pointer shrink-0"
           >
-            <ImageIcon size={16} className="text-violet-600" />
+            <ImageIcon size={16} className="text-violet-600 dark:text-violet-400" />
           </button>
 
           {/* Text Input */}
@@ -414,16 +414,16 @@ export default function AIChat() {
             onKeyDown={(e) => e.key === "Enter" && handleSend()}
             placeholder={aiCredits <= 0 ? "Recharge to ask questions..." : "Ask another question..."}
             disabled={aiCredits <= 0}
-            className="flex-1 bg-transparent border-none text-slate-800 placeholder:text-slate-300 focus-visible:ring-0 h-9 p-0 text-xs disabled:opacity-50"
+            className="flex-1 bg-transparent border-none text-slate-800 dark:text-slate-100 placeholder:text-slate-300 dark:placeholder:text-slate-600 focus-visible:ring-0 h-9 p-0 text-xs disabled:opacity-50"
           />
 
           {/* Microphone Icon */}
           <button 
             type="button"
             disabled={aiCredits <= 0}
-            className="h-9 w-9 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-500 flex items-center justify-center transition-all cursor-pointer shrink-0 disabled:opacity-50"
+            className="h-9 w-9 rounded-xl bg-slate-50 dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 flex items-center justify-center transition-all cursor-pointer shrink-0 disabled:opacity-50"
           >
-            <Mic size={16} className="text-violet-600" />
+            <Mic size={16} className="text-violet-600 dark:text-violet-400" />
           </button>
 
           {/* Send Button */}
@@ -454,15 +454,15 @@ export default function AIChat() {
               initial={{ opacity: 0, scale: 0.95, y: 15 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 15 }}
-              className="relative w-full max-w-sm rounded-[24px] border border-slate-100 bg-white p-6 flex flex-col max-h-[80vh] shadow-2xl text-slate-800"
+              className="relative w-full max-w-sm rounded-[24px] border border-slate-100 dark:border-slate-800 bg-white dark:bg-[#161233] p-6 flex flex-col max-h-[80vh] shadow-2xl text-slate-800 dark:text-slate-100"
             >
-              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                <h3 className="text-sm font-black text-slate-800 tracking-wider uppercase flex items-center gap-2">
-                  <History size={16} className="text-violet-600" /> Past Conversations
+              <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+                <h3 className="text-sm font-black text-slate-800 dark:text-slate-100 tracking-wider uppercase flex items-center gap-2">
+                  <History size={16} className="text-violet-600 dark:text-violet-400" /> Past Conversations
                 </h3>
                 <button 
                   onClick={() => setShowHistoryModal(false)}
-                  className="h-6 w-6 rounded-full bg-slate-50 flex items-center justify-center text-slate-500 hover:text-slate-700"
+                  className="h-6 w-6 rounded-full bg-slate-50 dark:bg-slate-850 flex items-center justify-center text-slate-500 hover:text-slate-700 dark:hover:text-white"
                 >
                   <X size={14} />
                 </button>
@@ -479,8 +479,8 @@ export default function AIChat() {
                       className={cn(
                         "flex items-center justify-between p-3.5 rounded-xl border transition-all cursor-pointer shadow-sm",
                         sess._id === sessionId 
-                          ? "border-violet-200 bg-violet-50/40" 
-                          : "border-slate-100 bg-white hover:bg-slate-50"
+                          ? "border-violet-200 dark:border-violet-900/30 bg-violet-50/40 dark:bg-violet-950/20" 
+                          : "border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/40"
                       )}
                     >
                       <div 
@@ -491,17 +491,17 @@ export default function AIChat() {
                         }}
                         className="flex-1 min-w-0 pr-3 text-left"
                       >
-                        <p className="text-xs font-black text-slate-800 truncate">
+                        <p className="text-xs font-black text-slate-800 dark:text-slate-100 truncate">
                           {sess.firstMsgText || "Untitled Session"}
                         </p>
-                        <p className="text-[9px] text-slate-400 mt-1 font-bold">
+                        <p className="text-[9px] text-slate-400 dark:text-slate-500 mt-1 font-bold">
                           {new Date(sess.createdAt).toLocaleDateString()} at {new Date(sess.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </p>
                       </div>
 
                       <button
                         onClick={() => deleteSession(sess._id)}
-                        className="h-8 w-8 rounded-xl bg-red-50 hover:bg-red-100 text-red-500 flex items-center justify-center cursor-pointer transition-colors shadow-sm"
+                        className="h-8 w-8 rounded-xl bg-red-50 dark:bg-red-950/20 hover:bg-red-100 dark:hover:bg-red-950/40 text-red-500 flex items-center justify-center cursor-pointer transition-colors shadow-sm"
                         title="Delete Session"
                       >
                         <Trash2 size={13} />
@@ -513,10 +513,10 @@ export default function AIChat() {
 
               {/* Action Buttons */}
               {sessionsList.length > 0 && (
-                <div className="border-t border-slate-100 pt-4 mt-2">
+                <div className="border-t border-slate-100 dark:border-slate-800 pt-4 mt-2">
                   <Button
                     onClick={clearAllHistory}
-                    className="w-full h-11 rounded-2xl border border-red-200 bg-red-50 text-red-600 hover:bg-red-100 text-xs font-black transition-all shadow-sm"
+                    className="w-full h-11 rounded-2xl border border-red-200 dark:border-red-900/20 bg-red-50 dark:bg-red-950/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-950/40 text-xs font-black transition-all shadow-sm"
                   >
                     Clear All Chat History
                   </Button>
@@ -535,10 +535,10 @@ function PromptChip({ icon, label, onClick }: { icon: React.ReactNode; label: st
   return (
     <button
       onClick={onClick}
-      className="flex flex-col items-center justify-center gap-1.5 p-2 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 active:scale-95 transition-all cursor-pointer min-h-[60px] text-center shadow-sm"
+      className="flex flex-col items-center justify-center gap-1.5 p-2 rounded-2xl border border-slate-200 dark:border-[#221c4e] bg-white dark:bg-[#161233] hover:bg-slate-50 dark:hover:bg-slate-900/20 active:scale-95 transition-all cursor-pointer min-h-[60px] text-center shadow-sm"
     >
-      <div className="text-violet-600">{icon}</div>
-      <span className="text-[8px] font-black text-slate-500 uppercase tracking-wide leading-tight">
+      <div className="text-violet-600 dark:text-violet-400">{icon}</div>
+      <span className="text-[8px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wide leading-tight">
         {label}
       </span>
     </button>

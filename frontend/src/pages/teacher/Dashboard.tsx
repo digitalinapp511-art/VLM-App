@@ -43,7 +43,7 @@ const Dashboard: React.FC = () => {
             state: { sessionId, agoraChannel: result?.data?.agoraChannel, sessionType: "video", student: incomingRequest.student }
           });
         } else if (incomingRequest.sessionType === "audio") {
-          navigate(PATHS.TEACHER_VIDEO_SESSION, {
+          navigate(PATHS.TEACHER_AUDIO_SESSION, {
             state: { sessionId, agoraChannel: result?.data?.agoraChannel, sessionType: "audio", student: incomingRequest.student }
           });
         } else {

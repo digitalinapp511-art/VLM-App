@@ -18,7 +18,7 @@ export default function LiveSupportBanner({
   const navigate = useNavigate();
 
   return (
-    <div className="mx-4 bg-[#f0fdf4] rounded-2xl border border-green-100 shadow-sm p-3 sm:p-4 flex items-center justify-between gap-2 sm:gap-3">
+    <div className="mx-0 w-full bg-[#f0fdf4] rounded-2xl border border-green-100 shadow-sm p-3 sm:p-4 flex items-center justify-between gap-2 sm:gap-3">
       {/* Left icon */}
       <div className="h-9 w-9 sm:h-11 sm:w-11 rounded-full bg-green-500/10 flex items-center justify-center shrink-0">
         <Headphones className="text-green-600 h-4 w-4 sm:h-5 sm:w-5" />

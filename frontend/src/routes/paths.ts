@@ -67,11 +67,14 @@ export const PATHS = {
     TEACHER_LIBRARY: "/teacher-library",
     TEACHER_LIVE_SESSION: "/teacher-live-session",
     TEACHER_VIDEO_SESSION: "/teacher-video-session",
+    TEACHER_AUDIO_SESSION: "/teacher-audio-session",
     TEACHER_CHAT_SESSION: "/teacher-chat-session",
+    TEACHER_RESOLVE_DOUBT: "/teacher-resolve-doubt",
 
   // Student flows
   VIDEO_UPLOAD: "/video-upload",
   SHORT_VIDEO_FEED: "/short-video-feed",
+  CREATOR_PROFILE: "/creator-profile/:id",
   DOUBT_SUBMITTED: "/doubt-submitted",
   AUDIO_CALL: "/audio-call",
   LIVE_SESSION: "/live-session",

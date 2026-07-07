@@ -20,20 +20,20 @@ export default function MiniCards({ mcqCompleted, mcqTotal }: MiniCardsProps) {
   const goalPercent = mcqTotal > 0 ? Math.round((mcqCompleted / mcqTotal) * 100) : 0;
 
   return (
-    <div className="mx-4 grid grid-cols-3 gap-3">
+    <div className="mx-0 w-full grid grid-cols-3 gap-3">
       {/* ── Daily Goal ── */}
       <Card
-        bg="bg-orange-50"
-        border="border-orange-100"
+        bg="bg-orange-50 dark:bg-orange-950/20"
+        border="border-orange-100 dark:border-orange-900/30"
         onClick={() => navigate(PATHS.MCQ)}
       >
         <Trophy size={18} className="text-orange-500 mb-1" />
-        <p className="text-[10px] font-black text-slate-700 leading-tight">Daily Goal</p>
-        <p className="text-[9px] text-slate-500 mt-0.5">
+        <p className="text-[10px] font-black text-slate-700 dark:text-slate-200 leading-tight">Daily Goal</p>
+        <p className="text-[9px] text-slate-500 dark:text-slate-400 mt-0.5">
           {mcqCompleted}/{mcqTotal} Completed
         </p>
         {/* Mini progress bar */}
-        <div className="mt-2 h-1.5 w-full rounded-full bg-orange-100 overflow-hidden">
+        <div className="mt-2 h-1.5 w-full rounded-full bg-orange-100 dark:bg-orange-950/30 overflow-hidden">
           <div
             className="h-full rounded-full bg-orange-400 transition-all"
             style={{ width: `${goalPercent}%` }}
@@ -43,27 +43,27 @@ export default function MiniCards({ mcqCompleted, mcqTotal }: MiniCardsProps) {
 
       {/* ── Upcoming Test ── */}
       <Card
-        bg="bg-cyan-50"
-        border="border-cyan-100"
+        bg="bg-cyan-50 dark:bg-cyan-950/20"
+        border="border-cyan-100 dark:border-cyan-900/30"
         onClick={() => navigate(PATHS.MCQ)}
       >
-        <CalendarCheck size={18} className="text-cyan-600 mb-1" />
-        <p className="text-[10px] font-black text-slate-700 leading-tight">Upcoming Test</p>
-        <p className="text-[9px] text-slate-500 mt-0.5 leading-tight">
+        <CalendarCheck size={18} className="text-cyan-600 dark:text-cyan-400 mb-1" />
+        <p className="text-[10px] font-black text-slate-700 dark:text-slate-200 leading-tight">Upcoming Test</p>
+        <p className="text-[9px] text-slate-500 dark:text-slate-400 mt-0.5 leading-tight">
           Maths Chapter Test
         </p>
-        <p className="text-[8px] text-slate-400 mt-0.5">25 May, 10:00 AM</p>
+        <p className="text-[8px] text-slate-400 dark:text-slate-500 mt-0.5">25 May, 10:00 AM</p>
       </Card>
 
       {/* ── AI Tutor ── */}
       <Card
-        bg="bg-violet-50"
-        border="border-violet-100"
+        bg="bg-violet-50 dark:bg-violet-950/20"
+        border="border-violet-100 dark:border-violet-900/30"
         onClick={() => navigate(PATHS.AI_CHAT)}
       >
-        <Bot size={18} className="text-violet-600 mb-1" />
-        <p className="text-[10px] font-black text-slate-700 leading-tight">AI Tutor</p>
-        <p className="text-[9px] text-slate-500 mt-0.5 leading-tight">
+        <Bot size={18} className="text-violet-600 dark:text-violet-400 mb-1" />
+        <p className="text-[10px] font-black text-slate-700 dark:text-slate-200 leading-tight">AI Tutor</p>
+        <p className="text-[9px] text-slate-500 dark:text-slate-400 mt-0.5 leading-tight">
           Ask anything, Get instant answers
         </p>
       </Card>

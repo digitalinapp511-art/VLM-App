@@ -8,6 +8,7 @@ import {
   ChevronLeft,
   LogOut,
   History,
+  Wallet,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
@@ -51,43 +52,43 @@ export default function ProfileView() {
   const p = (profile as any)?.data ?? profile;
 
   return (
-    <div className="relative min-h-svh w-full bg-[#f4f6ff] text-slate-800 flex flex-col items-center px-5 pt-4 overflow-x-hidden pb-32 font-sans">
+    <div className="relative min-h-svh w-full bg-[#f4f6ff] dark:bg-[#0b081e] text-slate-800 dark:text-slate-100 flex flex-col items-center px-5 pt-4 overflow-x-hidden pb-32 font-sans transition-colors duration-300">
       <div className="max-w-md w-full flex flex-col gap-5">
         
         {/* ── HEADER ── */}
-        <header className="flex w-full items-center gap-4 pb-2 border-b border-slate-100 shrink-0">
+        <header className="flex w-full items-center gap-4 pb-2 border-b border-slate-100 dark:border-slate-800 shrink-0">
           <button
             onClick={() => navigate(PATHS.STUDENT_DASHBOARD)}
-            className="h-10 w-10 rounded-full bg-white border border-slate-100 shadow-sm flex items-center justify-center text-slate-600 hover:text-slate-800 active:scale-90 transition-transform"
+            className="h-10 w-10 rounded-full bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-sm flex items-center justify-center text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-white active:scale-90 transition-transform"
           >
             <ChevronLeft size={20} />
           </button>
-          <h1 className="text-sm font-black tracking-tight text-slate-800">My Profile</h1>
+          <h1 className="text-sm font-black tracking-tight text-slate-800 dark:text-slate-100">My Profile</h1>
         </header>
 
         {/* ── PROFILE AVATAR BLOCK ── */}
-        <div className="flex flex-col items-center gap-4 p-6 rounded-3xl border border-slate-100 bg-white shadow-sm w-full">
+        <div className="flex flex-col items-center gap-4 p-6 rounded-3xl border border-slate-100 dark:border-[#221c4e] bg-white dark:bg-[#161233] shadow-sm w-full">
           <div className="relative">
-            <div className="relative h-24 w-24 rounded-full border-4 border-violet-400 bg-slate-50 flex items-center justify-center shadow-md overflow-hidden">
+            <div className="relative h-24 w-24 rounded-full border-4 border-violet-400 bg-slate-50 dark:bg-slate-800 flex items-center justify-center shadow-md overflow-hidden">
               {p?.profilePhoto ? (
                 <img src={p.profilePhoto} alt="Profile" className="w-full h-full object-cover" />
               ) : (
-                <User size={38} className="text-violet-500" />
+                <User size={38} className="text-violet-500 dark:text-violet-400" />
               )}
             </div>
           </div>
 
           <div className="text-center space-y-1">
-            <h2 className="text-xl font-black text-slate-800 tracking-tight">{p?.fullName || "Student"}</h2>
-            <p className="text-violet-600 text-xs font-black tracking-wider uppercase">
+            <h2 className="text-xl font-black text-slate-800 dark:text-slate-100 tracking-tight">{p?.fullName || "Student"}</h2>
+            <p className="text-violet-600 dark:text-violet-400 text-xs font-black tracking-wider uppercase">
               Student Profile
             </p>
             {p?.vlmStudentId && (
-              <div className="mt-2 inline-flex items-center gap-1.5 bg-violet-50 border border-violet-100 rounded-full px-3 py-1">
-                <span className="text-[9px] text-violet-500 font-black tracking-wider uppercase">
+              <div className="mt-2 inline-flex items-center gap-1.5 bg-violet-50 dark:bg-violet-950/20 border border-violet-100 dark:border-violet-900/30 rounded-full px-3 py-1">
+                <span className="text-[9px] text-violet-500 dark:text-violet-400 font-black tracking-wider uppercase">
                   ID:
                 </span>
-                <span className="text-[10px] font-mono font-black text-slate-700 tracking-wider">
+                <span className="text-[10px] font-mono font-black text-slate-700 dark:text-slate-300 tracking-wider">
                   {p.vlmStudentId}
                 </span>
                 <button
@@ -116,40 +117,56 @@ export default function ProfileView() {
         </div>
 
         {/* ── PROFILE DETAILS CARD ── */}
-        <div className="p-5 rounded-3xl border border-slate-100 bg-white shadow-sm space-y-5 w-full">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-3 px-0.5">
-            <h3 className="text-xs font-black text-slate-400 uppercase tracking-wide flex items-center gap-2">
-              <User size={15} className="text-violet-600" /> Basic Information
+        <div className="p-5 rounded-3xl border border-slate-100 dark:border-[#221c4e] bg-white dark:bg-[#161233] shadow-sm space-y-5 w-full">
+          <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3 px-0.5">
+            <h3 className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-wide flex items-center gap-2">
+              <User size={15} className="text-violet-600 dark:text-violet-400" /> Basic Information
             </h3>
             <Button
               onClick={() => navigate(PATHS.EDIT_PROFILE)}
-              className="h-8 px-4 rounded-2xl text-[10px] font-black border border-violet-200 bg-violet-50 hover:bg-violet-100 text-violet-600 transition-all cursor-pointer shadow-sm"
+              className="h-8 px-4 rounded-2xl text-[10px] font-black border border-violet-200 dark:border-violet-900/30 bg-violet-50 dark:bg-violet-950/20 text-violet-600 dark:text-violet-400 transition-all cursor-pointer shadow-sm"
             >
               Edit Details
             </Button>
           </div>
 
           <div className="space-y-3.5">
-            <ProfileFieldWrapper icon={<User size={16} className="text-violet-600 mr-2.5" />} label="Full Name" value={p?.fullName} />
-            <ProfileFieldWrapper icon={<User size={16} className="text-violet-600 mr-2.5" />} label="Nickname" value={p?.nickname} />
-            <ProfileFieldWrapper icon={<BookOpen size={16} className="text-violet-600 mr-2.5" />} label="Class" value={p?.class ? `Class ${p.class}th` : undefined} />
-            <ProfileFieldWrapper icon={<Globe size={16} className="text-violet-600 mr-2.5" />} label="City" value={p?.city} />
+            <ProfileFieldWrapper icon={<User size={16} className="text-violet-600 dark:text-violet-400 mr-2.5" />} label="Full Name" value={p?.fullName} />
+            <ProfileFieldWrapper icon={<User size={16} className="text-violet-600 dark:text-violet-400 mr-2.5" />} label="Nickname" value={p?.nickname} />
+            <ProfileFieldWrapper icon={<BookOpen size={16} className="text-violet-600 dark:text-violet-400 mr-2.5" />} label="Class" value={p?.class ? `Class ${p.class}th` : undefined} />
+            <ProfileFieldWrapper icon={<Globe size={16} className="text-violet-600 dark:text-violet-400 mr-2.5" />} label="City" value={p?.city} />
           </div>
         </div>
 
         {/* ── HISTORY / NAVIGATION CARD ── */}
-        <div className="p-3 rounded-3xl border border-slate-100 bg-white shadow-sm w-full">
+        <div className="p-3 rounded-3xl border border-slate-100 dark:border-[#221c4e] bg-white dark:bg-[#161233] shadow-sm w-full space-y-2">
           <div 
             onClick={() => navigate(PATHS.SESSION_HISTORY)}
-            className="flex items-center justify-between p-3 rounded-2xl border border-slate-50 bg-slate-50/50 cursor-pointer hover:bg-slate-50 transition-all active:scale-[0.99]"
+            className="flex items-center justify-between p-3 rounded-2xl border border-slate-50 dark:border-[#221c4e] bg-slate-50/50 dark:bg-slate-900/20 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-900/40 transition-all active:scale-[0.99]"
           >
             <div className="flex items-center gap-3">
-              <div className="h-9 w-9 rounded-xl bg-violet-100 flex items-center justify-center">
-                <History size={16} className="text-violet-600" />
+              <div className="h-9 w-9 rounded-xl bg-violet-100 dark:bg-violet-950/30 flex items-center justify-center">
+                <History size={16} className="text-violet-600 dark:text-violet-400" />
               </div>
               <div className="text-left">
-                <span className="text-xs font-black text-slate-800 block">Session History</span>
-                <span className="text-[9px] text-slate-400 block mt-0.5">Click to view past chats and calls</span>
+                <span className="text-xs font-black text-slate-800 dark:text-slate-100 block">Session History</span>
+                <span className="text-[9px] text-slate-400 dark:text-slate-500 block mt-0.5">Click to view past chats and calls</span>
+              </div>
+            </div>
+            <ChevronLeft size={16} className="text-slate-400 rotate-180" />
+          </div>
+
+          <div 
+            onClick={() => navigate(PATHS.WALLET)}
+            className="flex items-center justify-between p-3 rounded-2xl border border-slate-50 dark:border-[#221c4e] bg-slate-50/50 dark:bg-slate-900/20 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-900/40 transition-all active:scale-[0.99]"
+          >
+            <div className="flex items-center gap-3">
+              <div className="h-9 w-9 rounded-xl bg-violet-100 dark:bg-violet-950/30 flex items-center justify-center">
+                <Wallet size={16} className="text-violet-600 dark:text-violet-400" />
+              </div>
+              <div className="text-left">
+                <span className="text-xs font-black text-slate-800 dark:text-slate-100 block">My Wallet</span>
+                <span className="text-[9px] text-slate-400 dark:text-slate-500 block mt-0.5">Recharge points & view transactions</span>
               </div>
             </div>
             <ChevronLeft size={16} className="text-slate-400 rotate-180" />
@@ -157,11 +174,11 @@ export default function ProfileView() {
         </div>
 
         {/* ── LOGOUT CARD ── */}
-        <div className="p-3 rounded-3xl border border-red-100 bg-white shadow-sm w-full">
+        <div className="p-3 rounded-3xl border border-slate-100 dark:border-[#221c4e] bg-white dark:bg-[#161233] shadow-sm w-full">
           <Button
             onClick={() => setShowLogoutModal(true)}
             variant="ghost"
-            className="w-full h-12 rounded-2xl border border-red-100 bg-red-50/40 text-red-500 font-black hover:bg-red-50 hover:text-red-600 flex justify-between px-3 transition-all duration-300 shadow-sm"
+            className="w-full h-12 rounded-2xl border border-red-100 dark:border-red-950/40 bg-red-50/40 dark:bg-red-950/20 text-red-500 font-black hover:bg-red-50 hover:text-red-600 flex justify-between px-3 transition-all duration-300 shadow-sm"
           >
             <span className="flex items-center gap-2">
               <LogOut size={16} />
@@ -189,16 +206,16 @@ export default function ProfileView() {
               initial={{ opacity: 0, scale: 0.95, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 10 }}
-              className="relative w-full max-w-sm rounded-[32px] border border-slate-100 bg-white p-8 text-center shadow-2xl text-slate-800"
+              className="relative w-full max-w-sm rounded-[32px] border border-slate-100 dark:border-slate-800 bg-white dark:bg-[#161233] p-8 text-center shadow-2xl text-slate-800 dark:text-slate-100"
             >
-              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-red-50 text-red-500 mb-6 border border-red-100">
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-red-50 dark:bg-red-950/20 text-red-500 mb-6 border border-red-100 dark:border-red-900/30">
                 <LogOut size={28} />
               </div>
 
-              <h3 className="text-lg font-black text-slate-800 tracking-tight">
+              <h3 className="text-lg font-black text-slate-800 dark:text-slate-100 tracking-tight">
                 Log Out?
               </h3>
-              <p className="mt-2 text-xs text-slate-400 font-bold leading-relaxed">
+              <p className="mt-2 text-xs text-slate-400 dark:text-slate-500 font-bold leading-relaxed">
                 Are you sure you want to log out of your student account?
               </p>
 
@@ -211,7 +228,7 @@ export default function ProfileView() {
                 </Button>
                 <Button
                   onClick={() => setShowLogoutModal(false)}
-                  className="w-full h-11 rounded-2xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 font-black transition-all active:scale-[0.98] shadow-sm"
+                  className="w-full h-11 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 font-black transition-all active:scale-[0.98] shadow-sm"
                 >
                   Cancel
                 </Button>
@@ -236,10 +253,10 @@ function ProfileFieldWrapper({
 }) {
   return (
     <div className="space-y-1 text-left">
-      <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider ml-1">{label}</label>
-      <div className="flex items-center p-3 rounded-2xl bg-slate-50 border border-slate-100 text-slate-700">
+      <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider ml-1">{label}</label>
+      <div className="flex items-center p-3 rounded-2xl bg-slate-50 dark:bg-slate-900/40 border border-slate-100 dark:border-slate-800 text-slate-700 dark:text-slate-300">
         {icon}
-        <span className="flex-1 text-xs font-bold truncate text-slate-700">{value || "Not set"}</span>
+        <span className="flex-1 text-xs font-bold truncate text-slate-700 dark:text-slate-300">{value || "Not set"}</span>
       </div>
     </div>
   );

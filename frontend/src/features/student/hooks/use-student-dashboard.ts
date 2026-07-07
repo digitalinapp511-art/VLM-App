@@ -16,7 +16,8 @@ import { useQuery } from "@tanstack/react-query";
 
 export function useStudentDashboard() {
   const navigate = useNavigate();
-  const isBypass = localStorage.getItem("dev_bypass_auth") === "true";
+  const hasToken = !!localStorage.getItem("vlm_token");
+  const isBypass = localStorage.getItem("dev_bypass_auth") === "true" && !hasToken;
 
   // ── Profile ───────────────────────────────────────────────────────────────
   const {
@@ -97,8 +98,8 @@ export function useStudentDashboard() {
     profile?.lastSpinDate ?? studentData?.lastSpinDate ?? dashboard?.lastSpinDate ?? null;
 
   // MCQ progress
-  const mcqCompleted = dashboard?.mcq?.completed ?? mcq?.completed ?? 0;
-  const mcqTotal = dashboard?.mcq?.total ?? mcq?.total ?? 5;
+  const mcqCompleted = dashboard?.mcq?.completed ?? (mcq?.status === 'completed' ? (mcq?.questions?.length || 15) : 0);
+  const mcqTotal = dashboard?.mcq?.total ?? (mcq?.questions?.length || 15);
 
   // Live class
   const liveClass = dashboard?.liveClass ?? null;

@@ -12,6 +12,11 @@ export const studentApi = {
     return data.data || data;
   },
 
+  rechargeWallet: async (payload: { amount: number; points: number; aiCredits: number; humanChatCredits: number; redeemedPoints?: number }) => {
+    const { data } = await apiClient.post("/student/wallet/recharge", payload);
+    return data;
+  },
+
   getSubjectsFull: async (className?: string) => {
     const { data } = await apiClient.get("/student/subjects", {
       params: { class: className },
@@ -50,8 +55,8 @@ export const studentApi = {
     return data;
   },
 
-  getStats: async () => {
-    const { data } = await apiClient.get("/student/stats");
+  getStats: async (timeframe?: string) => {
+    const { data } = await apiClient.get("/student/stats", { params: { timeframe } });
     return data;
   },
 
@@ -228,6 +233,11 @@ export const studentApi = {
 
   markNotificationRead: async (id: string) => {
     const { data } = await apiClient.put(`/student/notifications/${id}/read`);
+    return data;
+  },
+  
+  markAllNotificationsRead: async () => {
+    const { data } = await apiClient.put("/student/notifications/read-all");
     return data;
   },
 

@@ -92,54 +92,59 @@ export default function ReferralHistory() {
   });
 
   return (
-    <div className={cn("relative min-h-svh w-full text-white flex flex-col items-center px-6 pt-5 overflow-x-hidden pb-10", bgCss)}>
-      <div className="max-w-xl">
+    <div className="relative flex min-h-svh w-full flex-col items-center bg-[#f4f6ff] dark:bg-[#0b081e] px-6 py-8 overflow-hidden text-slate-800 dark:text-slate-100 transition-colors duration-300">
+      <div className="max-w-xl w-full flex flex-col min-h-svh pb-24">
 
         {/* ── HEADER ── */}
-        <header className="relative z-10 flex w-full items-center justify-between mb-5">
-          <Button variant="outline" size="icon" className="h-10 w-10 rounded-xl border-white/10 bg-white/5 text-white backdrop-blur-md" onClick={() => navigate(PATHS.REFER_EARN)}>
+        <header className="relative z-10 flex w-full items-center justify-between mb-6">
+          <Button 
+            variant="outline" 
+            size="icon" 
+            className="h-10 w-10 rounded-xl border-slate-200 dark:border-[#221c4e] bg-white dark:bg-[#161233] text-slate-800 dark:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-900 active:scale-95 transition-all shadow-sm"
+            onClick={() => navigate(PATHS.REFER_EARN)}
+          >
             <ChevronLeft size={20} />
           </Button>
-          <h1 className="text-xl tracking-tight">Referral History</h1>
+          <h1 className="text-md font-black tracking-tight uppercase">Referral History</h1>
           <div className="w-10" />
         </header>
 
-        <main className="w-full max-w-xl space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+        <main className="w-full space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
 
           {/* ── STATS SECTION ── */}
           <div className="grid grid-cols-2 gap-4">
-            <Card className="py-0 bg-transparent border-cyan-500/40 shadow-[0_0_25px_rgba(34,211,238,0.1)] rounded-lg">
-              <CardContent className="p-5 flex flex-col items-center text-center space-y-2">
-                <div className="flex items-center gap-2 text-[10px] text-white/40 uppercase tracking-widest">
+            <Card className="border border-slate-100 dark:border-[#221c4e] bg-white dark:bg-[#161233] rounded-[2rem] shadow-sm overflow-hidden">
+              <CardContent className="p-5 flex flex-col items-center text-center space-y-1">
+                <div className="flex items-center gap-1.5 text-[9px] text-slate-400 dark:text-slate-500 uppercase tracking-widest font-black">
                   <Users size={12} /> Total Referrals
                 </div>
-                <h2 className="text-3xl font-black text-white">{data?.stats.total}</h2>
-                <p className="text-[10px] text-white/30 uppercase tracking-widest">Invited</p>
+                <h2 className="text-2xl font-black text-slate-800 dark:text-white">{data?.stats.total}</h2>
+                <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Invited</p>
               </CardContent>
             </Card>
 
-            <Card className="py-0 bg-transparent border-purple-500/40 shadow-[0_0_25px_rgba(168,85,247,0.1)] rounded-lg">
-              <CardContent className="p-5 flex flex-col items-center text-center space-y-2">
-                <div className="text-[10px] text-white/40 uppercase tracking-widest">Total Points Earned</div>
-                <h2 className="text-3xl font-black text-white">{data?.stats.points}</h2>
-                <p className="text-[10px] text-white/30 uppercase tracking-widest">Points</p>
+            <Card className="border border-slate-100 dark:border-[#221c4e] bg-white dark:bg-[#161233] rounded-[2rem] shadow-sm overflow-hidden">
+              <CardContent className="p-5 flex flex-col items-center text-center space-y-1">
+                <div className="text-[9px] text-slate-400 dark:text-slate-500 uppercase tracking-widest font-black">Total Earned</div>
+                <h2 className="text-2xl font-black text-violet-600 dark:text-violet-400">{data?.stats.points}</h2>
+                <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Points</p>
               </CardContent>
             </Card>
           </div>
 
           {/* ── TABS SECTION ── */}
           <Tabs defaultValue="student" className="w-full">
-            <TabsList className="grid grid-cols-2 bg-slate-900 border border-white/10 rounded-xl h-12 p-1">
-              <TabsTrigger value="student" className="rounded-lg text-xs font-bold">Student Referrals</TabsTrigger>
-              <TabsTrigger value="teacher" className="rounded-lg text-xs font-bold">Teacher Referrals</TabsTrigger>
+            <TabsList className="grid grid-cols-2 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-[#221c4e] rounded-xl h-11 p-1">
+              <TabsTrigger value="student" className="rounded-lg text-xs font-black uppercase tracking-wider">Student Referrals</TabsTrigger>
+              <TabsTrigger value="teacher" className="rounded-lg text-xs font-black uppercase tracking-wider">Teacher Referrals</TabsTrigger>
             </TabsList>
 
             {/* STUDENT REFERRALS TAB CONTENT */}
-            <TabsContent value="student" className="mt-6 space-y-6">
-              <div className="space-y-4">
-                <h3 className="text-xs font-bold text-white/30 uppercase tracking-widest">Active/Pending</h3>
+            <TabsContent value="student" className="mt-5 space-y-5">
+              <div className="space-y-3">
+                <h3 className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">Active/Pending</h3>
                 {data?.student.active.length === 0 ? (
-                  <p className="text-xs text-white/20">No active student referrals.</p>
+                  <p className="text-xs font-bold text-slate-400 dark:text-slate-500/80">No active student referrals.</p>
                 ) : (
                   data?.student.active.map((item) => (
                     <HistoryCard key={item.id} item={item} />
@@ -147,10 +152,10 @@ export default function ReferralHistory() {
                 )}
               </div>
 
-              <div className="space-y-4">
-                <h3 className="text-xs font-bold text-white/30 uppercase tracking-widest">Completed/Rewarded</h3>
+              <div className="space-y-3">
+                <h3 className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">Completed/Rewarded</h3>
                 {data?.student.completed.length === 0 ? (
-                  <p className="text-xs text-white/20">No rewarded student referrals.</p>
+                  <p className="text-xs font-bold text-slate-400 dark:text-slate-500/80">No rewarded student referrals.</p>
                 ) : (
                   data?.student.completed.map((item) => (
                     <HistoryCard key={item.id} item={item} />
@@ -160,11 +165,11 @@ export default function ReferralHistory() {
             </TabsContent>
 
             {/* TEACHER REFERRALS TAB CONTENT */}
-            <TabsContent value="teacher" className="mt-6 space-y-6">
-              <div className="space-y-4">
-                <h3 className="text-xs font-bold text-white/30 uppercase tracking-widest">Active/Pending</h3>
+            <TabsContent value="teacher" className="mt-5 space-y-5">
+              <div className="space-y-3">
+                <h3 className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">Active/Pending</h3>
                 {data?.teacher.active.length === 0 ? (
-                  <p className="text-xs text-white/20">No active teacher referrals.</p>
+                  <p className="text-xs font-bold text-slate-400 dark:text-slate-500/80">No active teacher referrals.</p>
                 ) : (
                   data?.teacher.active.map((item) => (
                     <HistoryCard key={item.id} item={item} />
@@ -172,10 +177,10 @@ export default function ReferralHistory() {
                 )}
               </div>
 
-              <div className="space-y-4">
-                <h3 className="text-xs font-bold text-white/30 uppercase tracking-widest">Completed/Rewarded</h3>
+              <div className="space-y-3">
+                <h3 className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">Completed/Rewarded</h3>
                 {data?.teacher.completed.length === 0 ? (
-                  <p className="text-xs text-white/20">No rewarded teacher referrals.</p>
+                  <p className="text-xs font-bold text-slate-400 dark:text-slate-500/80">No rewarded teacher referrals.</p>
                 ) : (
                   data?.teacher.completed.map((item) => (
                     <HistoryCard key={item.id} item={item} />

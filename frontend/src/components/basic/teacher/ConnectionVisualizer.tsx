@@ -20,14 +20,14 @@ const Participant: React.FC<ParticipantProps> = ({ name, role, imageUrl, glowCol
       <div className={cn("w-20 h-20 rounded-full border-2 p-1 relative", glowStyles[glowColor])}>
         <Avatar className="w-full h-full">
           <AvatarImage src={imageUrl} />
-          <AvatarFallback className="bg-zinc-800 text-white font-bold text-xl">
+          <AvatarFallback className="bg-zinc-100 dark:bg-zinc-800 text-slate-800 dark:text-white font-bold text-xl">
             {name.charAt(0)}
           </AvatarFallback>
         </Avatar>
       </div>
       <div className="text-center">
-        <h4 className="text-sm font-bold text-white tracking-tight">{name}</h4>
-        <p className="text-[11px] font-medium text-zinc-500 uppercase tracking-widest">{role}</p>
+        <h4 className="text-sm font-black text-slate-800 dark:text-white tracking-tight">{name}</h4>
+        <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">{role}</p>
       </div>
     </div>
   );

@@ -4,13 +4,12 @@ import { useNavigate, Link } from "react-router-dom";
 import { PATHS } from "@/routes/paths";
 import { ChevronLeft, Copy, Share2, Users, MessageSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useStudentProfile } from "@/hooks/use-student";
 
 // Official Shadcn Components
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-// import { Badge } from "@/components/ui/badge";
-import { bgCss } from "@/helper/CssHelper";
 
 import { studentApi } from "@/lib/student-api";
 
@@ -19,10 +18,8 @@ const fetchReferralData = async () => {
     return await studentApi.getReferralData();
   } catch {
     return {
-      studentRef: "vlm.academy/ref/STU-••••",
-      teacherRef: "vlm.academy/ref/TCH-••••",
-      studentPoints: 100,
-      teacherPoints: 500,
+      studentPoints: 500,
+      teacherPoints: 1000,
     };
   }
 };
@@ -34,50 +31,95 @@ export default function ReferEarn() {
     queryFn: fetchReferralData,
   });
 
+  const { data: profile } = useStudentProfile();
+  const student = (profile as any)?.data || profile;
+  const vlmStudentId = student?.vlmStudentId || "STU-XXXX";
+  const [activeTab, setActiveTab] = useState<"student" | "teacher">("student");
+
+  // Share link using student ID
+  const studentReferralLink = `${window.location.origin}?ref=${vlmStudentId}`;
+  const teacherReferralLink = `${window.location.origin}?ref=${vlmStudentId}&role=teacher`;
+
   return (
-    <div className={cn("relative flex min-h-svh px-3 flex-col items-center pt-4 overflow-x-hidden text-white pb-5", bgCss)}>
-      <div className="max-w-xl">
+    <div className="relative flex min-h-svh w-full flex-col items-center bg-[#f4f6ff] dark:bg-[#0b081e] px-6 py-8 overflow-hidden text-slate-800 dark:text-slate-100 transition-colors duration-300">
+      <div className="max-w-xl w-full flex flex-col min-h-svh pb-24">
 
-      {/* ── BACKGROUND GLOWS ── */}
-      <div className="absolute top-[10%] left-[-20%] h-[400px] w-[400px] rounded-full bg-cyan-600/10 blur-[120px]" />
-      <div className="absolute bottom-[10%]  h-[400px] w-[400px] rounded-full bg-purple-600/10 blur-[120px]" />
+        <header className="relative z-10 flex w-full items-center justify-between mb-6">
+          <Button 
+            variant="outline" 
+            size="icon" 
+            className="h-10 w-10 rounded-xl border-slate-200 dark:border-[#221c4e] bg-white dark:bg-[#161233] text-slate-800 dark:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-900 active:scale-95 transition-all shadow-sm"
+            onClick={() => navigate(PATHS.STUDENT_DASHBOARD)}
+          >
+            <ChevronLeft size={20} />
+          </Button>
+          <h1 className="text-md font-black tracking-tight uppercase">Refer & Earn</h1>
+          <Link to={PATHS.REFERRAL_HISTORY} className="text-xs font-black text-violet-600 dark:text-violet-400 tracking-wider">
+            HISTORY
+          </Link>
+        </header>
 
-      <header className="relative z-10 flex w-full items-center justify-between mb-4">
-        <Button variant="outline" size="icon" className="h-12 w-12 rounded-2xl border-white/10 bg-white/5 text-white backdrop-blur-md" onClick={() => navigate(PATHS.STUDENT_DASHBOARD)}>
-          <ChevronLeft size={24} />
-        </Button>
-        <h1 className="text-xl font-bold tracking-tight">Refer & Earn</h1>
-        <Link to={PATHS.REFERRAL_HISTORY} className="text-xs font-bold text-cyan-400 tracking-widest">
-          HISTORY
-        </Link>
-      </header>
+        <main className="w-full space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-700">
+          {/* Promo Title */}
+          <div className="text-center space-y-1 mb-1">
+            <h2 className="text-xl font-black tracking-tight text-slate-800 dark:text-white">Invite & Get Rewards</h2>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 font-bold max-w-sm mx-auto leading-relaxed">
+              Share your unique link with friends or teachers and earn coins when they start learning.
+            </p>
+          </div>
 
-      <main className="w-full max-w-xl space-y-6 animate-in fade-in px-3 slide-in-from-bottom-4 duration-700">
-        
-        {/* ── REFER STUDENTS CARD (CYAN THEME) ── */}
-        <ReferCard 
-          title="Refer Students"
-          desc="Help friends find advanced learning."
-          points={data?.studentPoints || 0}
-          link={data?.studentRef || ""}
-          theme="cyan"
-          icon={<Users size={32} />}
-        />
+          {/* Custom Tabs to toggle side-by-side without scroll */}
+          <div className="flex border border-slate-200 dark:border-[#221c4e] rounded-xl p-1 bg-slate-50/50 dark:bg-slate-900/40">
+            <button
+              onClick={() => setActiveTab("student")}
+              className={cn(
+                "flex-1 py-1.5 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all",
+                activeTab === "student"
+                  ? "bg-violet-600 text-white shadow-sm"
+                  : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white"
+              )}
+            >
+              Refer Students
+            </button>
+            <button
+              onClick={() => setActiveTab("teacher")}
+              className={cn(
+                "flex-1 py-1.5 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all",
+                activeTab === "teacher"
+                  ? "bg-violet-600 text-white shadow-sm"
+                  : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white"
+              )}
+            >
+              Refer Teachers
+            </button>
+          </div>
 
-        {/* ── REFER TEACHERS CARD (PURPLE THEME) ── */}
-        <ReferCard 
-          title="Refer Teachers"
-          desc="Invite great educators to VLM Academy."
-          points={data?.teacherPoints || 0}
-          link={data?.teacherRef || ""}
-          theme="purple"
-          icon={<MessageSquare size={32} />}
-        />
+          {/* ── REFER STUDENTS CARD (CYAN THEME) ── */}
+          {activeTab === "student" && (
+            <ReferCard 
+              title="Refer Students"
+              desc="Share VLM Academy with other students."
+              points={data?.studentPoints || 500}
+              link={studentReferralLink}
+              theme="cyan"
+              icon={<Users size={24} />}
+            />
+          )}
 
-      </main>
-    </div>
+          {/* ── REFER TEACHERS CARD (PURPLE THEME) ── */}
+          {activeTab === "teacher" && (
+            <ReferCard 
+              title="Refer Teachers"
+              desc="Invite educators to teach on VLM."
+              points={data?.teacherPoints || 1000}
+              link={teacherReferralLink}
+              theme="purple"
+              icon={<MessageSquare size={24} />}
+            />
+          )}
+        </main>
       </div>
-
+    </div>
   );
 }
 
@@ -114,34 +156,36 @@ function ReferCard({ title, desc, points, link, theme, icon }: any) {
 
   return (
     <Card className={cn(
-      "border-2 bg-transparent backdrop-blur-2xl rounded-2xl overflow-hidden transition-all duration-300",
+      "border bg-white dark:bg-[#161233] rounded-[2rem] overflow-hidden transition-all duration-300 shadow-sm",
       isCyan 
-        ? "border-cyan-500/30 shadow-[0_0_40px_rgba(34,211,238,0.05)]" 
-        : "border-purple-500/30 shadow-[0_0_40px_rgba(168,85,247,0.05)]"
+        ? "border-slate-100 dark:border-[#221c4e] hover:border-cyan-500/40" 
+        : "border-slate-100 dark:border-[#221c4e] hover:border-purple-500/40"
     )}>
-      <CardContent className="p-4 sm:p-6 space-y-3">
+      <CardContent className="p-5 sm:p-6 space-y-4">
         
         {/* Header Info */}
-        <div className="flex items-center gap-3 sm:gap-5">
+        <div className="flex items-center gap-4">
           <div className={cn(
-            "h-12 w-12 sm:h-16 sm:w-16 shrink-0 rounded-2xl flex items-center justify-center border-2",
-            isCyan ? "border-cyan-400 text-cyan-400 bg-cyan-400/5" : "border-purple-500 text-purple-500 bg-purple-500/5"
+            "h-12 w-12 shrink-0 rounded-2xl flex items-center justify-center border",
+            isCyan 
+              ? "border-cyan-200 bg-cyan-50 dark:bg-cyan-950/20 text-cyan-500" 
+              : "border-purple-200 bg-purple-50 dark:bg-purple-950/20 text-purple-500"
           )}>
             {icon}
           </div>
-          <div className="space-y-0.5">
-            <h2 className="text-base sm:text-xl font-bold text-white tracking-tight">{title}</h2>
-            <p className="text-[10px] sm:text-xs text-white/40 font-medium">{desc}</p>
+          <div className="space-y-0.5 text-left">
+            <h2 className="text-base font-black text-slate-800 dark:text-white tracking-tight">{title}</h2>
+            <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold">{desc}</p>
           </div>
         </div>
 
         {/* Reward Points Badge */}
-        <div className="flex items-center gap-2 pt-1">
-          <div className="h-4 w-4 rounded-full bg-yellow-500/10 border border-yellow-500/30 flex items-center justify-center text-[9px] font-black text-yellow-400">
+        <div className="flex items-center gap-2 pt-0.5">
+          <div className="h-5 w-5 rounded-full bg-yellow-500/10 border border-yellow-500/30 flex items-center justify-center text-[10px] font-black text-yellow-400">
             ★
           </div>
-          <p className="text-xs sm:text-sm font-black tracking-wide text-white">
-            {points} PTS <span className="text-white/40 font-bold uppercase text-[9px] tracking-widest sm:text-[10px] ml-1">per referral!</span>
+          <p className="text-xs font-black tracking-wide text-slate-800 dark:text-white">
+            {points} PTS <span className="text-slate-400 dark:text-slate-500 font-bold uppercase text-[9px] tracking-widest ml-1">per referral!</span>
           </p>
         </div>
 
@@ -150,9 +194,8 @@ function ReferCard({ title, desc, points, link, theme, icon }: any) {
           <Input 
             value={link} 
             readOnly 
-            className="h-10 sm:h-12 rounded-xl border-white/5 bg-white/5 px-4 text-xs sm:text-sm text-white/60 focus-visible:ring-0"
+            className="h-11 rounded-xl border-slate-200 dark:border-[#221c4e] bg-slate-50/50 dark:bg-slate-900/40 px-4 text-xs font-black text-slate-500 dark:text-slate-400 focus-visible:ring-0"
           />
-          <div className="absolute inset-y-0 right-0 w-12 bg-gradient-to-l from-black/80 to-transparent pointer-events-none rounded-r-xl" />
         </div>
 
         {/* Action Buttons */}
@@ -161,10 +204,10 @@ function ReferCard({ title, desc, points, link, theme, icon }: any) {
           <Button 
             onClick={handleCopy}
             className={cn(
-              "h-10 sm:h-12 rounded-full text-xs sm:text-sm font-semibold tracking-wider transition-all active:scale-95",
+              "h-11 rounded-xl text-xs font-black tracking-wider transition-all active:scale-95 text-white border-none",
               isCyan 
-                ? "bg-gradient-to-b from-[#1e3a8e] text-white to-[#0f172a] border border-blue-400/40" 
-                : "bg-gradient-to-b from-[#7e22ce] to-[#3b0764] border border-purple-400/40"
+                ? "bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500" 
+                : "bg-gradient-to-r from-violet-600 to-fuchsia-500 hover:from-violet-500 hover:to-fuchsia-400"
             )}
           >
             <Copy size={14} className="mr-1.5" /> {copied ? "Copied!" : "Copy Link"}
@@ -174,10 +217,7 @@ function ReferCard({ title, desc, points, link, theme, icon }: any) {
           <Button 
             onClick={handleShare}
             variant="outline" 
-            className={cn(
-              "h-10 sm:h-12 rounded-full border border-white/10 bg-transparent text-white text-xs sm:text-sm font-semibold tracking-wider transition-all",
-              isCyan ? "border-cyan-500/50 text-white hover:bg-cyan-500/10 shadow-[0_0_10px_rgba(34,211,238,0.15)]" : "border-purple-500/50 text-white hover:bg-purple-500/10 shadow-[0_0_10px_rgba(168,85,247,0.15)]"
-            )}
+            className="h-11 rounded-xl border-slate-200 dark:border-[#221c4e] bg-white dark:bg-[#161233] text-slate-800 dark:text-slate-100 text-xs font-black tracking-wider hover:bg-slate-50 dark:hover:bg-slate-850 active:scale-95 transition-all"
           >
             <Share2 size={14} className="mr-1.5" /> Share
           </Button>

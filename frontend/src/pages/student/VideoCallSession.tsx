@@ -7,7 +7,8 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { PATHS } from "@/routes/paths";
 import {
   Mic, MicOff, Video, VideoOff, PhoneOff, PenLine, Eraser, Trash2,
-  Minimize2, ChevronLeft, Undo, Redo, Pencil, FileText, PenTool
+  Minimize2, ChevronLeft, Undo, Redo, Pencil, FileText, PenTool,
+  ShieldCheck, MessageSquare, Paperclip
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
@@ -19,6 +20,7 @@ import AgoraRTC, {
 } from "agora-rtc-sdk-ng";
 import { useSocket } from "@/hooks/use-socket";
 import { studentApi } from "@/lib/student-api";
+import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
 
 let agoraClient: IAgoraRTCClient | null = null;
@@ -48,6 +50,12 @@ export default function VideoCallSession() {
   const localTrackRef = useRef<any[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // Live Chat
+  const [showChat, setShowChat] = useState(false);
+  const [messages, setMessages] = useState<any[]>([]);
+  const [chatInput, setChatInput] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   // Whiteboard
   const [showWhiteboard, setShowWhiteboard] = useState(false);
   const [activeTool, setActiveTool] = useState<"pen" | "pencil" | "eraser">("pen");
@@ -65,8 +73,45 @@ export default function VideoCallSession() {
   // Socket
   const {
     remoteDrawAction, remoteClearCanvas, remoteWhiteboardToggle, sendWhiteboardDraw, sendWhiteboardClear, sendCallEnd,
-    callEnded,
+    callEnded, sendMessage, lastMessage
   } = useSocket({ autoConnect: true, sessionId });
+
+  useEffect(() => {
+    if (lastMessage) {
+      setMessages((prev) => [...prev, lastMessage]);
+    }
+  }, [lastMessage]);
+
+  const handleSendChat = () => {
+    if (!chatInput.trim()) return;
+    sendMessage({ sessionId, content: chatInput });
+    setChatInput("");
+  };
+
+  const handleAttachFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const toastId = toast.loading("Uploading attachment...");
+    try {
+      const formData = new FormData();
+      formData.append("media", file);
+      const res = await studentApi.uploadChatMedia(formData);
+      if (res && res.url) {
+        sendMessage({
+          sessionId,
+          content: `Sent an attachment: ${file.name}`,
+          type: "media",
+          mediaUrl: res.url
+        });
+        toast.success("Attachment sent!", { id: toastId });
+      } else {
+        toast.error("Upload failed", { id: toastId });
+      }
+    } catch (err) {
+      toast.error("Error uploading file", { id: toastId });
+    }
+  };
 
   // ── Agora join ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -139,6 +184,28 @@ export default function VideoCallSession() {
       agoraClient?.leave().catch(() => {});
     };
   }, [sessionId]);
+
+  // Ensure local video track plays when the element mounts or cam state toggles
+  useEffect(() => {
+    if (!isAudioOnly && !camOff && localVideoRef.current) {
+      const videoTrack = localTrackRef.current.find(t => t.trackMediaType === "video");
+      if (videoTrack) {
+        videoTrack.play(localVideoRef.current);
+      }
+    }
+  }, [camOff, joined, localVideoRef.current]);
+
+  // Ensure remote video track plays when the element mounts or remote joined status updates
+  useEffect(() => {
+    if (!isAudioOnly && remoteJoined && remoteVideoRef.current && agoraClient) {
+      const remoteUsers = agoraClient.remoteUsers;
+      for (const user of remoteUsers) {
+        if (user.videoTrack) {
+          user.videoTrack.play(remoteVideoRef.current);
+        }
+      }
+    }
+  }, [remoteJoined, joined, remoteVideoRef.current]);
 
   useEffect(() => {
     if (callEnded) {
@@ -351,235 +418,242 @@ export default function VideoCallSession() {
   }, [showWhiteboard]);
 
   return (
-    <div className="relative min-h-svh w-full bg-[#0b1329] text-white flex flex-col select-none overflow-hidden font-sans">
+    <div className="relative flex min-h-svh w-full flex-col bg-[#f4f6ff] dark:bg-[#0b081e] text-slate-800 dark:text-slate-100 transition-colors duration-300 overflow-hidden font-sans">
       
-      <AnimatePresence mode="wait">
-        {!showWhiteboard ? (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="flex-1 flex flex-col relative"
+      <div className="flex-1 flex flex-col relative">
+        {/* Top Panel (Floating Header Bar like Zoom) */}
+        <div className="absolute top-2 inset-x-2 max-w-[370px] mx-auto bg-white/90 dark:bg-[#161233]/90 backdrop-blur-md border border-slate-150 dark:border-[#221c4e] py-2 px-3.5 rounded-[1.5rem] shadow-xl z-20 flex items-center justify-between gap-3">
+          <button 
+            onClick={() => navigate(-1)} 
+            className="h-8 w-8 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-slate-850 dark:text-white flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-850 active:scale-95 transition-all shadow-xs shrink-0 cursor-pointer"
           >
-            {/* Header */}
-            <div className="flex items-center justify-between px-6 py-5 bg-[#0b1329]/80 backdrop-blur-md border-b border-white/5">
-              <button onClick={() => navigate(-1)} className="flex items-center gap-1.5 text-sm text-cyan-400 font-bold">
-                <ChevronLeft size={18} />
-                LIVE SESSION: {subjectName.toUpperCase()}
-              </button>
-              <div className="px-4 py-1.5 rounded-full bg-cyan-950/40 border border-cyan-800/40 text-xs font-black text-cyan-400 shadow-md">
-                {formatDuration(duration)}
-              </div>
-            </div>
+            <ChevronLeft size={16} />
+          </button>
+          
+          <div className="flex-1 text-left min-w-0">
+            <h2 className="text-[10px] font-black text-slate-850 dark:text-white uppercase tracking-wider truncate">
+              {subjectName || "Doubt Session"}
+            </h2>
+            <p className="text-[8px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest truncate mt-0.5">
+              Doubt ID: {sessionId ? sessionId.slice(-6).toUpperCase() : "#VLM-CALL"}
+            </p>
+          </div>
 
-            {/* Main Area */}
-            <div className="flex-1 relative flex items-center justify-center">
-              {!isAudioOnly && !camOff ? (
-                <div ref={localVideoRef} className="absolute inset-0 bg-[#060b18] flex items-center justify-center" />
-              ) : (
-                <div className="flex flex-col items-center justify-center text-center space-y-2">
-                  <p className="text-2xl font-black tracking-wide text-white uppercase">{teacher?.name || "Teacher"}</p>
-                  <p className="text-sm font-semibold text-cyan-400/60 uppercase">Faculty</p>
-                </div>
-              )}
+          <div className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-[10px] font-black text-slate-850 dark:text-white shadow-xs shrink-0">
+            {formatDuration(duration)}
+          </div>
+        </div>
 
-              {/* Floating Teacher Video (Top Right) */}
-              {remoteJoined && !isAudioOnly && (
-                <div className="absolute top-5 right-5 z-30 h-44 w-32 rounded-2xl border-2 border-cyan-500/20 overflow-hidden bg-[#060b18] shadow-2xl flex flex-col justify-end">
-                  <div ref={remoteVideoRef} className="absolute inset-0" />
-                  <div className="relative z-10 bg-black/60 py-1.5 px-3 text-[10px] font-black text-white text-center border-t border-white/5">
-                    {teacher?.name || "Teacher"}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Bottom Panel (Purple Gradient Controls Bar) */}
-            <div className="bg-gradient-to-t from-purple-950/80 to-[#0b1329] pt-6 pb-8 px-6 border-t border-purple-500/10">
-              <div className="w-12 h-1 bg-white/20 rounded-full mx-auto mb-6" />
-              <div className="flex items-center justify-center gap-6 max-w-lg mx-auto">
-                {/* MIC Toggle */}
-                <div className="flex flex-col items-center gap-2">
-                  <button
-                    onClick={toggleMic}
-                    className={cn(
-                      "h-14 w-14 rounded-2xl flex items-center justify-center border transition-all shadow-lg",
-                      micMuted ? "bg-red-500/20 border-red-500/30 text-red-400" : "bg-white/10 border-white/10 text-white"
-                    )}
-                  >
-                    {micMuted ? <MicOff size={20} /> : <Mic size={20} />}
-                  </button>
-                  <span className="text-[10px] font-bold text-white/60 tracking-wider uppercase">
-                    {micMuted ? "Mic Off" : "Mic On"}
-                  </span>
-                </div>
-
-                {/* CAM Toggle */}
-                {!isAudioOnly && (
-                  <div className="flex flex-col items-center gap-2">
-                    <button
-                      onClick={toggleCam}
-                      className={cn(
-                        "h-14 w-14 rounded-2xl flex items-center justify-center border transition-all shadow-lg",
-                        camOff ? "bg-red-500/20 border-red-500/30 text-red-400" : "bg-white/10 border-white/10 text-white"
-                      )}
-                    >
-                      {camOff ? <VideoOff size={20} /> : <Video size={20} />}
-                    </button>
-                    <span className="text-[10px] font-bold text-white/60 tracking-wider uppercase">
-                      {camOff ? "Cam Off" : "Cam On"}
-                    </span>
-                  </div>
-                )}
-
-                {/* Dummy FILES Button */}
-                <div className="flex flex-col items-center gap-2">
-                  <button
-                    onClick={() => toast.info("File sharing is disabled locally.")}
-                    className="h-14 w-14 rounded-2xl bg-white/10 border border-white/10 text-white flex items-center justify-center hover:bg-white/15 transition-all shadow-lg"
-                  >
-                    <FileText size={20} />
-                  </button>
-                  <span className="text-[10px] font-bold text-white/60 tracking-wider uppercase">Files</span>
-                </div>
-
-                {/* END SESSION Button */}
-                <div className="flex flex-col items-center gap-2">
-                  <button
-                    onClick={() => handleEndCall(true)}
-                    className="h-14 w-14 rounded-2xl bg-red-500 text-white flex items-center justify-center shadow-lg shadow-red-500/40 hover:bg-red-600 transition-all"
-                  >
-                    <PhoneOff size={20} />
-                  </button>
-                  <span className="text-[10px] font-bold text-red-400 tracking-wider uppercase">End Call</span>
-                </div>
-              </div>
-            </div>
-          </motion.div>
-        ) : (
-          /* ── Mockup 1: Whiteboard Screen Layout ── */
-          <motion.div
-            initial={{ opacity: 0, y: "100%" }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: "100%" }}
-            className="flex-1 bg-white text-slate-800 flex flex-col relative"
-          >
-            {/* Whiteboard Header */}
-            <div className="flex items-center justify-between px-6 py-4 bg-white border-b border-slate-100">
-              <div className="flex items-center gap-1.5 text-sm text-cyan-600 font-bold">
-                LIVE SESSION | {subjectName.toUpperCase()}
-              </div>
-              <div className="px-3 py-1 rounded-full bg-slate-100 text-slate-500 text-xs font-bold">
-                {formatDuration(duration)}
-              </div>
-            </div>
-
-            {/* Drawing Canvas Area */}
-            <div className="flex-1 relative bg-slate-50 overflow-hidden">
+        {/* Main Area */}
+        <div className="flex-1 relative flex items-center justify-center bg-slate-950">
+          {showWhiteboard ? (
+            <div className="absolute inset-0 bg-white">
+              {/* STUDENT CANVAS: read-only, no mouse/touch drawing handlers */}
               <canvas
                 ref={canvasRef}
-                onMouseDown={startDrawing}
-                onMouseMove={draw}
-                onMouseUp={stopDrawing}
-                onMouseLeave={stopDrawing}
-                onTouchStart={startDrawing}
-                onTouchMove={draw}
-                onTouchEnd={stopDrawing}
-                className="absolute inset-0 block cursor-crosshair bg-white"
+                className="absolute inset-0 block bg-white"
               />
+            </div>
+          ) : (
+            <>
+              {/* BIG IMAGE: Teacher Video Stream */}
+              {remoteJoined && !isAudioOnly ? (
+                <div ref={remoteVideoRef} className="absolute inset-0 bg-[#060b18] flex items-center justify-center" />
+              ) : (
+                <div className="flex flex-col items-center justify-center text-center space-y-2">
+                  <p className="text-2xl font-black tracking-wide text-slate-850 dark:text-white uppercase">{teacher?.name || "Teacher Name"}</p>
+                  <p className="text-sm font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">Faculty</p>
+                </div>
+              )}
 
-              {/* Floating Faculty Card (Top Right) */}
-              <div className="absolute top-5 right-5 z-30 bg-white/90 backdrop-blur-md p-4 rounded-3xl border border-slate-100 shadow-2xl flex flex-col items-center text-center w-48 space-y-2.5">
-                <Avatar className="h-16 w-16 border-2 border-cyan-500/30">
-                  <AvatarImage src={teacher?.photo} />
-                  <AvatarFallback>{teacher?.name?.[0] || "T"}</AvatarFallback>
-                </Avatar>
-                <div>
-                  <p className="text-xs font-black text-slate-900 tracking-wide">{teacher?.name || "Teacher"}</p>
-                  <p className="text-[9px] font-bold text-slate-400 uppercase mt-0.5">Faculty</p>
+              {/* SMALL PREVIEW: Student Local Video (Top Right - positioned below header) */}
+              {!isAudioOnly && !camOff && (
+                <div className="absolute top-16 right-3 z-30 h-28 w-20 rounded-xl border border-slate-150 dark:border-slate-800 overflow-hidden bg-slate-100 dark:bg-[#060b18] shadow-lg flex flex-col justify-end">
+                  <div ref={localVideoRef} className="absolute inset-0" />
+                  <div className="relative z-10 bg-slate-900/80 dark:bg-black/60 py-1 px-1.5 text-[8px] font-black text-white text-center border-t border-slate-800 dark:border-white/5">
+                    You
+                  </div>
                 </div>
-                <div className="px-3 py-1 rounded-full bg-slate-100 border border-slate-200/60 text-[9px] font-extrabold text-slate-500 flex items-center gap-1">
-                  STUDENTS: 24 ONLINE
-                </div>
-              </div>
+              )}
+            </>
+          )}
+        </div>
+
+        {/* Bottom Panel (Floating Controls Bar like Zoom) */}
+        <div className="absolute bottom-2 inset-x-2 max-w-[370px] mx-auto bg-white/90 dark:bg-[#161233]/90 backdrop-blur-md border border-slate-150 dark:border-[#221c4e] py-3.5 px-6 rounded-[2rem] shadow-xl z-20">
+          <div className="flex items-center justify-between gap-4 w-full mx-auto">
+            {/* MIC Toggle */}
+            <div className="flex flex-col items-center gap-1">
+              <button
+                onClick={toggleMic}
+                className={cn(
+                  "h-11 w-11 rounded-2xl flex items-center justify-center border transition-all shadow-xs cursor-pointer",
+                  micMuted 
+                    ? "bg-rose-500/10 border-rose-500/20 text-rose-500" 
+                    : "bg-slate-100 dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-800 dark:text-white"
+                )}
+              >
+                {micMuted ? <MicOff size={16} /> : <Mic size={16} />}
+              </button>
+              <span className="text-[7.5px] font-black text-slate-500 dark:text-slate-400 tracking-wider uppercase">
+                {micMuted ? "Mic Off" : "Mic On"}
+              </span>
             </div>
 
-            {/* Floating toolbar (Pencil, Pen, Eraser, Separator, Undo, Redo + Color Palette) */}
-            <div className="absolute bottom-6 inset-x-0 z-40 px-6 flex justify-center pointer-events-none">
-              <div className="bg-white/95 backdrop-blur-md py-4 px-6 rounded-3xl border border-slate-200/80 shadow-2xl flex flex-col items-center gap-3.5 pointer-events-auto max-w-md w-full">
-                {/* Toolbar Items */}
-                <div className="flex items-center gap-3.5">
-                  <button
-                    onClick={() => setActiveTool("pen")}
-                    className={cn(
-                      "p-2.5 rounded-xl transition-all",
-                      activeTool === "pen" ? "bg-cyan-500 text-white shadow-md shadow-cyan-500/20" : "text-slate-400 hover:text-slate-600"
-                    )}
-                  >
-                    <PenTool size={18} />
-                  </button>
-                  <button
-                    onClick={() => setActiveTool("pencil")}
-                    className={cn(
-                      "p-2.5 rounded-xl transition-all",
-                      activeTool === "pencil" ? "bg-cyan-500 text-white shadow-md shadow-cyan-500/20" : "text-slate-400 hover:text-slate-600"
-                    )}
-                  >
-                    <Pencil size={18} />
-                  </button>
-                  <button
-                    onClick={() => setActiveTool("eraser")}
-                    className={cn(
-                      "p-2.5 rounded-xl transition-all",
-                      activeTool === "eraser" ? "bg-cyan-500 text-white shadow-md shadow-cyan-500/20" : "text-slate-400 hover:text-slate-600"
-                    )}
-                  >
-                    <Eraser size={18} />
-                  </button>
-
-                  <div className="w-px h-6 bg-slate-200" />
-
-                  <button
-                    onClick={handleUndo}
-                    disabled={historyStep <= 0}
-                    className="p-2.5 rounded-xl text-slate-400 hover:text-slate-600 disabled:opacity-30 disabled:pointer-events-none"
-                  >
-                    <Undo size={18} />
-                  </button>
-                  <button
-                    onClick={handleRedo}
-                    disabled={historyStep >= history.length - 1}
-                    className="p-2.5 rounded-xl text-slate-400 hover:text-slate-600 disabled:opacity-30 disabled:pointer-events-none"
-                  >
-                    <Redo size={18} />
-                  </button>
-                  <button onClick={clearCanvas} className="p-2.5 rounded-xl bg-red-50 text-red-500 hover:bg-red-100">
-                    <Trash2 size={18} />
-                  </button>
-                </div>
-
-                {/* Color swatches */}
-                <div className="flex items-center gap-4">
-                  {COLORS.map((c) => (
-                    <button
-                      key={c}
-                      onClick={() => {
-                        if (activeTool === "eraser") setActiveTool("pen");
-                        setActiveColor(c);
-                      }}
-                      className={cn(
-                        "h-6 w-6 rounded-full border-2 transition-all hover:scale-110",
-                        activeColor === c && activeTool !== "eraser" ? "border-slate-800 scale-125 shadow-md" : "border-transparent"
-                      )}
-                      style={{ backgroundColor: c }}
-                    />
-                  ))}
-                </div>
+            {/* CAM Toggle */}
+            {!isAudioOnly && (
+              <div className="flex flex-col items-center gap-1">
+                <button
+                  onClick={toggleCam}
+                  className={cn(
+                    "h-11 w-11 rounded-2xl flex items-center justify-center border transition-all shadow-xs cursor-pointer",
+                    camOff 
+                      ? "bg-rose-500/10 border-rose-500/20 text-rose-500" 
+                      : "bg-slate-100 dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-800 dark:text-white"
+                  )}
+                >
+                  {camOff ? <VideoOff size={16} /> : <Video size={16} />}
+                </button>
+                <span className="text-[7.5px] font-black text-slate-500 dark:text-slate-400 tracking-wider uppercase">
+                  {camOff ? "Cam Off" : "Cam On"}
+                </span>
               </div>
+            )}
+
+            {/* CHAT Button */}
+            <div className="flex flex-col items-center gap-1">
+              <button
+                onClick={() => setShowChat((prev) => !prev)}
+                className={cn(
+                  "h-11 w-11 rounded-2xl flex items-center justify-center border transition-all shadow-xs cursor-pointer",
+                  showChat 
+                    ? "bg-violet-600 text-white border-violet-500" 
+                    : "bg-slate-100 dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-800 dark:text-white"
+                )}
+              >
+                <MessageSquare size={16} />
+              </button>
+              <span className="text-[7.5px] font-black text-slate-500 dark:text-slate-400 tracking-wider uppercase">Chat</span>
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+
+            {/* END SESSION Button */}
+            <div className="flex flex-col items-center gap-1">
+              <button
+                onClick={() => handleEndCall(true)}
+                className="h-11 w-11 rounded-2xl bg-rose-600 text-white flex items-center justify-center shadow-md shadow-rose-500/20 hover:bg-rose-500 active:scale-95 transition-all cursor-pointer border-none"
+              >
+                <PhoneOff size={16} />
+              </button>
+              <span className="text-[7.5px] font-black text-rose-500 dark:text-rose-450 tracking-wider uppercase">End Call</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Slide-out Live Chat Panel */}
+        <AnimatePresence>
+          {showChat && (
+            <motion.div
+              initial={{ x: "100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "100%" }}
+              className="absolute right-0 top-0 bottom-0 w-80 bg-white/95 dark:bg-[#161233]/95 backdrop-blur-md border-l border-slate-150 dark:border-[#221c4e] z-30 flex flex-col shadow-2xl"
+            >
+              {/* Chat Header */}
+              <div className="flex items-center justify-between p-4 border-b border-slate-100 dark:border-slate-800">
+                <h3 className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-wider">Live Chat</h3>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setShowChat(false)}
+                  className="h-8 w-8 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-900"
+                >
+                  <Minimize2 size={16} />
+                </Button>
+              </div>
+
+              {/* Messages Area */}
+              <div className="flex-1 p-4 overflow-y-auto space-y-3">
+                {messages.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-full text-slate-500 font-bold uppercase tracking-wider text-center p-6 space-y-2">
+                    <MessageSquare size={24} className="opacity-40" />
+                    <p className="text-[10px]">No messages yet</p>
+                  </div>
+                ) : (
+                  messages.map((msg, i) => {
+                    const isMe = msg.senderRole === "student" || msg.senderId === "student" || msg.senderName === "You";
+                    return (
+                      <div
+                        key={i}
+                        className={cn(
+                          "flex flex-col max-w-[85%] rounded-2xl p-3 text-xs leading-normal",
+                          isMe
+                            ? "bg-violet-600 text-white rounded-tr-none ml-auto"
+                            : "bg-slate-100 dark:bg-slate-900 text-slate-850 dark:text-white rounded-tl-none mr-auto"
+                        )}
+                      >
+                        <span className="text-[9px] font-black opacity-60 uppercase mb-0.5">
+                          {isMe ? "You" : (teacher?.name || "Teacher")}
+                        </span>
+                        {msg.mediaUrl ? (
+                          <a href={msg.mediaUrl} target="_blank" rel="noopener noreferrer" className="block mt-1 max-w-[180px] rounded-lg overflow-hidden border border-slate-200 dark:border-slate-800">
+                            {msg.mediaUrl.match(/\.(jpeg|jpg|gif|png)$/i) || msg.type === "media" ? (
+                              <img src={msg.mediaUrl} alt="attachment" className="w-full h-auto object-cover max-h-32" />
+                            ) : (
+                              <div className="p-2 bg-slate-100 dark:bg-slate-900 text-slate-850 dark:text-white flex items-center gap-1">
+                                <FileText size={16} />
+                                <span className="text-[10px] underline truncate">{msg.mediaUrl.split('/').pop()}</span>
+                              </div>
+                            )}
+                          </a>
+                        ) : (
+                          <p className="font-medium whitespace-pre-wrap break-words break-all">{msg.content}</p>
+                        )}
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+
+              {/* Input Area */}
+              <div className="p-3 border-t border-slate-150 dark:border-slate-850 flex items-end gap-2">
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleAttachFile}
+                  className="hidden"
+                />
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="h-10 w-10 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-white shrink-0 hover:bg-slate-100 dark:hover:bg-slate-850 mb-0.5"
+                >
+                  <Paperclip size={16} />
+                </Button>
+                <textarea
+                  rows={1}
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSendChat();
+                    }
+                  }}
+                  placeholder="Type a message..."
+                  className="flex-1 min-h-[40px] max-h-[80px] py-2.5 px-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-xs font-semibold text-slate-850 dark:text-white focus:outline-none focus:ring-1 focus:ring-violet-500 resize-none overflow-y-auto"
+                />
+                <Button
+                  onClick={handleSendChat}
+                  className="h-10 px-4 rounded-xl bg-violet-600 hover:bg-violet-500 text-white font-black text-xs uppercase mb-0.5"
+                >
+                  Send
+                </Button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
     </div>
   );
 }
