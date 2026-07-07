@@ -66,7 +66,7 @@ const AudioPlayer = ({ url }: { url: string }) => {
 export default function ChatSession() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { sessionId, teacher, subjectName = "Doubt Session", requestId } = location.state || {};
+  const { sessionId, teacher, subjectName = "Doubt Session", requestId, initialQuestion, initialImage } = location.state || {};
   
   const { data: profile } = useStudentProfile();
   const student = (profile as any)?.data ?? profile;
@@ -85,6 +85,7 @@ export default function ChatSession() {
   const chatEndRef = useRef<HTMLDivElement>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const hasSentInitialDoubt = useRef(false);
   
   // Media Recorder Refs
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -97,7 +98,8 @@ export default function ChatSession() {
     sendTyping,
     sendStopTyping,
     sendCallEnd,
-    callEnded
+    callEnded,
+    isConnected
   } = useSocket({ autoConnect: true, sessionId });
 
   useEffect(() => {
@@ -115,6 +117,32 @@ export default function ChatSession() {
       if (timerRef.current) clearInterval(timerRef.current);
     };
   }, [studentName]);
+
+  // Automatically send initial doubt question and image when socket is connected
+  useEffect(() => {
+    if (isConnected && sessionId && !hasSentInitialDoubt.current) {
+      if (initialImage || initialQuestion) {
+        hasSentInitialDoubt.current = true;
+        // Wait briefly for the room join acknowledgement
+        setTimeout(() => {
+          if (initialImage) {
+            sendMessage({
+              sessionId,
+              content: initialQuestion || "",
+              type: "image",
+              mediaUrl: initialImage
+            });
+          } else if (initialQuestion) {
+            sendMessage({
+              sessionId,
+              content: initialQuestion,
+              type: "text"
+            });
+          }
+        }, 500);
+      }
+    }
+  }, [isConnected, sessionId, initialQuestion, initialImage]);
 
   useEffect(() => {
     if (!lastMessage) return;

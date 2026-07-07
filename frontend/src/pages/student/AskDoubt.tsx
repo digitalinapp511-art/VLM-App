@@ -116,8 +116,8 @@ export default function AskDoubt() {
 
       toast.success("Doubt request submitted successfully!");
 
+      const uploadedImgUrl = doubt?.data?.doubtRequest?.doubtImage || doubt?.data?.session?.doubtImage || "";
       if (sessionType === "AI Tutor") {
-        const uploadedImgUrl = doubt?.data?.doubtRequest?.doubtImage || doubt?.data?.session?.doubtImage || "";
         navigate(PATHS.AI_CHAT, {
           state: {
             initialQuestion: question,
@@ -132,7 +132,9 @@ export default function AskDoubt() {
             sessionId: doubt?.data?.session?._id,
             subjectName: selectedSubjectName || "Mathematics",
             className: (profile as any)?.class || (profile as any)?.className || "10th",
-            sessionType: sessionType
+            sessionType: sessionType,
+            initialQuestion: question,
+            initialImage: uploadedImgUrl,
           }
         });
       }

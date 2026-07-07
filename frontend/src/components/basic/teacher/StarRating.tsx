@@ -3,14 +3,18 @@ import { Star } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 
-const StarRating: React.FC = () => {
+interface StarRatingProps {
+  studentName?: string;
+}
+
+const StarRating: React.FC<StarRatingProps> = ({ studentName }) => {
   const [rating, setRating] = useState(0);
   const [hover, setHover] = useState(0);
 
   return (
     <div className="flex flex-col items-center gap-4 py-4">
       <p className="text-[13px] font-medium text-zinc-300">
-        Rate your session with Dr. Petrova:
+        Rate your session with {studentName || "the student"}:
       </p>
       <div className="flex items-center gap-3">
         {[1, 2, 3, 4, 5].map((star) => (

@@ -24,6 +24,8 @@ export default function TeacherSearching() {
     subjectName = "Mathematics",
     className = "Class 10th",
     sessionType = "Chat",
+    initialQuestion,
+    initialImage,
   } = location.state || {};
 
   const [statusMessage, setStatusMessage] = useState("Broadcasting to available teachers…");
@@ -99,6 +101,8 @@ export default function TeacherSearching() {
             subjectName,
             doubtId: (data as any).doubtId || doubtId,
             requestId: (data as any).doubtId || doubtId,
+            initialQuestion,
+            initialImage,
           },
         });
       }

@@ -34,7 +34,7 @@ const ResolveDoubtPage: React.FC = () => {
   };
 
   return (
-    <div className={cn("min-h-screen flex items-center justify-center p-6 relative overflow-hidden", bgCss)}>
+    <div className={cn("min-h-screen flex items-center justify-center p-4 relative overflow-hidden", bgCss)}>
       
       {/* Technical Background Decorative Grid */}
       <div className="absolute inset-0 opacity-10 pointer-events-none">
@@ -48,23 +48,23 @@ const ResolveDoubtPage: React.FC = () => {
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         className={cn(
-          "w-full max-w-xl p-10 rounded-[3.5rem] border border-cyan-500/40 backdrop-blur-3xl relative",
+          "w-full max-w-md p-6 rounded-[2.5rem] border border-cyan-500/40 backdrop-blur-3xl relative",
           "bg-gradient-to-br from-zinc-950/95 via-zinc-950/90 to-[#0a192f]/70",
           "shadow-[0_0_100px_rgba(34,211,238,0.1)]"
         )}
       >
         {/* Header Section */}
-        <div className="flex flex-col items-center gap-6 mb-10">
+        <div className="flex flex-col items-center gap-3 mb-5">
           <div className="relative">
             <div className="absolute inset-0 bg-cyan-400/20 blur-xl rounded-full" />
-            <ShieldCheck size={56} className="text-white relative z-10" strokeWidth={1.5} />
+            <ShieldCheck size={44} className="text-white relative z-10" strokeWidth={1.5} />
           </div>
           
-          <div className="text-center space-y-2">
-            <h1 className="text-2xl font-black text-white uppercase tracking-[0.05em]">
+          <div className="text-center space-y-1">
+            <h1 className="text-xl font-black text-white uppercase tracking-[0.05em]">
               Resolve Your Doubt
             </h1>
-            <p className="text-zinc-500 text-xs font-bold tracking-widest uppercase opacity-80">
+            <p className="text-zinc-500 text-[10px] font-bold tracking-widest uppercase opacity-80">
               Doubt #{doubtId}
             </p>
           </div>
@@ -79,42 +79,39 @@ const ResolveDoubtPage: React.FC = () => {
         />
 
         {/* Rating System Component */}
-        <StarRating />
+        <StarRating studentName={studentName} />
 
-        {/* Action Button */}
-        <div className="mt-6">
-          <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+        {/* Action Button & Skip */}
+        <div className="mt-4 flex flex-col items-center gap-3">
+          <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="w-full">
             <Button 
               onClick={handleResolve}
               className={cn(
-                "w-full h-16 rounded-[2rem] text-lg font-black uppercase tracking-widest cursor-pointer",
+                "w-full h-13 rounded-[1.5rem] text-sm font-black uppercase tracking-widest cursor-pointer",
                 "bg-gradient-to-r from-[#2b4b9b] to-[#1a2e5d] hover:brightness-110",
                 "border border-cyan-400/20 shadow-[0_10px_40px_rgba(34,211,238,0.25)] text-white group"
               )}
             >
               Mark as Resolved
-              <ChevronRight className="ml-2 group-hover:translate-x-1 transition-transform" size={20} />
+              <ChevronRight className="ml-2 group-hover:translate-x-1 transition-transform" size={16} />
             </Button>
           </motion.div>
+          
+          <button 
+            onClick={() => navigate(PATHS.TEACHER_DASHBOARD)}
+            className="text-cyan-400/80 hover:text-cyan-400 text-[12px] font-bold underline underline-offset-4 tracking-wide transition-all cursor-pointer bg-transparent border-none"
+          >
+            Skip for now
+          </button>
         </div>
 
         {/* Footer Info */}
-        <footer className="mt-8 text-center">
-          <p className="text-[10px] text-zinc-600 font-bold uppercase tracking-widest opacity-60">
+        <footer className="mt-5 text-center">
+          <p className="text-[9px] text-zinc-600 font-bold uppercase tracking-widest opacity-60">
             Session ID: {sessionId} | Student: {studentName}
           </p>
         </footer>
       </motion.div>
-
-      {/* Tertiary Skip Action */}
-      <div className="fixed bottom-10 left-1/2 -translate-x-1/2">
-        <button 
-          onClick={() => navigate(PATHS.TEACHER_DASHBOARD)}
-          className="text-cyan-400/80 hover:text-cyan-400 text-[13px] font-bold underline underline-offset-4 tracking-wide transition-all cursor-pointer bg-transparent border-none"
-        >
-          Skip for now
-        </button>
-      </div>
     </div>
   );
 };
