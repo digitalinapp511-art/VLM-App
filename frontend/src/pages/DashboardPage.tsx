@@ -7,7 +7,7 @@ export default function DashboardPage() {
 
   const handleLogout = () => {
     localStorage.removeItem("vlm_token");
-    sessionStorage.removeItem("vlm_role");
+    localStorage.removeItem("vlm_role");
     navigate(PATHS.SPLASH, { replace: true });
   };
 

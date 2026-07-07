@@ -63,7 +63,7 @@ export default function RoleSelectPage() {
 
   const handleContinue = () => {
     if (!selected) return;
-    sessionStorage.setItem("vlm_role", selected);
+    localStorage.setItem("vlm_role", selected);
     navigate(PATHS.LOGIN);
   };
 

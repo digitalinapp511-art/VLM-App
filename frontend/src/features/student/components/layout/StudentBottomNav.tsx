@@ -62,7 +62,7 @@ export default function StudentBottomNav({ onFabClick }: StudentBottomNavProps) 
 
   return (
     <nav className="fixed bottom-0 inset-x-0 z-50 bg-white dark:bg-[#110d2c] border-t border-slate-100 dark:border-[#221c4e] shadow-[0_-4px_20px_rgba(0,0,0,0.06)] transition-colors duration-300">
-      <div className="max-w-3xl mx-auto flex items-center justify-around px-4 py-1">
+      <div className="max-w-3xl mx-auto flex items-center justify-around px-4 py-2.5">
         {NAV_ITEMS.map((item) => {
           const isActive = pathname === item.to;
 
@@ -75,10 +75,10 @@ export default function StudentBottomNav({ onFabClick }: StudentBottomNavProps) 
               <button
                 key={item.label}
                 onClick={clickHandler}
-                className="relative flex flex-col items-center justify-end h-11 pb-0.5 w-16 active:scale-95 transition-transform"
+                className="relative flex flex-col items-center justify-end h-12 pb-0.5 w-16 active:scale-95 transition-transform"
               >
                 {/* FAB circle - Half submerged with white/dark border cutout */}
-                <div className="absolute -top-5 h-11 w-11 rounded-full flex items-center justify-center text-white border-4 border-white dark:border-[#110d2c] shadow-sm"
+                <div className="absolute -top-6 h-11 w-11 rounded-full flex items-center justify-center text-white border-4 border-white dark:border-[#110d2c] shadow-sm"
                   style={{ background: "linear-gradient(135deg, #7c3aed, #a855f7)" }}
                 >
                   {icon}
@@ -95,7 +95,7 @@ export default function StudentBottomNav({ onFabClick }: StudentBottomNavProps) 
               key={item.label}
               onClick={() => navigate(item.to)}
               className={cn(
-                "flex flex-col items-center justify-center gap-0.5 py-1 rounded-xl transition-all",
+                "flex flex-col items-center justify-center gap-1.5 py-1.5 rounded-xl transition-all",
                 isActive ? "text-violet-600 dark:text-violet-400" : "text-slate-400 dark:text-slate-500"
               )}
             >

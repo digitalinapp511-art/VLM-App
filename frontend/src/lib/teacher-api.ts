@@ -28,7 +28,9 @@ export const teacherApi = {
   uploadProfilePhoto: async (file: File) => {
     const form = new FormData();
     form.append('photo', file);
-    const { data } = await apiClient.post('/teacher/profile/photo', form);
+    const { data } = await apiClient.post('/teacher/profile/photo', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
     return data;
   },
 
@@ -36,14 +38,18 @@ export const teacherApi = {
     const form = new FormData();
     form.append('document', file);
     form.append('documentType', documentType);
-    const { data } = await apiClient.post('/teacher/documents', form);
+    const { data } = await apiClient.post('/teacher/documents', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
     return data;
   },
 
   uploadDemoVideo: async (file: File) => {
     const form = new FormData();
     form.append('video', file);
-    const { data } = await apiClient.post('/teacher/demo-video', form);
+    const { data } = await apiClient.post('/teacher/demo-video', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
     return data;
   },
 

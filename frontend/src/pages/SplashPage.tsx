@@ -19,7 +19,21 @@ export default function SplashPage() {
         localStorage.setItem("vlm_role", "teacher");
         navigate(PATHS.TEACHER_DASHBOARD, { replace: true });
       } else {
-        navigate(PATHS.ROLE_SELECT, { replace: true });
+        const token = localStorage.getItem("vlm_token");
+        const role = localStorage.getItem("vlm_role");
+        if (token && role) {
+          if (role === "student") {
+            navigate(PATHS.STUDENT_DASHBOARD, { replace: true });
+          } else if (role === "teacher") {
+            navigate(PATHS.TEACHER_DASHBOARD, { replace: true });
+          } else if (role === "parent") {
+            navigate(PATHS.COMING_SOON, { replace: true });
+          } else {
+            navigate(PATHS.ROLE_SELECT, { replace: true });
+          }
+        } else {
+          navigate(PATHS.ROLE_SELECT, { replace: true });
+        }
       }
     }, 2800);
     return () => clearTimeout(timer);

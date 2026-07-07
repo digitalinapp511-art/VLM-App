@@ -61,7 +61,7 @@ export default function LoginPage() {
 
     sessionStorage.setItem("vlm_email", identifier);
     sessionStorage.setItem("vlm_auth_email", identifier);
-    sessionStorage.setItem("vlm_role", role);
+    localStorage.setItem("vlm_role", role);
 
     loginMutation.mutate(
       { email: identifier, purpose: "login", role },
