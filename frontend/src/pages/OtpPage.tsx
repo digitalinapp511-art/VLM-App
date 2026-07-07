@@ -50,7 +50,8 @@ export default function OtpVerificationPage() {
   const navigate = useNavigate();
   const verifyMutation = useVerifyOtp();
 
-  const role = (sessionStorage.getItem("vlm_role") ??
+  const role = (localStorage.getItem("vlm_role") ??
+    sessionStorage.getItem("vlm_role") ??
     "student") as Role;
 
   const email =
