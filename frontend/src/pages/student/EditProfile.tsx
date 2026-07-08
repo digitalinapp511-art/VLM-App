@@ -51,7 +51,11 @@ export default function EditProfile() {
   const isEditing = true;
 
   const [formData, setFormData] = useState({
-    name: "",
+    firstName: "",
+    middleName: "",
+    lastName: "",
+    gender: "male",
+    dateOfBirth: "",
     nickname: "",
     class: "Class 10th",
     city: "",
@@ -69,7 +73,11 @@ export default function EditProfile() {
     if (profile) {
       const p = (profile as any).data ?? profile;
       setFormData({
-        name: p.fullName ?? "",
+        firstName: p.firstName ?? "",
+        middleName: p.middleName ?? "",
+        lastName: p.lastName ?? "",
+        gender: p.gender ?? "male",
+        dateOfBirth: p.dateOfBirth ? new Date(p.dateOfBirth).toISOString().split('T')[0] : "",
         nickname: p.nickname ?? "",
         class: (p.class || p.className) ? `Class ${p.class || p.className}th` : "Class 10th",
         city: p.city ?? "",
@@ -173,20 +181,103 @@ export default function EditProfile() {
           <main className="w-full space-y-4">
             <EditFieldWrapper
               icon={<User size={16} className="text-violet-600 mr-2.5" />}
-              label="Full Name"
-              value={formData.name}
+              label="First Name"
+              value={formData.firstName}
               isEditing={isEditing}
             >
               <Input
-                value={formData.name}
+                value={formData.firstName}
                 onChange={(e) =>
                   setFormData({
                     ...formData,
-                    name: e.target.value,
+                    firstName: e.target.value,
                   })
                 }
                 className="border-none bg-transparent h-auto p-0 text-xs text-slate-700 font-bold focus-visible:ring-0 placeholder:text-slate-300 mt-0.5"
-                placeholder="Name"
+                placeholder="First Name"
+              />
+            </EditFieldWrapper>
+
+            <EditFieldWrapper
+              icon={<User size={16} className="text-violet-600 mr-2.5" />}
+              label="Middle Name"
+              value={formData.middleName}
+              isEditing={isEditing}
+            >
+              <Input
+                value={formData.middleName}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    middleName: e.target.value,
+                  })
+                }
+                className="border-none bg-transparent h-auto p-0 text-xs text-slate-700 font-bold focus-visible:ring-0 placeholder:text-slate-300 mt-0.5"
+                placeholder="Middle Name"
+              />
+            </EditFieldWrapper>
+
+            <EditFieldWrapper
+              icon={<User size={16} className="text-violet-600 mr-2.5" />}
+              label="Last Name"
+              value={formData.lastName}
+              isEditing={isEditing}
+            >
+              <Input
+                value={formData.lastName}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    lastName: e.target.value,
+                  })
+                }
+                className="border-none bg-transparent h-auto p-0 text-xs text-slate-700 font-bold focus-visible:ring-0 placeholder:text-slate-300 mt-0.5"
+                placeholder="Last Name"
+              />
+            </EditFieldWrapper>
+
+            <EditFieldWrapper
+              icon={<User size={16} className="text-violet-600 mr-2.5" />}
+              label="Gender"
+              value={formData.gender}
+              isEditing={isEditing}
+            >
+              <Select
+                value={formData.gender}
+                onValueChange={(val) =>
+                  setFormData({
+                    ...formData,
+                    gender: val ?? "male",
+                  })
+                }
+              >
+                <SelectTrigger className="border-none bg-transparent h-auto p-0 text-xs text-slate-700 font-bold focus-visible:ring-0 shadow-none focus:ring-0">
+                  <SelectValue placeholder="Gender" />
+                </SelectTrigger>
+                <SelectContent className="bg-white border-slate-100">
+                  <SelectItem value="male">Male</SelectItem>
+                  <SelectItem value="female">Female</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </EditFieldWrapper>
+
+            <EditFieldWrapper
+              icon={<User size={16} className="text-violet-600 mr-2.5" />}
+              label="Date of Birth"
+              value={formData.dateOfBirth}
+              isEditing={isEditing}
+            >
+              <Input
+                type="date"
+                value={formData.dateOfBirth}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    dateOfBirth: e.target.value,
+                  })
+                }
+                className="border-none bg-transparent h-auto p-0 text-xs text-slate-700 font-bold focus-visible:ring-0 placeholder:text-slate-300 mt-0.5"
               />
             </EditFieldWrapper>
 
@@ -320,7 +411,11 @@ export default function EditProfile() {
         <div className="mt-2 w-full">
           <Button
             onClick={() => mutation.mutate({
-              fullName: formData.name,
+              firstName: formData.firstName,
+              middleName: formData.middleName,
+              lastName: formData.lastName,
+              gender: formData.gender,
+              dateOfBirth: formData.dateOfBirth,
               nickname: formData.nickname,
               class: formData.class.replace("Class ", "").replace("th", ""),
               city: formData.city,

@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { PATHS } from "@/routes/paths";
-import { ChevronLeft, User, MapPin, Phone, Mail } from "lucide-react";
+import { ChevronLeft, User, MapPin, Phone, Mail, Camera, Upload } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCreateProfile } from "@/hooks/use-student";
 import { useQuery } from "@tanstack/react-query";
 import { authApi } from "@/lib/auth-api";
+import { studentApi } from "@/lib/student-api";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -40,7 +41,13 @@ export default function CreateProfileShadcn() {
   const createProfile = useCreateProfile();
 
   const [medium, setMedium] = useState("English");
-  const [fullName, setFullName] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [middleName, setMiddleName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [gender, setGender] = useState("male");
+  const [dateOfBirth, setDateOfBirth] = useState("");
+  const [profilePhoto, setProfilePhoto] = useState("");
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const [nickname, setNickname] = useState("");
   const [className, setClassName] = useState("10");
   const [board, setBoard] = useState("CBSE");
@@ -49,6 +56,22 @@ export default function CreateProfileShadcn() {
   const [mobile, setMobile] = useState("");
   const [email, setEmail] = useState("");
   const [parentMobile, setParentMobile] = useState("");
+
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsUploadingPhoto(true);
+    try {
+      const res = await studentApi.uploadProfilePhoto(file);
+      if (res?.success) {
+        setProfilePhoto(res.url);
+      }
+    } catch (err) {
+      console.error("Failed to upload profile photo:", err);
+    } finally {
+      setIsUploadingPhoto(false);
+    }
+  };
 
   // Query to get current logged in user details
   const { data: user } = useQuery({
@@ -73,10 +96,15 @@ export default function CreateProfileShadcn() {
   ];
 
   const handleContinue = () => {
-    if (!fullName.trim()) return;
+    if (!firstName.trim()) return;
     createProfile.mutate(
       {
-        fullName,
+        firstName,
+        middleName,
+        lastName,
+        gender,
+        dateOfBirth,
+        profilePhoto,
         nickname,
         class: className,
         board,
@@ -136,28 +164,87 @@ export default function CreateProfileShadcn() {
 
         {/* 1 · Personal Details */}
         <SectionCard title="Personal Details">
-          <Field label="Full Name">
-            <div className="relative">
-              <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/25 pointer-events-none" />
-              <Input
-                placeholder="Enter your full name"
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                className={cn(inputCls, "pl-10 border-none bg-black/50")}
-              />
+          {/* Profile Photo Uploader */}
+          <div className="flex flex-col items-center gap-3 pb-2 pt-1">
+            <div className="relative w-20 h-20 rounded-full border-2 border-white/10 overflow-hidden bg-black/60 flex items-center justify-center group">
+              {profilePhoto ? (
+                <img src={profilePhoto} alt="Profile Preview" className="w-full h-full object-cover" />
+              ) : (
+                <User className="h-10 w-10 text-white/25" />
+              )}
+              {isUploadingPhoto && (
+                <div className="absolute inset-0 bg-black/70 flex items-center justify-center">
+                  <span className="h-4 w-4 border-2 border-blue-500 border-t-transparent animate-spin rounded-full" />
+                </div>
+              )}
+              <label className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 cursor-pointer transition-opacity">
+                <Camera className="h-5 w-5 text-white" />
+                <input type="file" accept="image/*" className="hidden" onChange={handlePhotoUpload} />
+              </label>
             </div>
-          </Field>
+            <p className="text-[10px] text-white/40 uppercase tracking-widest font-bold">Profile Photo (Optional)</p>
+          </div>
 
-          <Field label="Nickname / Profile Detail">
-            <div className="relative">
-              <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/25 pointer-events-none" />
+          <div className="grid grid-cols-3 gap-3">
+            <Field label="First Name *">
               <Input
-                placeholder="What should we call you?"
-                value={nickname}
-                onChange={(e) => setNickname(e.target.value)}
-                className={cn(inputCls, "pl-10 border-none bg-black/50")}
+                placeholder="First Name"
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                className={cn(inputCls, "border-none bg-black/50")}
               />
-            </div>
+            </Field>
+
+            <Field label="Middle Name">
+              <Input
+                placeholder="Middle Name"
+                value={middleName}
+                onChange={(e) => setMiddleName(e.target.value)}
+                className={cn(inputCls, "border-none bg-black/50")}
+              />
+            </Field>
+
+            <Field label="Last Name">
+              <Input
+                placeholder="Last Name"
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                className={cn(inputCls, "border-none bg-black/50")}
+              />
+            </Field>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Gender *">
+              <Select value={gender} onValueChange={(v) => setGender(v ?? "male")}>
+                <SelectTrigger className={cn(inputCls, "w-full border-none bg-black/50")}>
+                  <SelectValue placeholder="Gender" />
+                </SelectTrigger>
+                <SelectContent className="bg-[#111] border-white/10 text-white">
+                  <SelectItem value="male">Male</SelectItem>
+                  <SelectItem value="female">Female</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </Field>
+
+            <Field label="Date of Birth *">
+              <Input
+                type="date"
+                value={dateOfBirth}
+                onChange={(e) => setDateOfBirth(e.target.value)}
+                className={cn(inputCls, "border-none bg-black/50 text-white [color-scheme:dark]")}
+              />
+            </Field>
+          </div>
+
+          <Field label="Nickname">
+            <Input
+              placeholder="What should we call you?"
+              value={nickname}
+              onChange={(e) => setNickname(e.target.value)}
+              className={cn(inputCls, "border-none bg-black/50")}
+            />
           </Field>
         </SectionCard>
 
@@ -355,7 +442,7 @@ export default function CreateProfileShadcn() {
         <div className="w-full max-w-xl">
           <Button
             onClick={handleContinue}
-            disabled={createProfile.isPending || !fullName.trim()}
+            disabled={createProfile.isPending || !firstName.trim()}
             className={cn(
               "w-full h-14 rounded-full text-white text-base font-bold tracking-wide transition-all duration-300",
               "bg-gradient-to-b from-[#1e3a8a] to-[#091050]",

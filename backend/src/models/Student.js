@@ -6,7 +6,11 @@ const studentSchema = new mongoose.Schema(
     vlmStudentId: { type: String, unique: true, sparse: true, index: true },
     email: { type: String, sparse: true },
     mobile: { type: String, sparse: true },
-    fullName: { type: String, required: true },
+    firstName: { type: String, required: true },
+    middleName: String,
+    lastName: String,
+    gender: { type: String, enum: ['male', 'female', 'other'] },
+    dateOfBirth: Date,
     nickname: String,
     profilePhoto: String,
     class: { type: String, required: true },
@@ -52,8 +56,16 @@ const studentSchema = new mongoose.Schema(
     onboardingCompleted: { type: Boolean, default: false },
     linkedParents: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Parent' }],
   },
-  { timestamps: true }
+  { 
+    timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true }
+  }
 );
+
+studentSchema.virtual('fullName').get(function() {
+  return [this.firstName, this.middleName, this.lastName].filter(Boolean).join(' ');
+});
 
 export default mongoose.model('Student', studentSchema);
 
