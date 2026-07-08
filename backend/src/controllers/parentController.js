@@ -1,5 +1,6 @@
 import Parent from '../models/Parent.js';
 import Student from '../models/Student.js';
+import StudentUsage from '../models/StudentUsage.js';
 import Session from '../models/Session.js';
 import ParentChildRequest from '../models/ParentChildRequest.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
@@ -143,9 +144,17 @@ export const getDashboard = asyncHandler(async (req, res) => {
   if (!parent) return res.status(404).json({ success: false, message: 'Not found' });
 
   const childrenData = [];
+  const now = new Date();
+  const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+
   for (const child of parent.linkedChildren) {
     if (!child.studentId || child.status !== 'approved') continue;
     const student = child.studentId;
+    
+    // Fetch daily StudentUsage for today
+    const usage = await StudentUsage.findOne({ studentId: student._id, date: today });
+    const dailyAppUseSeconds = usage ? (usage.totalActiveSeconds || (usage.totalActiveMinutes * 60) || 0) : 0;
+
     const sessions = await Session.find({ studentId: student._id }).sort({ createdAt: -1 }).limit(10);
     const resolved = sessions.filter((s) => s.isResolved).length;
     childrenData.push({
@@ -157,6 +166,7 @@ export const getDashboard = asyncHandler(async (req, res) => {
         totalPoints: student.totalPoints,
         streak: student.streak,
         subscription: student.subscription,
+        dailyAppUseSeconds,
       },
       recentSessions: sessions.slice(0, 5),
     });
@@ -170,4 +180,49 @@ export const updateControls = asyncHandler(async (req, res) => {
   parent.controls = { ...parent.controls, ...req.body };
   await parent.save();
   res.json({ success: true, data: parent.controls });
+});
+
+export const getChildUsage = asyncHandler(async (req, res) => {
+  const { studentId } = req.params;
+  const parent = await Parent.findOne({ userId: req.user._id });
+  if (!parent) return res.status(404).json({ success: false, message: 'Parent profile not found' });
+
+  // Verify that the child is linked and approved
+  const isLinked = parent.linkedChildren.some(
+    (c) => c.studentId?.toString() === studentId && c.status === 'approved'
+  );
+  if (!isLinked) {
+    return res.status(403).json({ success: false, message: 'Access denied: student not linked to this parent' });
+  }
+
+  // Get the last 7 days starting from today going backward
+  const now = new Date();
+  const days = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(now.getDate() - i);
+    const dayNormalized = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+    days.push(dayNormalized);
+  }
+
+  // Query usage documents for these 7 days
+  const usages = await StudentUsage.find({
+    studentId,
+    date: { $gte: days[0], $lte: days[6] }
+  });
+
+  // Map to a list of { dayName, date, activeSeconds }
+  const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const data = days.map((day) => {
+    const matched = usages.find((u) => u.date.getTime() === day.getTime());
+    return {
+      dayName: dayNames[day.getUTCDay()],
+      date: day.toISOString().split('T')[0],
+      activeSeconds: matched ? (matched.totalActiveSeconds || (matched.totalActiveMinutes * 60) || 0) : 0
+    };
+  });
+
+  const student = await Student.findById(studentId).select('fullName nickname profilePhoto');
+
+  res.json({ success: true, data: { student, usage: data } });
 });

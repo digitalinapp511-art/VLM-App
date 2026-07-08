@@ -64,6 +64,7 @@ import ParentPendingApproval from "./pages/Parent/ParentPendingApproval";
 import ParentProfile from "./pages/Parent/ParentProfile";
 import ParentAnalytics from "./pages/Parent/ParentAnalytics";
 import ParentControls from "./pages/Parent/ParentControls";
+import ParentTimeAnalytics from "./pages/Parent/ParentTimeAnalytics";
 import BoardSelection from "./pages/teacher/stepper/BoardSelection";
 import LanguageSelection from "./pages/teacher/stepper/LanguageSelection";
 import DocumentUpload from "./pages/teacher/stepper/DocumentUpload";
@@ -323,6 +324,7 @@ export default function App() {
             <Route path={PATHS.PARENT_DOUBTHISTORY} element={<DoubtHistory/>} />
             <Route path={PATHS.PARENT_PROFILE} element={<ParentProfile/>} />
             <Route path={PATHS.PARENT_ANALYTICS} element={<ParentAnalytics/>} />
+            <Route path={PATHS.PARENT_TIME_ANALYTICS} element={<ParentTimeAnalytics />} />
             <Route path={PATHS.PARENT_CONTROLS} element={<ParentControls/>} />
             
 

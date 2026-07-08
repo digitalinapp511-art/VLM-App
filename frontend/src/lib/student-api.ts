@@ -314,6 +314,10 @@ export const studentApi = {
     const { data } = await apiClient.post("/student/spin", payload);
     return data;
   },
+  submitUsageHeartbeat: async () => {
+    const { data } = await apiClient.post("/student/usage-heartbeat");
+    return data;
+  },
   getParentRequests: async () => {
     const { data } = await apiClient.get("/student/parent-requests");
     return data.data || data;

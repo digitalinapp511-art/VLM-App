@@ -1,52 +1,62 @@
-/**
- * RewardsBanner.tsx
- * ─────────────────────────────────────────────────────────────────────────────
- * The purple rewards banner.
- * Displays dynamic spin countdown timer and blocks entry to spinner page
- * if the daily free spin has already been used.
- */
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { PATHS } from "@/routes/paths";
-import { toast } from "sonner";
 
 interface RewardsBannerProps {
   lastSpinDate?: string | null;
+  activeSecondsSinceLastSpin?: number;
+  onLockedClick?: () => void;
 }
 
-export default function RewardsBanner({ lastSpinDate }: RewardsBannerProps) {
+export default function RewardsBanner({ activeSecondsSinceLastSpin = 0, onLockedClick }: RewardsBannerProps) {
   const navigate = useNavigate();
-  const [secondsLeft, setSecondsLeft] = useState(0);
+  const [secondsLeft, setSecondsLeft] = useState(() => {
+    const cached = sessionStorage.getItem("vlm_spin_seconds_left");
+    return cached ? parseInt(cached) : 7200;
+  });
 
   useEffect(() => {
-    if (lastSpinDate) {
-      const calculateSecondsRemaining = () => {
-        const lastSpin = new Date(lastSpinDate).getTime();
-        const diffMs = Date.now() - lastSpin;
-        const remSeconds = Math.max(0, Math.ceil((24 * 3600 * 1000 - diffMs) / 1000));
-        setSecondsLeft(remSeconds);
-      };
-      
-      calculateSecondsRemaining();
-      const interval = setInterval(calculateSecondsRemaining, 1000);
+    if (activeSecondsSinceLastSpin === 0) {
+      sessionStorage.removeItem("vlm_spin_seconds_left");
+      setSecondsLeft(0);
+      return;
+    }
+    const cached = sessionStorage.getItem("vlm_spin_seconds_left");
+    if (!cached) {
+      const remSeconds = Math.max(0, 7200 - activeSecondsSinceLastSpin);
+      setSecondsLeft(remSeconds);
+      sessionStorage.setItem("vlm_spin_seconds_left", remSeconds.toString());
+    }
+  }, [activeSecondsSinceLastSpin]);
+
+  useEffect(() => {
+    if (secondsLeft > 0) {
+      sessionStorage.setItem("vlm_spin_seconds_left", secondsLeft.toString());
+      const interval = setInterval(() => {
+        setSecondsLeft((prev) => {
+          const val = Math.max(0, prev - 1);
+          sessionStorage.setItem("vlm_spin_seconds_left", val.toString());
+          return val;
+        });
+      }, 1000);
       return () => clearInterval(interval);
     } else {
-      setSecondsLeft(0);
+      sessionStorage.removeItem("vlm_spin_seconds_left");
     }
-  }, [lastSpinDate]);
-
-  const formatTime = (totalSeconds: number) => {
-    const h = Math.floor(totalSeconds / 3600);
-    const m = Math.floor((totalSeconds % 3600) / 60);
-    const s = totalSeconds % 60;
-    return `${h}h ${m}m ${s}s`;
-  };
+  }, [secondsLeft]);
 
   const canSpin = secondsLeft <= 0;
 
+  const formatTime = () => {
+    const h = Math.floor(secondsLeft / 3600);
+    const m = Math.floor((secondsLeft % 3600) / 60);
+    const s = secondsLeft % 60;
+    return `${h}h ${m}m ${s}s`;
+  };
+
   const handleNavigation = () => {
     if (!canSpin) {
-      toast.error(`Spin Wheel is locked! Come back in ${formatTime(secondsLeft)}`);
+      onLockedClick?.();
       return;
     }
     navigate(PATHS.SPINNER);
@@ -73,17 +83,17 @@ export default function RewardsBanner({ lastSpinDate }: RewardsBannerProps) {
             {canSpin ? "Spin the Wheel!" : "Wheel Locked"}
           </p>
           <p className="text-white/70 text-[10px] mt-0.5 font-bold uppercase tracking-wider">
-            {canSpin ? "Win free coins, points & credits!" : `Next spin in: ${formatTime(secondsLeft)}`}
+            {canSpin ? "Win free coins, points & credits!" : `Next spin in: ${formatTime()} of usage`}
           </p>
         </div>
 
         {/* CTA */}
         <button
           onClick={handleNavigation}
-          className={`font-black text-[10px] px-3 py-2 rounded-xl transition-all active:scale-95 shrink-0 whitespace-nowrap border ${
+          className={`font-black text-[10px] px-3 py-2 rounded-xl transition-all active:scale-95 shrink-0 whitespace-nowrap border cursor-pointer ${
             canSpin
               ? "bg-white/20 hover:bg-white/30 text-white border-white/30"
-              : "bg-black/20 text-white/40 border-transparent cursor-not-allowed"
+              : "bg-white/10 text-white/50 border-white/10"
           }`}
         >
           {canSpin ? "Spin Now" : "Locked"}

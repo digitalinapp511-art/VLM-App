@@ -5,7 +5,7 @@ import {
   getChapters, claimSpinReward, getStudentWalletHistory, rechargeWallet, submitDoubtWithImages, getDoubtById,
   getAvailableTeachers, getParentRequests, approveParentRequest, rejectParentRequest,
   getAiChatHistory, submitAiChatQuery, getAiChatSessions, deleteAiChatSession, clearAllAiChatHistory,
-  getStudentStats
+  getStudentStats, submitUsageHeartbeat
 } from '../controllers/studentController.js';
 import {
   getSessionHistory, getSessionMessages, sendMessage, resolveSession,
@@ -51,6 +51,7 @@ router.post('/ai-chat', upload.single('image'), cloudinaryUploadMiddleware, subm
 router.get('/plans', getPlans);
 router.post('/trial', activateTrial);
 router.post('/spin', claimSpinReward);
+router.post('/usage-heartbeat', submitUsageHeartbeat);
 router.post('/doubt', submitDoubt);
 router.post('/doubts/upload', upload.single('images'), cloudinaryUploadMiddleware, submitDoubtWithImages);
 router.get('/doubts/:id', getDoubtById);

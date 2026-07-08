@@ -43,6 +43,8 @@ const studentSchema = new mongoose.Schema(
     spinTimer: { type: Number, default: 0 },
     spinUnlocked: { type: Boolean, default: false },
     lastSpinDate: Date,
+    lastSpinActiveMinutes: { type: Number, default: 0 },
+    lastSpinActiveSeconds: { type: Number, default: 0 },
     studentReferralCode: { type: String, unique: true, sparse: true },
     teacherReferralCode: { type: String, unique: true, sparse: true },
     leaderboardRank: { type: Number, default: 0 },
@@ -54,3 +56,6 @@ const studentSchema = new mongoose.Schema(
 );
 
 export default mongoose.model('Student', studentSchema);
+
+
+

@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import {
-  createParentProfile, getParentProfile, linkChild, getDashboard, updateControls,
+  createParentProfile, getParentProfile, linkChild, getDashboard, updateControls, getChildUsage
 } from '../controllers/parentController.js';
 import {
   getNotifications, markNotificationRead, createTicket, getTickets, getTicket,
@@ -32,6 +32,7 @@ router.post('/profile', createParentProfile);
 router.put('/profile', createParentProfile);
 router.post('/link-child', linkChild);
 router.get('/dashboard', getDashboard);
+router.get('/child/:studentId/usage', getChildUsage);
 router.put('/controls', updateControls);
 router.get('/sessions', getSessionHistory);
 router.get('/notifications', getNotifications);

@@ -84,6 +84,7 @@ export default function TeacherSearching() {
             teacher: {
               name: data.teacherName,
               photo: data.teacherPhoto,
+              gender: (data as any).teacherGender,
             },
             subjectName,
             doubtId: (data as any).doubtId || doubtId,
@@ -97,6 +98,7 @@ export default function TeacherSearching() {
             teacher: {
               name: data.teacherName,
               photo: data.teacherPhoto,
+              gender: (data as any).teacherGender,
             },
             subjectName,
             doubtId: (data as any).doubtId || doubtId,

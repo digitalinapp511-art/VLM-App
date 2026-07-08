@@ -100,6 +100,7 @@ export const PATHS = {
   PARENT_DOUBTHISTORY:"/doubt-history",
   PARENT_PROFILE: "/parent/profile",
   PARENT_ANALYTICS: "/parent/analytics",
+  PARENT_TIME_ANALYTICS: "/parent/child/:studentId/usage",
   PARENT_CONTROLS: "/parent/controls",
   // Legacy
   DASHBOARD: "/dashboard",

@@ -1,4 +1,5 @@
 import Student from '../models/Student.js';
+import StudentUsage from '../models/StudentUsage.js';
 import Plan from '../models/Plan.js';
 import Session from '../models/Session.js';
 import DoubtRequest from '../models/DoubtRequest.js';
@@ -72,12 +73,21 @@ export const createStudentProfile = asyncHandler(async (req, res) => {
 export const getStudentProfile = asyncHandler(async (req, res) => {
   const student = await Student.findOne({ userId: req.user._id });
   if (!student) return res.json({ success: true, data: null });
-  res.json({ success: true, data: student });
+  
+  const studentObj = student.toObject();
+  const totalActiveSeconds = await getAccumulatedActiveSeconds(student._id);
+  studentObj.activeSecondsSinceLastSpin = totalActiveSeconds - (student.lastSpinActiveSeconds || 0);
+
+  res.json({ success: true, data: studentObj });
 });
 
 export const getDashboard = asyncHandler(async (req, res) => {
   const student = await Student.findOne({ userId: req.user._id });
   if (!student) return res.json({ success: true, data: null });
+
+  const studentObj = student.toObject();
+  const totalActiveSeconds = await getAccumulatedActiveSeconds(student._id);
+  studentObj.activeSecondsSinceLastSpin = totalActiveSeconds - (student.lastSpinActiveSeconds || 0);
 
   const recentSessions = await Session.find({ studentId: student._id })
     .sort({ createdAt: -1 })
@@ -87,7 +97,7 @@ export const getDashboard = asyncHandler(async (req, res) => {
   res.json({
     success: true,
     data: {
-      student,
+      student: studentObj,
       recentSessions,
       wallet: student.wallet,
       subscription: student.subscription,
@@ -657,21 +667,21 @@ export const claimSpinReward = asyncHandler(async (req, res) => {
     return res.status(404).json({ success: false, message: 'Student not found' });
   }
 
-  const now = new Date();
-  if (student.lastSpinDate) {
-    const timeDiff = now.getTime() - student.lastSpinDate.getTime();
-    const hoursDiff = timeDiff / (1000 * 3600);
-    if (hoursDiff < 24) {
-      const secondsRemaining = Math.ceil(24 * 3600 - (timeDiff / 1000));
-      return res.status(400).json({ 
-        success: false, 
-        message: 'You can only spin once every 24 hours',
-        secondsLeft: secondsRemaining 
-      });
-    }
+  const totalActiveSeconds = await getAccumulatedActiveSeconds(student._id);
+  const activeSecondsSinceSpin = totalActiveSeconds - (student.lastSpinActiveSeconds || 0);
+
+  if (activeSecondsSinceSpin < 7200) {
+    const secondsRemaining = 7200 - activeSecondsSinceSpin;
+    return res.status(400).json({ 
+      success: false, 
+      message: `Spin Wheel is locked! Come back in ${Math.ceil(secondsRemaining / 60)} minutes of app usage`,
+      secondsLeft: secondsRemaining 
+    });
   }
 
+  const now = new Date();
   student.lastSpinDate = now;
+  student.lastSpinActiveSeconds = totalActiveSeconds;
 
   if (rewardType === 'POINTS') {
     student.totalPoints += amount;
@@ -1151,5 +1161,58 @@ export const getStudentStats = asyncHandler(async (req, res) => {
       overallProgress,
       subjectProgress
     }
+  });
+});
+
+const getAccumulatedActiveSeconds = async (studentId) => {
+  const result = await StudentUsage.aggregate([
+    { $match: { studentId: studentId } },
+    { $group: { _id: null, total: { $sum: "$totalActiveSeconds" } } }
+  ]);
+  return result[0]?.total || 0;
+};
+
+export const submitUsageHeartbeat = asyncHandler(async (req, res) => {
+  const student = await Student.findOne({ userId: req.user._id });
+  if (!student) {
+    return res.status(404).json({ success: false, message: 'Student not found' });
+  }
+
+  // Get current date normalized to UTC midnight
+  const now = new Date();
+  const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+
+  // Find or create daily StudentUsage document
+  let usage = await StudentUsage.findOne({ studentId: student._id, date: today });
+  if (!usage) {
+    usage = new StudentUsage({
+      studentId: student._id,
+      date: today,
+      totalActiveMinutes: 0,
+      totalActiveSeconds: 0,
+      loginCount: 1,
+      sessions: [{
+        loginAt: now,
+        device: req.headers['user-agent'] || 'Web',
+        platform: 'WebApp'
+      }],
+    });
+  }
+
+  // Increment active seconds by 60 (since frontend pings every 60 seconds)
+  usage.totalActiveSeconds = (usage.totalActiveSeconds || 0) + 60;
+  usage.totalActiveMinutes = Math.floor(usage.totalActiveSeconds / 60);
+  usage.lastSeen = now;
+  await usage.save();
+
+  // Get accumulated active seconds of all time
+  const totalActiveSeconds = await getAccumulatedActiveSeconds(student._id);
+  const activeSecondsSinceSpin = totalActiveSeconds - (student.lastSpinActiveSeconds || 0);
+
+  res.json({
+    success: true,
+    totalActiveSeconds: usage.totalActiveSeconds,
+    activeSecondsSinceLastSpin: activeSecondsSinceSpin,
+    canSpin: activeSecondsSinceSpin >= 7200, // 2 hours = 7200 seconds
   });
 });

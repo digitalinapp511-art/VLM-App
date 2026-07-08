@@ -41,7 +41,18 @@ export default function AudioCall() {
 
     if (isLoading) return <LoadingSkeleton />;
 
-    const teacherName = doubt?.teacher?.fullName ?? teacher?.name ?? "Dr. S. K. Sharma";
+    const getTeacherDisplayName = () => {
+        const nameVal = doubt?.teacher?.fullName ?? teacher?.name;
+        if (!nameVal) return "Dr. S. K. Sharma";
+        const firstName = nameVal.trim().split(/\s+/)[0];
+        const genderVal = doubt?.teacher?.gender ?? (teacher as any)?.gender;
+        if (genderVal === "male") {
+            return `${firstName} Sir`;
+        }
+        return `${firstName} Ma'am`;
+    };
+
+    const teacherName = getTeacherDisplayName();
     const teacherDept = doubt?.teacher?.qualification ?? subjectName ?? "Expert Educator";
     const topic = doubt?.text ?? doubt?.subject?.name ?? subjectName ?? "Doubt Session";
     const avatarSeed = doubt?.teacher?.fullName ?? teacher?.name ?? "Educator";

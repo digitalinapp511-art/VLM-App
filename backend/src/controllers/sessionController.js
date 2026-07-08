@@ -129,6 +129,7 @@ export const acceptDoubtRequest = asyncHandler(async (req, res) => {
     sessionType: session.type,
     teacherName: teacher.fullName,
     teacherPhoto: teacher.profilePhoto,
+    teacherGender: teacher.gender,
     teacherRating: teacher.metrics?.rating || 0,
     agoraChannel: channelName,
     requestId: request._id.toString(),

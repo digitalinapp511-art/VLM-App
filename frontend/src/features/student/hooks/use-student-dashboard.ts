@@ -96,6 +96,9 @@ export function useStudentDashboard() {
   const level = profile?.level ?? studentData?.level ?? dashboard?.level ?? "Silver";
   const lastSpinDate =
     profile?.lastSpinDate ?? studentData?.lastSpinDate ?? dashboard?.lastSpinDate ?? null;
+  const activeSecondsSinceLastSpin = isBypass
+    ? 2700 // 45 minutes in seconds
+    : (profile?.activeSecondsSinceLastSpin ?? studentData?.activeSecondsSinceLastSpin ?? 0);
 
   // MCQ progress
   const mcqCompleted = dashboard?.mcq?.completed ?? (mcq?.status === 'completed' ? (mcq?.questions?.length || 15) : 0);
@@ -120,6 +123,7 @@ export function useStudentDashboard() {
     streak,
     level,
     lastSpinDate,
+    activeSecondsSinceLastSpin,
     mcqCompleted,
     mcqTotal,
     liveClass,

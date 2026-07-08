@@ -53,6 +53,14 @@ export default function ParentDashboard() {
   const studentClass = activeStudent.class || "N/A";
   const studentBoard = activeStudent.board || "N/A";
 
+  const formatStudyTime = (totalSeconds: number) => {
+    const seconds = totalSeconds || 0;
+    const totalMinutes = Math.floor(seconds / 60);
+    const h = Math.floor(totalMinutes / 60);
+    const m = totalMinutes % 60;
+    return `${h}h ${m}m`;
+  };
+
   return (
     <ParentLayout>
       {/* BRANDING HEADER */}
@@ -109,9 +117,10 @@ export default function ParentDashboard() {
         <StatCard
           icon={Clock}
           label="Study Time"
-          value={`${activeStats.streak ?? 0} Days`}
+          value={formatStudyTime(activeStats.dailyAppUseSeconds)}
           color="border-purple-500/20"
           iconBg="bg-purple-500/10 text-purple-400"
+          onClick={() => navigate(PATHS.PARENT_TIME_ANALYTICS.replace(":studentId", activeStudent._id))}
         />
         <StatCard
           icon={FileText}
@@ -252,11 +261,16 @@ export default function ParentDashboard() {
 }
 
 // Internal Stat Card Component
-function StatCard({ icon: Icon, label, value, color, iconBg }: any) {
+function StatCard({ icon: Icon, label, value, color, iconBg, onClick }: any) {
   return (
     <motion.div
       whileHover={{ y: -2 }}
-      className={cn("p-4 rounded-2xl border bg-[#1a1a1a]/40 backdrop-blur-3xl flex items-center gap-3.5 text-left min-h-[92px] shadow-lg", color)}
+      onClick={onClick}
+      className={cn(
+        "p-4 rounded-2xl border bg-[#1a1a1a]/40 backdrop-blur-3xl flex items-center gap-3.5 text-left min-h-[92px] shadow-lg",
+        onClick ? "cursor-pointer active:scale-[0.98] transition-all" : "",
+        color
+      )}
     >
       <div className={cn("w-12 h-12 rounded-xl flex items-center justify-center shrink-0", iconBg)}>
         <Icon size={22} />

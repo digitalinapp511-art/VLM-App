@@ -21,7 +21,7 @@
  *     ├── MiniCards           (daily goal / upcoming test / AI tutor)
  *     └── StudentBottomNav    (fixed bottom nav)
  */
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import DashboardLoading from "@/components/basic/DashboardLoading";
 import { useNavigate } from "react-router-dom";
 import { PATHS } from "@/routes/paths";
@@ -41,6 +41,7 @@ import LiveSupportBanner from "@/features/student/components/dashboard/LiveSuppo
 import QuickAccessGrid from "@/features/student/components/dashboard/QuickAccessGrid";
 import SubjectProgress from "@/features/student/components/dashboard/SubjectProgress";
 import RewardsBanner from "@/features/student/components/dashboard/RewardsBanner";
+import FloatingSpinWheel from "@/features/student/components/dashboard/FloatingSpinWheel";
 import MiniCards from "@/features/student/components/dashboard/MiniCards";
 import StudentBottomNav from "@/features/student/components/layout/StudentBottomNav";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -63,6 +64,7 @@ export default function StudentDashboard() {
     totalPoints,
     level,
     lastSpinDate,
+    activeSecondsSinceLastSpin,
     mcqCompleted,
     mcqTotal,
     activeTeachersCount,
@@ -81,6 +83,50 @@ export default function StudentDashboard() {
       : [];
 
   const unreadCount = notificationsList.filter((n: any) => !n.isRead && n.type !== 'parent_link_request').length;
+
+  const [showLockedModal, setShowLockedModal] = useState(false);
+  const [secondsLeft, setSecondsLeft] = useState(() => {
+    const cached = sessionStorage.getItem("vlm_spin_seconds_left");
+    return cached ? parseInt(cached) : 0;
+  });
+
+  useEffect(() => {
+    if (activeSecondsSinceLastSpin === 0) {
+      sessionStorage.removeItem("vlm_spin_seconds_left");
+      setSecondsLeft(0);
+      return;
+    }
+    const cached = sessionStorage.getItem("vlm_spin_seconds_left");
+    if (!cached) {
+      const remSeconds = Math.max(0, 7200 - (activeSecondsSinceLastSpin || 0));
+      setSecondsLeft(remSeconds);
+      sessionStorage.setItem("vlm_spin_seconds_left", remSeconds.toString());
+    }
+  }, [activeSecondsSinceLastSpin]);
+
+  useEffect(() => {
+    if (secondsLeft > 0) {
+      sessionStorage.setItem("vlm_spin_seconds_left", secondsLeft.toString());
+      const interval = setInterval(() => {
+        setSecondsLeft((prev) => {
+          const val = Math.max(0, prev - 1);
+          sessionStorage.setItem("vlm_spin_seconds_left", val.toString());
+          return val;
+        });
+      }, 1000);
+      return () => clearInterval(interval);
+    } else {
+      sessionStorage.removeItem("vlm_spin_seconds_left");
+    }
+  }, [secondsLeft]);
+
+  const formatTime = (totalSeconds: number) => {
+    const h = Math.floor(totalSeconds / 3600).toString().padStart(2, "0");
+    const m = Math.floor((totalSeconds % 3600) / 60).toString().padStart(2, "0");
+    const s = (totalSeconds % 60).toString().padStart(2, "0");
+    return { h, m, s };
+  };
+  const { h, m, s } = formatTime(secondsLeft);
 
   const [appTheme, setAppTheme] = useState<"light" | "dark">(() => {
     return (localStorage.getItem("vlm_student_theme") as "light" | "dark") || "light";
@@ -276,7 +322,7 @@ export default function StudentDashboard() {
         <SubjectProgress />
 
         {/* 5. Rewards Banner */}
-        <RewardsBanner lastSpinDate={lastSpinDate} />
+        <RewardsBanner lastSpinDate={lastSpinDate} activeSecondsSinceLastSpin={activeSecondsSinceLastSpin} onLockedClick={() => setShowLockedModal(true)} />
 
         {/* 6. Mini Cards (Daily Goal / Upcoming Test / AI Tutor) */}
         <MiniCards mcqCompleted={mcqCompleted} mcqTotal={mcqTotal} />
@@ -284,6 +330,9 @@ export default function StudentDashboard() {
 
       {/* ── Fixed Bottom Nav ───────────────────────────────────────────── */}
       <StudentBottomNav />
+
+      {/* Floating Spin Wheel Widget */}
+      <FloatingSpinWheel lastSpinDate={lastSpinDate} activeSecondsSinceLastSpin={activeSecondsSinceLastSpin} onLockedClick={() => setShowLockedModal(true)} />
 
       {/* ── SETTINGS MODAL POPUP ── */}
       <AnimatePresence>
@@ -361,6 +410,55 @@ export default function StudentDashboard() {
                 className="w-full h-11 rounded-2xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-black transition-all shadow-sm"
               >
                 Close Settings
+              </Button>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ── WHEEL LOCKED POPUP ── */}
+      <AnimatePresence>
+        {showLockedModal && (
+          <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/80 backdrop-blur-md p-6">
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="relative w-full max-w-sm rounded-[2rem] border border-slate-200 dark:border-violet-500/30 bg-white dark:bg-[#110d2c] p-8 text-center shadow-2xl dark:shadow-[0_0_50px_rgba(124,58,237,0.2)] flex flex-col items-center gap-6"
+            >
+              {/* Locked Wheel Icon */}
+              <div className="relative">
+                <div className="absolute inset-0 rounded-full bg-violet-500/10 blur-xl" />
+                <div className="h-20 w-20 rounded-full bg-violet-50 dark:bg-violet-950/50 border border-violet-100 dark:border-violet-500/20 flex items-center justify-center text-4xl shadow-inner">
+                  🔒
+                </div>
+              </div>
+
+              {/* Title & Info */}
+              <div className="space-y-2">
+                <h2 className="text-xl font-black tracking-wide text-slate-800 dark:text-white uppercase">
+                  Wheel Locked!
+                </h2>
+                <p className="text-slate-500 dark:text-white/60 text-xs tracking-wide">
+                  Complete 2 hours of active learning to spin.
+                </p>
+                <div className="py-3 px-4 bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/10 rounded-2xl inline-block mt-2">
+                  <p className="text-[10px] text-slate-400 dark:text-white/40 uppercase font-black tracking-widest">Study time remaining:</p>
+                  <p className="text-lg font-bold text-violet-600 dark:text-violet-400 font-mono mt-1">
+                    {parseInt(h)}h {parseInt(m)}m
+                  </p>
+                </div>
+                <p className="text-[11px] text-violet-500 dark:text-violet-300/80 font-medium mt-3">
+                  Use the app for {parseInt(h) > 0 ? `${parseInt(h)}h ` : ""}{parseInt(m)}m more to win exciting rewards!
+                </p>
+              </div>
+
+              {/* Action Button */}
+              <Button
+                onClick={() => setShowLockedModal(false)}
+                className="w-full h-12 rounded-full bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-550 border border-violet-400/20 text-white font-black uppercase tracking-wider text-xs cursor-pointer shadow-lg shadow-violet-950/20 dark:shadow-violet-900/30"
+              >
+                Okay, Got it
               </Button>
             </motion.div>
           </div>

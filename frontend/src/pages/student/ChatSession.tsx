@@ -72,6 +72,15 @@ export default function ChatSession() {
   const student = (profile as any)?.data ?? profile;
   const studentName = student?.nickname || student?.fullName || "Student";
 
+  const getTeacherDisplayName = (t: any) => {
+    if (!t || !t.name) return "Teacher";
+    const firstName = t.name.trim().split(/\s+/)[0];
+    if (t.gender === "male") {
+      return `${firstName} Sir`;
+    }
+    return `${firstName} Ma'am`;
+  };
+
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState("");
   const [duration, setDuration] = useState(0);
@@ -351,7 +360,7 @@ export default function ChatSession() {
           </div>
           <div className="flex items-center gap-3">
             <div className="text-right">
-              <p className="text-xs font-black leading-none text-slate-800 dark:text-white">{teacher?.name || "Teacher"}</p>
+              <p className="text-xs font-black leading-none text-slate-800 dark:text-white">{getTeacherDisplayName(teacher)}</p>
               <p className="text-[8px] text-slate-400 dark:text-slate-500 mt-1 uppercase tracking-wider font-bold">Doubt ID: {requestId ? requestId.slice(-6).toUpperCase() : "#VLM-C-456"}</p>
             </div>
             <Avatar className="h-8 w-8 ring-2 ring-slate-100 dark:ring-slate-800 shrink-0">
