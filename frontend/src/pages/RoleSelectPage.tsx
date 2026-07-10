@@ -64,6 +64,14 @@ export default function RoleSelectPage() {
   const handleContinue = () => {
     if (!selected) return;
     localStorage.setItem("vlm_role", selected);
+    if (selected === "student") {
+      localStorage.setItem("vlm_student_theme", "light");
+      document.documentElement.classList.remove("dark");
+      document.documentElement.classList.add("light");
+    } else {
+      document.documentElement.classList.remove("light");
+      document.documentElement.classList.add("dark");
+    }
     navigate(PATHS.LOGIN);
   };
 

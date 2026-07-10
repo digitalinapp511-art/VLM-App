@@ -23,7 +23,7 @@ const ResolveDoubtPage: React.FC = () => {
     role = "Physics Faculty",
   } = location.state || {};
 
-  const doubtId = sessionId.slice(-6).toUpperCase();
+  const doubtId = (sessionId || "CHAT-VLM-EL-29341").slice(-6).toUpperCase();
 
   const sessionSummary = 
     `Focus: ${subjectName} session completed. We covered core definitions, solved practice problems, and clarified the key questions. Keep reviewing to lock in the concepts!`;

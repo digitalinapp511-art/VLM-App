@@ -21,8 +21,8 @@ export default function SessionFeedback() {
   const navigate = useNavigate();
   const location = useLocation();
   const { sessionId, doubtId } = (location.state as { sessionId?: string; doubtId?: string }) ?? {};
-  const [rating, setRating] = useState(3);
-  const [solved, setSolved] = useState<boolean | null>(true);
+  const [rating, setRating] = useState(0);
+  const [solved, setSolved] = useState<boolean | null>(null);
   const [comment, setComment] = useState("");
 
   // TanStack Query Mutation

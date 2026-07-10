@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useRef } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useLocation, useNavigate } from "react-router-dom";
 import { bgCss } from "@/helper/CssHelper";
 import { cn } from "@/lib/utils";
-import { ChevronLeft, PhoneOff, Paperclip, Image as ImageIcon, Mic, Send, Square, Play, Pause, X, Loader2 } from "lucide-react";
+import { ChevronLeft, PhoneOff, Paperclip, Image as ImageIcon, Mic, Send, Square, Play, Pause, X, Loader2, Plus } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useSocket } from "@/hooks/use-socket";
 import { studentApi } from "@/lib/student-api";
+import { apiClient } from "@/lib/api-client";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -22,7 +24,7 @@ interface ChatMessage {
   timestamp: Date;
 }
 
-const AudioPlayer = ({ url }: { url: string }) => {
+const AudioPlayer = ({ url, theme = "dark" }: { url: string; theme?: "dark" | "light" }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -37,14 +39,25 @@ const AudioPlayer = ({ url }: { url: string }) => {
     }
   };
 
+  const isLight = theme === "light";
+
   return (
     <div className="flex items-center gap-3 p-2">
       <audio ref={audioRef} src={url} onEnded={() => setIsPlaying(false)} />
       <button 
         onClick={togglePlay} 
-        className="w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center shrink-0"
+        className={cn(
+          "w-10 h-10 rounded-full flex items-center justify-center shrink-0 transition-colors",
+          isLight 
+            ? "bg-slate-200 hover:bg-slate-300 text-slate-700 dark:bg-white/10 dark:hover:bg-white/20 dark:text-white" 
+            : "bg-white/10 hover:bg-white/20 text-white"
+        )}
       >
-        {isPlaying ? <Pause size={18} className="text-white" /> : <Play size={18} className="text-white ml-1" />}
+        {isPlaying ? (
+          <Pause size={18} className={isLight ? "text-slate-700 dark:text-white" : "text-white"} />
+        ) : (
+          <Play size={18} className={cn("ml-1", isLight ? "text-slate-700 dark:text-white" : "text-white")} />
+        )}
       </button>
       <div className="flex-1">
         <div className="flex gap-1 items-center h-6">
@@ -52,12 +65,18 @@ const AudioPlayer = ({ url }: { url: string }) => {
           {[...Array(15)].map((_, i) => (
             <div 
               key={i} 
-              className={cn("w-1 rounded-full bg-white/40", isPlaying && "animate-pulse")} 
+              className={cn(
+                "w-1 rounded-full", 
+                isLight ? "bg-slate-350 dark:bg-white/45" : "bg-white/40", 
+                isPlaying && "animate-pulse"
+              )} 
               style={{ height: `${Math.max(20, Math.random() * 100)}%` }} 
             />
           ))}
         </div>
-        <p className="text-[10px] text-white/50 mt-1">Audio doubt explanation</p>
+        <p className={cn("text-[10px] mt-1", isLight ? "text-slate-400 dark:text-white/50" : "text-white/50")}>
+          Audio doubt explanation
+        </p>
       </div>
     </div>
   );
@@ -75,11 +94,15 @@ export default function ChatSession() {
   const getTeacherDisplayName = (t: any) => {
     if (!t || !t.name) return "Teacher";
     const firstName = t.name.trim().split(/\s+/)[0];
-    if (t.gender === "male") {
+    const gender = (t.gender || "").toLowerCase();
+    if (gender === "male") {
       return `${firstName} Sir`;
     }
     return `${firstName} Ma'am`;
   };
+
+  const [currentTeacher, setCurrentTeacher] = useState<any>(teacher);
+  const [currentRequestId, setCurrentRequestId] = useState<string>(requestId || "");
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState("");
@@ -91,6 +114,27 @@ export default function ChatSession() {
   const [audioPreviewUrl, setAudioPreviewUrl] = useState<string | null>(null);
   const [expandedImage, setExpandedImage] = useState<string | null>(null);
   
+  const queryClient = useQueryClient();
+  const [deductions, setDeductions] = useState<{ id: number; text: string }[]>([]);
+
+  // Trigger floating "-10" visual deduction badge every 60 seconds
+  useEffect(() => {
+    if (duration > 0 && duration % 60 === 0 && sessionId && !sessionId.startsWith("mock-")) {
+      const id = Date.now();
+      setDeductions((prev) => [...prev, { id, text: "-10" }]);
+      // Call backend API to actually deduct 10 credits from student wallet
+      studentApi.deductSessionCredits(sessionId)
+        .then(() => {
+          queryClient.invalidateQueries({ queryKey: ["studentProfile"] });
+        })
+        .catch((err) => console.error("Error deducting credits:", err));
+
+      setTimeout(() => {
+        setDeductions((prev) => prev.filter((d) => d.id !== id));
+      }, 2000);
+    }
+  }, [duration, sessionId, queryClient]);
+  
   const chatEndRef = useRef<HTMLDivElement>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -99,6 +143,34 @@ export default function ChatSession() {
   // Media Recorder Refs
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<BlobPart[]>([]);
+
+  // Fetch session details on mount to sync timer and ensure we have correct doubt ID
+  useEffect(() => {
+    if (!sessionId) return;
+    apiClient.get(`/sessions/${sessionId}`)
+      .then(res => {
+        if (res.data?.success && res.data.data) {
+          const s = res.data.data;
+          if (s.teacherId) {
+            setCurrentTeacher({
+              name: s.teacherId.fullName,
+              photo: s.teacherId.profilePhoto,
+              gender: s.teacherId.gender
+            });
+          }
+          if (s.doubtRequestId) {
+            setCurrentRequestId(s.doubtRequestId);
+          }
+          if (typeof s.elapsedSeconds === "number") {
+            setDuration(s.elapsedSeconds);
+          } else if (s.startedAt) {
+            const elapsed = Math.floor((Date.now() - new Date(s.startedAt).getTime()) / 1000);
+            setDuration(Math.max(0, elapsed));
+          }
+        }
+      })
+      .catch(err => console.error("Error loading session details:", err));
+  }, [sessionId]);
 
   const {
     sendMessage,
@@ -350,7 +422,32 @@ export default function ChatSession() {
           <h2 className="text-xs font-black text-rose-500 uppercase tracking-widest">
             Session Duration: {formatTimer(duration)}
           </h2>
-          <div className="w-8" /> {/* Spacer for centering */}
+          <div className="relative">
+            <AnimatePresence>
+              {deductions.map((d) => (
+                <motion.div
+                  key={d.id}
+                  initial={{ opacity: 0, y: 10, scale: 0.8 }}
+                  animate={{ opacity: 1, y: -25, scale: 1 }}
+                  exit={{ opacity: 0, y: -40 }}
+                  transition={{ duration: 0.6 }}
+                  className="absolute left-1/2 -translate-x-1/2 text-rose-500 font-black text-sm z-50 pointer-events-none drop-shadow-[0_2px_4px_rgba(244,63,94,0.3)]"
+                >
+                  {d.text}
+                </motion.div>
+              ))}
+            </AnimatePresence>
+            <div 
+              onClick={() => navigate(PATHS.WALLET)}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-violet-50 dark:bg-violet-950/20 border border-violet-100 dark:border-violet-900/40 text-violet-600 dark:text-violet-400 cursor-pointer hover:scale-105 active:scale-95 transition-all shadow-sm"
+            >
+              <span className="text-[10px] font-black uppercase tracking-wider">Credits:</span>
+              <span className="text-xs font-black">{student?.wallet?.humanChatCredits ?? 0}</span>
+              <div className="w-5 h-5 rounded-full bg-violet-600 text-white flex items-center justify-center hover:bg-violet-700 transition-colors">
+                <Plus size={10} className="stroke-[3]" />
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Floating Teacher Badge */}
@@ -360,11 +457,11 @@ export default function ChatSession() {
           </div>
           <div className="flex items-center gap-3">
             <div className="text-right">
-              <p className="text-xs font-black leading-none text-slate-800 dark:text-white">{getTeacherDisplayName(teacher)}</p>
-              <p className="text-[8px] text-slate-400 dark:text-slate-500 mt-1 uppercase tracking-wider font-bold">Doubt ID: {requestId ? requestId.slice(-6).toUpperCase() : "#VLM-C-456"}</p>
+              <p className="text-xs font-black leading-none text-slate-800 dark:text-white">{currentTeacher?.name || "Teacher"}</p>
+              <p className="text-[8px] text-slate-400 dark:text-slate-500 mt-1 uppercase tracking-wider font-bold">Doubt ID: {currentRequestId ? currentRequestId.slice(-6).toUpperCase() : "#VLM-C-456"}</p>
             </div>
             <Avatar className="h-8 w-8 ring-2 ring-slate-100 dark:ring-slate-800 shrink-0">
-              <AvatarImage src={teacher?.photo || `https://api.dicebear.com/7.x/avataaars/svg?seed=${teacher?.name || "Teacher"}`} />
+              <AvatarImage src={currentTeacher?.photo || `https://api.dicebear.com/7.x/avataaars/svg?seed=${currentTeacher?.name || "Teacher"}`} />
               <AvatarFallback>TC</AvatarFallback>
             </Avatar>
           </div>
@@ -378,9 +475,10 @@ export default function ChatSession() {
               <div key={msg.id} className={cn("flex flex-col w-full", isMe ? "items-end" : "items-start")}>
                 {!isMe && (
                   <span className="text-[9px] text-cyan-500 font-black tracking-wide mb-1 ml-1 uppercase">
-                    Teacher
+                    {getTeacherDisplayName(currentTeacher)}
                   </span>
                 )}
+
                 {isMe && (
                   <span className="text-[9px] text-violet-500 dark:text-violet-400 font-black tracking-wide mb-1 mr-1 uppercase">
                     You
@@ -405,7 +503,7 @@ export default function ChatSession() {
                     />
                   )}
                   {msg.type === "audio" && msg.mediaUrl && (
-                    <AudioPlayer url={msg.mediaUrl} />
+                    <AudioPlayer url={msg.mediaUrl} theme={isMe ? "dark" : "light"} />
                   )}
                   {msg.text && msg.text !== "Image sent" && msg.text !== "File sent" && msg.text !== "Voice note" && (
                     <p className={cn("text-[13px] leading-relaxed font-bold tracking-wide break-words whitespace-pre-wrap break-all", (msg.type === "image" || msg.type === "audio") && "px-1.5 pt-1 pb-0.5")}>
@@ -416,14 +514,14 @@ export default function ChatSession() {
               </div>
             );
           })}
-          {typingUserId && typingUserId !== teacher?.userId && (
+          {typingUserId && typingUserId !== currentTeacher?.userId && (
             <div className="text-[10px] text-cyan-500 font-black italic animate-pulse px-2">
               Teacher is typing...
             </div>
           )}
           <div ref={chatEndRef} />
         </main>
-
+ 
         <div className="shrink-0 w-full py-4 bg-transparent flex gap-3 relative z-20 items-end">
           <div className="flex-1 bg-white dark:bg-[#161233] border border-slate-200 dark:border-[#221c4e] rounded-[24px] flex flex-col p-3 shadow-sm transition-all duration-300 relative">
             
@@ -441,7 +539,7 @@ export default function ChatSession() {
                 {stagedAudio && audioPreviewUrl && (
                   <div className="flex items-center gap-2 bg-violet-50 dark:bg-violet-950/20 p-1 pr-2 rounded-lg border border-violet-100 dark:border-violet-900/40 flex-1 min-w-[150px] relative">
                     <div className="scale-75 origin-left -ml-2 -mr-8">
-                      <AudioPlayer url={audioPreviewUrl} />
+                      <AudioPlayer url={audioPreviewUrl} theme="light" />
                     </div>
                     <button onClick={() => {
                       setStagedAudio(null);

@@ -55,8 +55,30 @@ function IncomingRequestPopup({
   onDecline: () => void;
   accepting: boolean;
 }) {
-  const { formatted, secondsLeft } = useCountdown(request.timerExpiresAt);
-  const isUrgent = secondsLeft <= 60;
+  const [secondsLeft, setSecondsLeft] = useState(15);
+  useEffect(() => {
+    const id = setInterval(() => {
+      setSecondsLeft((prev) => {
+        if (prev <= 1) {
+          clearInterval(id);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  const declinedRef = useRef(false);
+  useEffect(() => {
+    if (secondsLeft <= 0 && !declinedRef.current) {
+      declinedRef.current = true;
+      onDecline();
+    }
+  }, [secondsLeft, onDecline]);
+
+  const isUrgent = secondsLeft <= 10;
+  const formatted = `0m ${secondsLeft.toString().padStart(2, "0")}s`;
 
   const sessionTypeLabel =
     request.sessionType === "video" ? "Video Call" : request.sessionType === "audio" ? "Audio Call" : "Chat Session";
@@ -207,13 +229,25 @@ const TeacherDashboard: React.FC = () => {
   // Connect socket on mount + listen for incoming requests
   const { incomingRequest, dismissIncomingRequest } = useSocket({ autoConnect: true });
 
-  // Emit teacher_online on mount
+  // Emit teacher_online on mount — wait for socket connection first
   useEffect(() => {
     connectSocket();
     const s = getSocket();
-    if (s) s.emit("teacher_online");
+    if (!s) return;
+
+    const emitOnline = () => s.emit("teacher_online");
+
+    if (s.connected) {
+      emitOnline();
+    } else {
+      s.once("connect", emitOnline);
+    }
+
     return () => {
-      if (s) s.emit("teacher_offline");
+      s.off("connect", emitOnline);
+      // NOTE: Do NOT emit teacher_offline here — navigating away from the
+      // dashboard to other teacher pages should NOT change the availability.
+      // Presence is managed by DB status + socket auto-restore on reconnect.
     };
   }, []);
 
@@ -237,7 +271,7 @@ const TeacherDashboard: React.FC = () => {
           });
         } else {
           navigate(PATHS.TEACHER_CHAT_SESSION, {
-            state: { sessionId, student: incomingRequest.student }
+            state: { sessionId, student: incomingRequest.student, requestId: incomingRequest.requestId }
           });
         }
       }

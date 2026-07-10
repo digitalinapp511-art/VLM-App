@@ -19,19 +19,8 @@ export function useStudentDashboard() {
   const hasToken = !!localStorage.getItem("vlm_token");
   const isBypass = localStorage.getItem("dev_bypass_auth") === "true" && !hasToken;
 
-  // ── Profile ───────────────────────────────────────────────────────────────
-  const {
-    data: profileRaw,
-    isLoading: isProfileLoading,
-    error: profileError,
-  } = useQuery({
-    queryKey: ["studentProfile"],
-    queryFn: studentApi.getProfile,
-    enabled: !isBypass,
-  });
-
-  // ── Dashboard aggregated data ─────────────────────────────────────────────
-  const { data: dashboardRaw, isLoading: isDashboardLoading } = useDashboard();
+  // ── Dashboard aggregated data (Includes profile, wallet, subscription, unread counts) ─────────────────
+  const { data: dashboardRaw, isLoading: isDashboardLoading, error: dashboardError } = useDashboard();
 
   // ── MCQ daily task ────────────────────────────────────────────────────────
   const { data: mcqRaw, isLoading: isMcqLoading } = useQuery({
@@ -44,25 +33,25 @@ export function useStudentDashboard() {
   // ── Redirect guards (skipped in bypass mode) ──────────────────────────────
   useEffect(() => {
     if (isBypass) return;
-    if (profileError) {
-      const err = profileError as any;
+    if (dashboardError) {
+      const err = dashboardError as any;
       if (err?.response?.status === 404) {
         navigate(PATHS.STUDENT_PROFILE_SETUP, { replace: true });
         return;
       }
     }
-    if (profileRaw && !isProfileLoading) {
-      const p = (profileRaw as any)?.data ?? profileRaw;
+    if (dashboardRaw && !isDashboardLoading) {
+      const db = (dashboardRaw as any)?.data ?? dashboardRaw;
+      const p = db?.student;
       const isIncomplete =
-        !p?.fullName ||
-        !(p?.className || p?.class) ||
-        !p?.board ||
+        !p?.fullName &&
+        !(p?.firstName) &&
         !p?.nickname;
-      if (isIncomplete) {
+      if (isIncomplete && p) {
         navigate(PATHS.STUDENT_PROFILE_SETUP, { replace: true });
       }
     }
-  }, [profileRaw, isProfileLoading, profileError, navigate, isBypass]);
+  }, [dashboardRaw, isDashboardLoading, dashboardError, navigate, isBypass]);
 
   // Mock fallbacks for dev bypass mode
   const mockProfile = {
@@ -79,40 +68,42 @@ export function useStudentDashboard() {
   const mockMcq = { completed: 8, total: 10 };
 
   // ── Normalised accessors ──────────────────────────────────────────────────
-  const profile = isBypass ? mockProfile : ((profileRaw as any)?.data ?? profileRaw ?? {});
-  const dashboard = (dashboardRaw as any)?.data ?? dashboardRaw ?? {};
-  const studentData = dashboard?.student ?? {};
+  const dashboardData = isBypass ? { student: mockProfile } : ((dashboardRaw as any)?.data ?? dashboardRaw ?? {});
+  const studentData = dashboardData?.student ?? {};
+  const profile = studentData;
   const mcq = isBypass ? mockMcq : ((mcqRaw as any)?.data ?? mcqRaw ?? {});
 
-  const nickname = profile?.nickname || profile?.fullName || studentData?.nickname || studentData?.fullName || "Student";
-  const photo = profile?.profilePhoto || profile?.photo || studentData?.profilePhoto || "";
-  const totalPoints =
-    profile?.wallet?.totalPoints ??
-    studentData?.wallet?.totalPoints ??
-    dashboard?.wallet?.totalPoints ??
-    dashboard?.totalPoints ??
-    0;
-  const streak = profile?.streak ?? studentData?.streak ?? dashboard?.streak ?? 0;
-  const level = profile?.level ?? studentData?.level ?? dashboard?.level ?? "Silver";
-  const lastSpinDate =
-    profile?.lastSpinDate ?? studentData?.lastSpinDate ?? dashboard?.lastSpinDate ?? null;
+  const fullNameFromParts = studentData?.firstName 
+    ? `${studentData.firstName}${studentData.lastName ? ' ' + studentData.lastName : ''}`
+    : '';
+
+  const nickname = studentData?.nickname || studentData?.firstName || studentData?.fullName || fullNameFromParts || "Student";
+  const photo = studentData?.profilePhoto || "";
+  const totalPoints = studentData?.totalPoints ?? dashboardData?.totalPoints ?? 0;
+  const streak = studentData?.streak ?? dashboardData?.streak ?? 0;
+  const level = totalPoints > 1500 ? "Platinum" : totalPoints > 500 ? "Gold" : "Silver";
+  const lastSpinDate = studentData?.lastSpinDate ?? dashboardData?.lastSpinDate ?? null;
   const activeSecondsSinceLastSpin = isBypass
     ? 2700 // 45 minutes in seconds
-    : (profile?.activeSecondsSinceLastSpin ?? studentData?.activeSecondsSinceLastSpin ?? 0);
+    : (studentData?.activeSecondsSinceLastSpin ?? dashboardData?.activeSecondsSinceLastSpin ?? 0);
 
   // MCQ progress
-  const mcqCompleted = dashboard?.mcq?.completed ?? (mcq?.status === 'completed' ? (mcq?.questions?.length || 15) : 0);
-  const mcqTotal = dashboard?.mcq?.total ?? (mcq?.questions?.length || 15);
+  const mcqCompleted = dashboardData?.mcq?.completed ?? (mcq?.status === 'completed' ? (mcq?.questions?.length || 15) : 0);
+  const mcqTotal = dashboardData?.mcq?.total ?? (mcq?.questions?.length || 15);
 
   // Live class
-  const liveClass = dashboard?.liveClass ?? null;
+  const liveClass = dashboardData?.liveClass ?? null;
 
   // Online teachers count
-  const activeTeachersCount = dashboard?.activeTeachersCount ?? 50;
+  const activeTeachersCount = dashboardData?.activeTeachersCount ?? 0;
+
+  // Pre-aggregated counters for notification and parent requests
+  const unreadNotificationCount = dashboardData?.unreadNotificationCount ?? 0;
+  const pendingParentRequestCount = dashboardData?.pendingParentRequestCount ?? 0;
 
   const isLoading = isBypass
     ? false
-    : (isProfileLoading || isDashboardLoading || isMcqLoading);
+    : isDashboardLoading;
 
   return {
     isLoading,
@@ -128,5 +119,7 @@ export function useStudentDashboard() {
     mcqTotal,
     liveClass,
     activeTeachersCount,
+    unreadNotificationCount,
+    pendingParentRequestCount,
   };
 }

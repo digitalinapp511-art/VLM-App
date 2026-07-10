@@ -2,13 +2,27 @@ import { apiClient } from "@/lib/api-client";
 import type { Role, VerifyOtpResponse } from "@/types";
 
 export const authApi = {
-  sendOtp: async (email: string, purpose: string = "login", role?: string) => {
-    const { data } = await apiClient.post("/auth/send-otp", { email, purpose, ...(role && { role }) });
+  /** Detect whether the identifier is a 10-digit phone or an email address
+   *  and send it in the right field so the backend stores it correctly. */
+  sendOtp: async (identifier: string, purpose: string = "login", role?: string) => {
+    const isPhone = /^\d{10}$/.test(identifier.trim());
+    const body = {
+      ...(isPhone ? { mobile: identifier.trim() } : { email: identifier.trim().toLowerCase() }),
+      purpose,
+      ...(role && { role }),
+    };
+    const { data } = await apiClient.post("/auth/send-otp", body);
     return data;
   },
 
-  verifyOtp: async (email: string, otp: string, role: Role): Promise<VerifyOtpResponse> => {
-    const { data } = await apiClient.post<VerifyOtpResponse>("/auth/verify-otp", { email, otp, role });
+  verifyOtp: async (identifier: string, otp: string, role: Role): Promise<VerifyOtpResponse> => {
+    const isPhone = /^\d{10}$/.test(identifier.trim());
+    const body = {
+      ...(isPhone ? { mobile: identifier.trim() } : { email: identifier.trim().toLowerCase() }),
+      otp,
+      role,
+    };
+    const { data } = await apiClient.post<VerifyOtpResponse>("/auth/verify-otp", body);
     return data;
   },
 

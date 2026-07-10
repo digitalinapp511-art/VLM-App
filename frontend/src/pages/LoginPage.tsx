@@ -1,9 +1,9 @@
 import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import {  Star } from "lucide-react";
+import { Star } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { VlmWordmark } from "@/components/basic/VlmWordMark";
-// --- SHADCN UI COMPONENTS ---
+import logoImg from "../assets/logo.png";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,11 +12,10 @@ import { Badge } from "@/components/ui/badge";
 
 import { useGoogleAuth, useSendOtp } from "@/hooks/use-auth";
 import { PATHS } from "@/routes/paths";
+import { toast } from "sonner";
 
-// --- CUSTOM WRAPPERS (To replace raw HTML) ---
 const Container = ({ children, className }: any) => <div className={cn("relative flex min-h-svh w-full flex-col items-center justify-center overflow-hidden p-3 md:p-4", className)}>{children}</div>;
 const Stack = ({ children, className }: any) => <div className={cn("flex flex-col", className)}>{children}</div>;
-// const Row = ({ children, className }: any) => <div className={cn("flex items-center", className)}>{children}</div>;
 const Grid = ({ children, className }: any) => <div className={cn("grid w-full", className)}>{children}</div>;
 
 const Typography = ({ variant, children, className }: any) => {
@@ -45,19 +44,38 @@ export default function LoginPage() {
   const role = (localStorage.getItem("vlm_role") ?? sessionStorage.getItem("vlm_role") ?? "student") as import("@/types").Role;
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
-  // const [password, setPassword] = useState("");
-  // const [showPassword, setShowPassword] = useState(false);
+
 
   const loginMutation = useSendOtp();
   const googleMutation = useGoogleAuth();
 
   const roleLabel = role.charAt(0).toUpperCase() + role.slice(1);
   const onSubmit = async () => {
-    const emailVal = emailRef.current?.value || email;
-    const phoneVal = phoneRef.current?.value || phone;
-    const identifier = emailVal || phoneVal;
-    
-    if (!identifier) return;
+    const emailVal = (emailRef.current?.value || email).trim();
+    const phoneVal = (phoneRef.current?.value || phone).trim();
+
+    if (!phoneVal && !emailVal) {
+      toast.error("Please enter your Phone Number or Email Address");
+      return;
+    }
+
+    let identifier = "";
+
+    if (phoneVal) {
+      const phoneRegex = /^[5-9]\d{9}$/;
+      if (!phoneRegex.test(phoneVal)) {
+        toast.error("Please enter a valid 10-digit phone number");
+        return;
+      }
+      identifier = phoneVal;
+    } else if (emailVal) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(emailVal)) {
+        toast.error("Please enter a valid email address");
+        return;
+      }
+      identifier = emailVal;
+    }
 
     sessionStorage.setItem("vlm_email", identifier);
     sessionStorage.setItem("vlm_auth_email", identifier);
@@ -78,6 +96,86 @@ export default function LoginPage() {
       }
     );
   };
+
+  if (role === "student") {
+    return (
+      <div className="relative flex min-h-svh w-full flex-col items-center justify-center bg-[#f4f6ff] text-slate-800 p-4 overflow-hidden">
+        {/* Subtle radial glow accents */}
+        <div className="pointer-events-none absolute -top-40 -left-40 w-96 h-96 rounded-full bg-violet-600/5 blur-[100px] -z-10" />
+        <div className="pointer-events-none absolute -bottom-40 -right-40 w-96 h-96 rounded-full bg-indigo-650/5 blur-[100px] -z-10" />
+
+        {/* Content Box */}
+        <div className="w-full max-w-sm flex flex-col items-center z-10 space-y-6">
+
+          {/* Logo & Header */}
+          <div className="flex flex-col items-center text-center space-y-2">
+            <div className="h-14 w-auto flex items-center justify-center">
+              <img src={logoImg} alt="VLM Academy" className="h-12 w-auto" />
+            </div>
+            <h1 className="text-xl font-black tracking-tight text-slate-800 mt-3">Welcome Back Student!</h1>
+            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">VLM Digital Academy</p>
+          </div>
+
+          {/* Login Card */}
+          <div className="w-full bg-white/80 backdrop-blur-xl border border-slate-200/80 rounded-[2rem] p-6 sm:p-8 shadow-xl space-y-5">
+            <h2 className="text-xs font-black text-slate-400 uppercase tracking-widest text-center">
+              Login with OTP
+            </h2>
+
+            {/* Mobile input */}
+            <div className="space-y-1.5 text-left">
+              <label className="text-[9px] uppercase tracking-widest text-slate-400 font-black">Phone Number</label>
+              <div className="relative flex items-center bg-slate-50 border border-slate-200 rounded-2xl overflow-hidden focus-within:border-violet-500/50 transition-all px-3">
+                <span className="text-xs font-bold text-slate-400 mr-2 border-r border-slate-250 pr-2">+91</span>
+                <input
+                  type="tel"
+                  ref={phoneRef}
+                  placeholder="Enter Phone Number"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value.replace(/\D/g, ""))}
+                  className="bg-transparent h-12 w-full text-xs text-slate-800 placeholder:text-slate-455 border-none outline-none focus:ring-0"
+                />
+              </div>
+            </div>
+
+            {/* Divider */}
+            <div className="flex items-center justify-between text-slate-300">
+              <div className="h-[1px] flex-1 bg-slate-200" />
+              <span className="text-[8px] font-black tracking-widest px-3 uppercase text-slate-400">OR EMAIL</span>
+              <div className="h-[1px] flex-1 bg-slate-200" />
+            </div>
+
+            {/* Email input */}
+            <div className="space-y-1.5 text-left">
+              <label className="text-[9px] uppercase tracking-widest text-slate-400 font-black">Email Address</label>
+              <div className="relative flex items-center bg-slate-50 border border-slate-200 rounded-2xl overflow-hidden focus-within:border-violet-500/50 transition-all px-3">
+                <input
+                  type="text"
+                  placeholder="Enter Email Address"
+                  ref={emailRef}
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="bg-transparent h-12 w-full text-xs text-slate-800 placeholder:text-slate-455 border-none outline-none focus:ring-0"
+                />
+              </div>
+            </div>
+
+            {/* Submit Button */}
+            <Button
+              onClick={onSubmit}
+              disabled={loginMutation.isPending}
+              className="w-full h-12 rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-700 hover:from-violet-500 hover:to-indigo-600 text-white font-black text-xs uppercase tracking-widest shadow-md shadow-violet-500/10 active:scale-[0.98] transition-all cursor-pointer disabled:opacity-50 mt-2 border-none"
+            >
+              {loginMutation.isPending ? "Sending OTP..." : "Get OTP Verification"}
+            </Button>
+          </div>
+
+
+        </div>
+      </div>
+    );
+  }
+
   return (
     <Container className="vlm-bg-navy">
       {/* Background Decor Components */}
@@ -180,15 +278,7 @@ export default function LoginPage() {
             </CardContent>
           </Card>
 
-          {/* SOCIAL LOGIN */}
-          <Stack className="mt-4 sm:mt-6 w-full max-w-md px-4 gap-3 sm:gap-4">
-            <Typography variant="p" className="text-center text-xs sm:text-sm">
-              New here?{" "}
-              <Button variant="link" className="h-auto p-0 text-white/60 font-bold underline underline-offset-4 text-xs sm:text-sm">
-                Request Portal Access ⊕
-              </Button>
-            </Typography>
-          </Stack>
+
         </Stack>
       </Grid>
     </Container>

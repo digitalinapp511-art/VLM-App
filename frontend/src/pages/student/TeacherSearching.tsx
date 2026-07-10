@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 import { useSocket } from "@/hooks/use-socket";
 import { toast } from "sonner";
+import { studentApi } from "@/lib/student-api";
 
 export default function TeacherSearching() {
   const navigate = useNavigate();
@@ -26,6 +27,7 @@ export default function TeacherSearching() {
     sessionType = "Chat",
     initialQuestion,
     initialImage,
+    originalParams
   } = location.state || {};
 
   const [statusMessage, setStatusMessage] = useState("Broadcasting to available teachers…");
@@ -119,9 +121,54 @@ export default function TeacherSearching() {
     }
   }, [sessionMissed, sessionDeclined]);
 
-  const handleCancel = () => {
+  const handleCancel = async () => {
     setCancelled(true);
+    if (doubtId) {
+      studentApi.cancelDoubtRequest(doubtId).catch((err) => console.error("Error cancelling request:", err));
+    }
     navigate(PATHS.ASK_DOUBT);
+  };
+
+  const handleRetry = async () => {
+    try {
+      setNoTeacher(false);
+      setStatusMessage("Broadcasting to available teachers…");
+      setRequestCount(4);
+
+      const payload = {
+        subject: originalParams?.subject || subjectName,
+        class: originalParams?.class || className.replace("Class ", "").replace("th", ""),
+        board: originalParams?.board || "CBSE",
+        language: originalParams?.language || "English",
+        sessionType: originalParams?.sessionType || (sessionType === "Video Call" ? "video" : sessionType === "Audio Call" ? "audio" : "chat"),
+        doubtText: originalParams?.doubtText || initialQuestion,
+        topic: originalParams?.topic || "",
+        doubtImage: originalParams?.doubtImage || initialImage
+      };
+
+      const result = await studentApi.createDoubt(payload);
+      const newDoubtId = result?.data?.doubtRequest?._id || result?.data?.session?._id || result?.id;
+      const newSessionId = result?.data?.session?._id;
+
+      navigate(PATHS.TEACHER_SEARCHING, {
+        state: {
+          doubtId: newDoubtId,
+          sessionId: newSessionId,
+          subjectName,
+          className,
+          sessionType,
+          initialQuestion,
+          initialImage,
+          originalParams
+        },
+        replace: true
+      });
+      
+      // Force page reload to cleanly restart socket initialization and countdown parameters
+      window.location.reload();
+    } catch (err) {
+      toast.error("Failed to retry request. Please try again.");
+    }
   };
 
   const teachers = [
@@ -248,7 +295,7 @@ export default function TeacherSearching() {
         <div className="mt-4 w-full space-y-2 shrink-0">
           {noTeacher && (
             <Button
-              onClick={() => navigate(PATHS.ASK_DOUBT)}
+              onClick={handleRetry}
               className="w-full h-12 rounded-2xl text-xs font-black tracking-widest bg-gradient-to-r from-violet-600 to-fuchsia-500 hover:from-violet-500 hover:to-fuchsia-400 text-white shadow-md border-none active:scale-95 transition-all cursor-pointer"
             >
               Try Again

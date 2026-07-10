@@ -77,20 +77,20 @@ export default function OnboardingSlides() {
       );
     } else if (id === 1) {
       content = (
-        <div className="w-full h-full rounded-[40px] border border-blue-500/20 bg-blue-500/5 flex items-center justify-center shadow-[0_0_50px_rgba(59,130,246,0.15)]">
-          <Brain className="w-32 h-32 text-blue-400 drop-shadow-[0_0_20px_rgba(96,165,250,0.5)]" strokeWidth={1} />
+        <div className="w-full h-full rounded-[40px] border border-slate-200 dark:border-violet-500/20 bg-white/70 dark:bg-violet-500/5 flex items-center justify-center shadow-[0_10px_40px_rgba(124,58,237,0.1)] dark:shadow-[0_0_50px_rgba(124,58,237,0.15)]">
+          <Brain className="w-32 h-32 text-violet-600 dark:text-violet-400 drop-shadow-[0_0_20px_rgba(139,92,246,0.3)]" strokeWidth={1} />
         </div>
       );
     } else if (id === 2) {
       content = (
-        <div className="w-full h-full rounded-[40px] border border-cyan-500/20 bg-cyan-500/5 flex items-center justify-center shadow-[0_0_50px_rgba(6,182,212,0.15)]">
-          <LineChart className="w-32 h-32 text-cyan-400 drop-shadow-[0_0_20px_rgba(34,211,238,0.5)]" strokeWidth={1} />
+        <div className="w-full h-full rounded-[40px] border border-slate-200 dark:border-indigo-500/20 bg-white/70 dark:bg-indigo-500/5 flex items-center justify-center shadow-[0_10px_40px_rgba(99,102,241,0.1)] dark:shadow-[0_0_50px_rgba(99,102,241,0.15)]">
+          <LineChart className="w-32 h-32 text-indigo-650 dark:text-indigo-400 drop-shadow-[0_0_20px_rgba(99,102,241,0.3)]" strokeWidth={1} />
         </div>
       );
     } else {
       content = (
-        <div className="w-full h-full rounded-[40px] border border-amber-500/20 bg-amber-500/5 flex items-center justify-center shadow-[0_0_50px_rgba(245,158,11,0.15)]">
-          <Trophy className="w-32 h-32 text-amber-400 drop-shadow-[0_0_20px_rgba(251,191,36,0.5)]" strokeWidth={1} />
+        <div className="w-full h-full rounded-[40px] border border-slate-200 dark:border-fuchsia-500/20 bg-white/70 dark:bg-fuchsia-500/5 flex items-center justify-center shadow-[0_10px_40px_rgba(217,70,239,0.1)] dark:shadow-[0_0_50px_rgba(217,70,239,0.15)]">
+          <Trophy className="w-32 h-32 text-fuchsia-600 dark:text-fuchsia-400 drop-shadow-[0_0_20px_rgba(217,70,239,0.3)]" strokeWidth={1} />
         </div>
       );
     }
@@ -115,15 +115,15 @@ export default function OnboardingSlides() {
   };
 
   return (
-    <div className="min-h-screen w-full bg-[#151515] text-white flex flex-col items-center justify-between relative overflow-hidden pb-10">
+    <div className="min-h-screen w-full bg-[#f4f6ff] dark:bg-[#0b081e] text-slate-800 dark:text-slate-100 flex flex-col items-center justify-between relative overflow-hidden pb-10 transition-colors duration-300">
       <div className="w-full max-w-xl flex-1 flex flex-col items-center justify-between relative z-10">
         
         {/* ── Background decoration circle ── */}
-        <div className="absolute -bottom-10 -left-10 w-44 h-44 rounded-full bg-zinc-800/30 pointer-events-none -z-10" />
+        <div className="absolute -bottom-10 -left-10 w-44 h-44 rounded-full bg-violet-150/40 dark:bg-zinc-800/30 pointer-events-none -z-10" />
 
         {/* ── Header: VLM Academy centered ── */}
         <div className="w-full flex items-center justify-center pt-10 px-6 z-10">
-          <h2 style={{ fontFamily: 'Cinzel, serif' }} className="text-base font-bold tracking-[0.2em] text-[#D4AF37] uppercase select-none">
+          <h2 style={{ fontFamily: 'Cinzel, serif' }} className="text-base font-extrabold tracking-[0.2em] text-violet-650 dark:text-violet-400 uppercase select-none">
             VLM ACADEMY
           </h2>
         </div>
@@ -146,10 +146,10 @@ export default function OnboardingSlides() {
 
               {/* Text */}
               <div className="space-y-3">
-                <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-white whitespace-pre-line leading-tight">
+                <h1 className="text-2xl md:text-3xl font-black tracking-tight text-slate-800 dark:text-white whitespace-pre-line leading-tight">
                   {slide.title}
                 </h1>
-                <p className="text-white/70 text-sm md:text-[15px] leading-relaxed max-w-[280px] mx-auto whitespace-pre-line">
+                <p className="text-slate-500 dark:text-white/70 text-sm md:text-[15px] leading-relaxed max-w-[280px] mx-auto whitespace-pre-line font-bold">
                   {slide.subtitle}
                 </p>
               </div>
@@ -166,8 +166,8 @@ export default function OnboardingSlides() {
                 key={i}
                 onClick={() => goTo(i)}
                 className={cn(
-                  "rounded-full transition-all duration-300",
-                  i === current ? "w-8 h-1.5 bg-white" : "w-1.5 h-1.5 bg-white/30"
+                  "rounded-full transition-all duration-300 cursor-pointer",
+                  i === current ? "w-8 h-1.5 bg-violet-600 dark:bg-violet-400" : "w-1.5 h-1.5 bg-slate-300 dark:bg-white/20"
                 )}
               />
             ))}
@@ -178,13 +178,13 @@ export default function OnboardingSlides() {
             <div className="w-12" /> {/* alignment spacer */}
             <button
               onClick={goNext}
-              className="flex-1 max-w-[200px] h-12 rounded-full font-bold text-sm tracking-wide transition-all duration-200 active:scale-[0.97] bg-gradient-to-r from-blue-700 to-indigo-900 border border-blue-500/40 text-white shadow-lg hover:brightness-110 cursor-pointer"
+              className="flex-1 max-w-[200px] h-12 rounded-full font-black text-xs uppercase tracking-widest transition-all duration-200 active:scale-[0.97] bg-gradient-to-r from-violet-600 to-indigo-700 hover:from-violet-500 hover:to-indigo-600 text-white shadow-md shadow-violet-500/10 border-none cursor-pointer"
             >
               {isLast ? "Get Started" : "Next"}
             </button>
             <button
               onClick={handleSkip}
-              className="text-sm font-bold text-cyan-400 hover:text-cyan-300 transition-colors w-12 text-right cursor-pointer"
+              className="text-xs font-black uppercase tracking-wider text-violet-600 dark:text-violet-400 hover:text-violet-750 dark:hover:text-violet-300 transition-colors w-12 text-right cursor-pointer"
             >
               Skip
             </button>

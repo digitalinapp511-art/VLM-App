@@ -5,6 +5,7 @@ import DoubtRequest from '../models/DoubtRequest.js';
 import Teacher from '../models/Teacher.js';
 import Session from '../models/Session.js';
 import User from '../models/User.js';
+import { publishSocketEvent, getRedisSubClient } from '../services/redisService.js';
 
 let ioInstance = null;
 
@@ -36,6 +37,27 @@ export const initSocket = (server) => {
   });
   ioInstance = io;
 
+  // Set up Redis Pub/Sub subscription for multi-instance socket events
+  try {
+    const subClient = getRedisSubClient();
+    
+    // In node-redis v4, subscribe takes (channel, listener)
+    subClient.subscribe('socket_events', (message) => {
+      try {
+        const { room, event, data } = JSON.parse(message);
+        io.to(room).emit(event, data);
+      } catch (err) {
+        console.error('[Redis Sub] Failed to handle message:', err.message);
+      }
+    }).then(() => {
+      console.log('[Redis Sub] Successfully subscribed to socket_events channel');
+    }).catch(err => {
+      console.error('[Redis Sub] Failed to subscribe:', err.message);
+    });
+  } catch (err) {
+    console.error('[Redis Sub] Subscription failed:', err.message);
+  }
+
   io.use(async (socket, next) => {
     const token = socket.handshake.auth?.token;
     console.log('Socket connection attempt, token:', token ? 'exists' : 'missing');
@@ -64,6 +86,31 @@ export const initSocket = (server) => {
   io.on('connection', (socket) => {
     // Each user joins their personal room for direct events
     socket.join(`user:${socket.user.id}`);
+    console.log(`[Socket] Client connected, joined room user:${socket.user.id}`);
+
+    // ── Auto-restore teacher online presence ───────────────────────
+    // If this socket belongs to a teacher whose saved status is 'online',
+    // re-add them to the Redis dispatch pool. This way navigating between
+    // pages doesn't knock them offline.
+    if (socket.user.role === 'teacher') {
+      (async () => {
+        try {
+          const teacher = await Teacher.findOne({ userId: socket.user.id });
+          if (teacher) {
+            const { setTeacherState, TEACHER_PRESENCE } = await import('../services/presenceService.js');
+            if (teacher.availabilityStatus === 'online') {
+              await setTeacherState(teacher._id, TEACHER_PRESENCE.ONLINE, socket.id);
+              console.log(`[Socket] Auto-restored ONLINE presence for teacher ${teacher._id} (${teacher.firstName})`);
+            } else if (teacher.availabilityStatus === 'busy') {
+              await setTeacherState(teacher._id, TEACHER_PRESENCE.BUSY, socket.id);
+              console.log(`[Socket] Auto-restored BUSY presence for teacher ${teacher._id} (${teacher.firstName})`);
+            }
+          }
+        } catch (e) {
+          console.error('[Socket] Auto-restore presence error:', e.message);
+        }
+      })();
+    }
 
     // ── Session room join ──────────────────────────────────────────
     socket.on('join_session', (sessionId) => {
@@ -133,9 +180,20 @@ export const initSocket = (server) => {
       try {
         const teacher = await Teacher.findOne({ userId: socket.user.id });
         if (teacher) {
+          if (teacher.availabilityStatus === 'offline') {
+            console.log(`[Socket] teacher_online received but teacher ${teacher._id} is explicitly OFFLINE. Ignoring.`);
+            return;
+          }
           teacher.availabilityStatus = 'online';
           await teacher.save();
-          io.emit('teacher_status', { teacherId: teacher._id, status: 'online' });
+          const { setTeacherState, TEACHER_PRESENCE } = await import('../services/presenceService.js');
+          // Add ALL online teachers to the available pool.
+          // applicationStatus check happens in matchingService if needed.
+          await setTeacherState(teacher._id, TEACHER_PRESENCE.ONLINE, socket.id);
+          socket.emit('presence_confirmed', { status: 'ONLINE' });
+          console.log(`[Socket] Teacher ${teacher._id} (${teacher.firstName}) → ONLINE in Redis. applicationStatus=${teacher.applicationStatus}`);
+        } else {
+          console.warn(`[Socket] teacher_online: No teacher found for userId ${socket.user.id}`);
         }
       } catch (e) { console.error('teacher_online error:', e.message); }
     });
@@ -146,20 +204,44 @@ export const initSocket = (server) => {
         if (teacher) {
           teacher.availabilityStatus = 'offline';
           await teacher.save();
-          io.emit('teacher_status', { teacherId: teacher._id, status: 'offline' });
+          const { setTeacherState, TEACHER_PRESENCE } = await import('../services/presenceService.js');
+          await setTeacherState(teacher._id, TEACHER_PRESENCE.OFFLINE);
+          socket.emit('presence_confirmed', { status: 'OFFLINE' });
         }
       } catch (e) { console.error('teacher_offline error:', e.message); }
     });
 
     // ── Disconnect ────────────────────────────────────────────────
     socket.on('disconnect', async () => {
-      try {
-        const teacher = await Teacher.findOne({ userId: socket.user.id });
-        if (teacher && teacher.availabilityStatus === 'online') {
-          teacher.availabilityStatus = 'offline';
-          await teacher.save();
-        }
-      } catch (e) { /* silent */ }
+      // Use a grace period before marking offline so that page navigation
+      // (which causes a brief disconnect + reconnect) doesn't knock teacher offline.
+      // If the teacher reconnects within 5s the new socket will auto-restore their status.
+      const GRACE_MS = 5000;
+      setTimeout(async () => {
+        try {
+          // Check if teacher has another active socket (i.e. reconnected after navigation)
+          const roomName = `user:${socket.user.id}`;
+          const socketsInRoom = await io.in(roomName).fetchSockets();
+          if (socketsInRoom.length > 0) {
+            // Teacher reconnected — don't go offline
+            console.log(`[Socket] Disconnect grace: teacher ${socket.user.id} still has ${socketsInRoom.length} socket(s), staying online.`);
+            return;
+          }
+
+          const teacher = await Teacher.findOne({ userId: socket.user.id });
+          if (teacher) {
+            const { setTeacherState, TEACHER_PRESENCE, releaseDispatchLock } = await import('../services/presenceService.js');
+            // Don't change DB availability status — only remove from Redis dispatch pool.
+            // This preserves the teacher's chosen status across app restarts.
+            // If they were online/busy, they'll be restored on next connect via auto-restore.
+            if (teacher.availabilityStatus !== 'busy') {
+              await setTeacherState(teacher._id, TEACHER_PRESENCE.OFFLINE);
+              console.log(`[Socket] Teacher ${teacher._id} truly disconnected → removed from Redis pool.`);
+            }
+            await releaseDispatchLock(teacher._id);
+          }
+        } catch (e) { /* silent disconnect */ }
+      }, GRACE_MS);
     });
   });
 
@@ -190,7 +272,7 @@ export const initSocket = (server) => {
           }
 
           // Emit to student's personal room
-          io.to(`user:${req.studentId}`).emit('request_missed', {
+          publishSocketEvent(`user:${req.studentId}`, 'request_missed', {
             requestId: req._id,
             sessionId: req.sessionId,
             message: 'No teacher available at this time. Please try again.',
@@ -214,16 +296,9 @@ export const getIo = () => ioInstance;
  * Called from the studentController after finding eligible teachers.
  */
 export const emitNewRequest = (teacherUserIds, requestData) => {
-  const io = getIo();
-  if (!io) {
-    console.error('[Socket] emitNewRequest failed: ioInstance is null');
-    return;
-  }
   teacherUserIds.forEach((userId) => {
     const roomName = `user:${userId}`;
-    const room = io.sockets.adapter.rooms.get(roomName);
-    console.log(`[Socket] Emitting new_request to ${roomName}. Sockets in room:`, room ? room.size : 0);
-    io.to(roomName).emit('new_request', requestData);
+    publishSocketEvent(roomName, 'new_request', requestData);
   });
 };
 
@@ -232,29 +307,16 @@ export const emitNewRequest = (teacherUserIds, requestData) => {
  * Called from sharedController.respondToRequest.
  */
 export const emitSessionAccepted = (studentUserId, sessionData) => {
-  const io = getIo();
-  if (!io) {
-    console.error('[Socket] emitSessionAccepted failed: ioInstance is null');
-    return;
-  }
   const roomName = `user:${studentUserId}`;
-  const room = io.sockets.adapter.rooms.get(roomName);
-  console.log(`[Socket] Emitting session_accepted to ${roomName}. Sockets in room:`, room ? room.size : 0);
-  console.log('[Socket] Payload:', JSON.stringify(sessionData));
-  io.to(roomName).emit('session_accepted', sessionData);
+  console.log('[Socket/PubSub] Publishing session_accepted to student:', studentUserId);
+  publishSocketEvent(roomName, 'session_accepted', sessionData);
 };
 
 /**
  * Emit session_declined to student if all teachers reject.
  */
 export const emitSessionDeclined = (studentUserId, data) => {
-  const io = getIo();
-  if (!io) {
-    console.error('[Socket] emitSessionDeclined failed: ioInstance is null');
-    return;
-  }
   const roomName = `user:${studentUserId}`;
-  const room = io.sockets.adapter.rooms.get(roomName);
-  console.log(`[Socket] Emitting session_declined to ${roomName}. Sockets in room:`, room ? room.size : 0);
-  io.to(roomName).emit('session_declined', data);
+  console.log('[Socket/PubSub] Publishing session_declined to student:', studentUserId);
+  publishSocketEvent(roomName, 'session_declined', data);
 };

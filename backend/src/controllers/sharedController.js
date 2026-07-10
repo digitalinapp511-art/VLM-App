@@ -79,10 +79,27 @@ export const respondToRequest = asyncHandler(async (req, res) => {
       `${teacher.fullName} accepted your request`,
       { sessionId: session._id }
     );
+
+    // Set teacher as IN_SESSION in Redis (removes from available pool)
+    try {
+      const { setTeacherState, releaseDispatchLock, TEACHER_PRESENCE } = await import('../services/presenceService.js');
+      await setTeacherState(teacher._id, TEACHER_PRESENCE.IN_SESSION);
+      await releaseDispatchLock(teacher._id);
+    } catch (e) {
+      console.error('[respondToRequest accept presenceService error]', e.message);
+    }
   } else {
     request.routedTeachers[rtIndex].status = 'rejected';
     request.routedTeachers[rtIndex].respondedAt = new Date();
     teacher.metrics.missedRequests = (teacher.metrics.missedRequests || 0);
+
+    // Release dispatch lock so the next teacher can be dispatched immediately
+    try {
+      const { releaseDispatchLock } = await import('../services/presenceService.js');
+      await releaseDispatchLock(teacher._id);
+    } catch (e) {
+      console.error('[respondToRequest reject presenceService error]', e.message);
+    }
   }
 
   await request.save();
@@ -123,15 +140,26 @@ export const completeSession = asyncHandler(async (req, res) => {
 
   session.status = 'completed';
   session.endedAt = new Date();
-  session.duration = Math.floor((session.endedAt - session.startedAt) / 60000) || 1;
+  session.duration = Math.floor((session.endedAt - session.startedAt) / 1000) || 1;
   session.teacherSummary = summary;
   session.keyNotes = keyNotes;
   session.studentBehaviourRating = studentBehaviourRating;
   await session.save();
 
   const teacher = await Teacher.findById(session.teacherId);
-  teacher.metrics.totalSessions += 1;
-  await teacher.save();
+  if (teacher) {
+    teacher.availabilityStatus = 'online';
+    teacher.metrics.totalSessions += 1;
+    await teacher.save();
+    // Set back to ONLINE in Redis presence
+    try {
+      const { setTeacherState, TEACHER_PRESENCE } = await import('../services/presenceService.js');
+      await setTeacherState(teacher._id, TEACHER_PRESENCE.ONLINE);
+      console.log(`[completeSession] Teacher ${teacher._id} restored to ONLINE.`);
+    } catch (e) {
+      console.error('[completeSession] presenceService error]', e.message);
+    }
+  }
 
   res.json({ success: true, data: session });
 });
@@ -154,14 +182,26 @@ export const resolveSession = asyncHandler(async (req, res) => {
     isPositive: rating >= 3,
   });
 
-  const points = await calculateSessionEarning(session.type, session.duration || 1, rating);
+  const durationMinutes = Math.max(1, Math.round(session.duration / 60));
+  const points = await calculateSessionEarning(session.type, durationMinutes, rating);
   await creditTeacher(session.teacherId, session.type, points, `Session ${session.type} completed`, sessionId);
 
   const teacher = await Teacher.findById(session.teacherId);
   const newCount = teacher.metrics.ratingCount + 1;
   teacher.metrics.rating = ((teacher.metrics.rating * teacher.metrics.ratingCount) + rating) / newCount;
   teacher.metrics.ratingCount = newCount;
+  // Auto-restore teacher to online after doubt resolved so they can take next session
+  teacher.availabilityStatus = 'online';
+  teacher.metrics.totalSessions = (teacher.metrics.totalSessions || 0) + 1;
   await teacher.save();
+
+  try {
+    const { setTeacherState, TEACHER_PRESENCE } = await import('../services/presenceService.js');
+    await setTeacherState(teacher._id, TEACHER_PRESENCE.ONLINE);
+    console.log(`[resolveSession] Teacher ${teacher._id} restored to ONLINE after session.`);
+  } catch (e) {
+    console.error('[resolveSession] presenceService error:', e.message);
+  }
 
   res.json({ success: true, data: { session, review, pointsCredited: points } });
 });

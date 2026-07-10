@@ -45,7 +45,7 @@ export default function LiveSupportBanner({
             ))}
           </div>
           <span className="text-[8px] sm:text-[10px] text-green-600 font-bold">
-            ● {activeTeachersCount}+ Teachers Online
+            ● {activeTeachersCount > 0 ? (activeTeachersCount < 5 ? `${activeTeachersCount} Teacher${activeTeachersCount > 1 ? 's' : ''} Online` : `${activeTeachersCount}+ Teachers Online`) : "No Teachers Online"}
           </span>
         </div>
       </div>

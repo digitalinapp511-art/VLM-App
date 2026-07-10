@@ -139,6 +139,16 @@ export function useSocket(options: UseSocketOptions = {}) {
       setIncomingRequest(data);
     };
 
+    const onRequestExpired = (data: { requestId: string }) => {
+      console.log('Received request_expired on frontend!', data);
+      setIncomingRequest((prev) => {
+        if (prev && prev.requestId === data.requestId) {
+          return null;
+        }
+        return prev;
+      });
+    };
+
     // ── Student: teacher accepted ─────────────────────────────────────────
     const onSessionAccepted = (data: SessionAcceptedPayload) => {
       console.log("[Socket] Received session_accepted on frontend!", data);
@@ -176,6 +186,7 @@ export function useSocket(options: UseSocketOptions = {}) {
     s.on("connect", onConnect);
     s.on("disconnect", onDisconnect);
     s.on("new_request", onNewRequest);
+    s.on("request_expired", onRequestExpired);
     s.on("session_accepted", onSessionAccepted);
     s.on("request_missed", onRequestMissed);
     s.on("session_declined", onSessionDeclined);
@@ -191,6 +202,7 @@ export function useSocket(options: UseSocketOptions = {}) {
       s.off("connect", onConnect);
       s.off("disconnect", onDisconnect);
       s.off("new_request", onNewRequest);
+      s.off("request_expired", onRequestExpired);
       s.off("session_accepted", onSessionAccepted);
       s.off("request_missed", onRequestMissed);
       s.off("session_declined", onSessionDeclined);

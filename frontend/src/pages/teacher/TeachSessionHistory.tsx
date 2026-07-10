@@ -3,51 +3,67 @@ import { bgCss } from "@/helper/CssHelper";
 import { cn } from "@/lib/utils";
 import SessionFilterTabs from "@/components/basic/teacher/SessionFilters";
 import SessionCard from "@/components/basic/teacher/SessionItemCard";
-import { Home, History, Landmark, User } from "lucide-react";
+import { Layers, ChevronLeft } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { teacherApi } from "@/lib/teacher-api";
+import { useNavigate } from "react-router-dom";
+import { PATHS } from "@/routes/paths";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const TeachSessionHistory: React.FC = () => {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("chat");
 
-  const sessions = [
-    {
-      studentName: "Aisha Gupta",
-      grade: "Grade 10",
-      subject: "Physics",
-      duration: "45 mins",
-      earnings: "15.00",
-      date: "Oct 25, 2024, 10:30 AM",
-      status: "RESOLVED" as const,
-    },
-    {
-      studentName: "Rohan Sharma",
-      grade: "Grade 8",
-      subject: "Mathematics",
-      duration: "60 mins",
-      earnings: "20.00",
-      date: "Oct 24, 2024, 4:00 PM",
-      status: "RESOLVED" as const,
-    },
-    {
-      studentName: "Priya Singh",
-      grade: "Grade 12",
-      subject: "Biology",
-      duration: "30 mins",
-      earnings: "10.00",
-      date: "Oct 23, 2024, 9:15 AM",
-      status: "UNRESOLVED" as const,
-    },
-  ];
+  const { data: dbSessions, isLoading } = useQuery({
+    queryKey: ["teacherSessions"],
+    queryFn: () => teacherApi.getSessions(),
+  });
+
+  const parsedSessions = (dbSessions || []).map((s: any) => {
+    const isResolved = s.status === "resolved" || s.status === "completed" || s.status === "active";
+    const durationSeconds = s.duration || 0;
+    const minutes = Math.floor(durationSeconds / 60);
+    const seconds = durationSeconds % 60;
+    const durationStr = minutes > 0 
+      ? (seconds > 0 ? `${minutes} mins ${seconds} secs` : `${minutes} mins`)
+      : `${seconds} secs`;
+
+    // 10 credits/min earnings format
+    const earningsValue = ((durationSeconds / 60) * 10).toFixed(2);
+
+    return {
+      studentName: s.studentId?.nickname || s.studentId?.fullName || "Student",
+      grade: s.studentId?.class ? `Class ${s.studentId.class}` : "Class 12th",
+      subject: s.subject || "General Doubt",
+      duration: durationStr,
+      earnings: earningsValue,
+      date: new Date(s.createdAt).toLocaleString('en-IN', {
+        day: 'numeric', month: 'short', year: 'numeric',
+        hour: '2-digit', minute: '2-digit',
+      }),
+      status: isResolved ? ("RESOLVED" as const) : ("UNRESOLVED" as const),
+      type: s.type || "chat",
+      studentAvatar: s.studentId?.profilePhoto || s.studentId?.avatar || "",
+    };
+  });
+
+  const filteredSessions = parsedSessions.filter((s: any) => s.type === activeTab);
 
   return (
-    <div className={cn("min-h-screen flex flex-col items-center bg-[#050505] p-4 pb-28", bgCss)}>
+    <div className={cn("min-h-screen flex flex-col items-center bg-[#050505] p-4 pb-12", bgCss)}>
       <div className="w-full max-w-xl">
         {/* Header */}
         <header className="flex items-center justify-between py-6">
-          <div className="w-8" /> {/* Spacer */}
+          <button
+            onClick={() => navigate(PATHS.TEACHER_DASHBOARD)}
+            className="flex items-center justify-center w-10 h-10 rounded-full border border-white/10 bg-zinc-950/40 text-white hover:bg-white/10 transition-all active:scale-95 cursor-pointer"
+          >
+            <ChevronLeft size={20} />
+          </button>
           <h1 className="text-xl font-black text-white tracking-[0.15em] uppercase">
             Session History
           </h1>
-          <div className="w-10 h-10 rounded-full border-2 border-cyan-400 shadow-[0_0_10px_rgba(34,211,238,0.5)]" />
+          <div className="w-10" />
         </header>
 
         {/* Filter Tabs */}
@@ -55,33 +71,26 @@ const TeachSessionHistory: React.FC = () => {
 
         {/* Sessions List */}
         <div className="mt-2">
-          {sessions.map((session, index) => (
-            <SessionCard key={index} {...session} />
-          ))}
+          {isLoading ? (
+            <div className="space-y-4">
+              <Skeleton className="h-32 w-full rounded-[32px] bg-zinc-900/50" />
+              <Skeleton className="h-32 w-full rounded-[32px] bg-zinc-900/50" />
+            </div>
+          ) : filteredSessions.length === 0 ? (
+            <div className="p-8 text-center space-y-3 rounded-3xl border border-white/5 bg-zinc-900/20 backdrop-blur-md">
+              <Layers className="h-12 w-12 mx-auto text-zinc-650" />
+              <h3 className="text-sm font-black text-white uppercase tracking-wider">No Sessions Found</h3>
+              <p className="text-xs text-zinc-500">No session logs found under this filter type.</p>
+            </div>
+          ) : (
+            filteredSessions.map((session: any, index: number) => (
+              <SessionCard key={index} {...session} />
+            ))
+          )}
         </div>
       </div>
-
-      {/* Bottom Navigation */}
-      <nav className="fixed bottom-0 left-0 w-full bg-[#0a0a0a]/90 backdrop-blur-xl border-t border-white/5 px-8 py-4 flex items-center justify-between z-50">
-        <NavItem icon={<Home />} label="Home" />
-        <NavItem icon={<History />} label="Sessions" active />
-        <NavItem icon={<Landmark />} label="Earnings" />
-        <NavItem icon={<User />} label="Profile" />
-      </nav>
     </div>
   );
 };
-
-const NavItem = ({ icon, label, active = false }: { icon: any, label: string, active?: boolean }) => (
-  <button className={cn(
-    "flex flex-col items-center gap-1.5 transition-all duration-300",
-    active ? "text-cyan-400" : "text-zinc-600 hover:text-zinc-400"
-  )}>
-    <div className={cn("relative", active && "drop-shadow-[0_0_8px_rgba(34,211,238,0.5)]")}>
-      {React.cloneElement(icon, { size: 24, strokeWidth: active ? 2.5 : 1.5 })}
-    </div>
-    <span className="text-[10px] font-bold uppercase tracking-widest">{label}</span>
-  </button>
-);
 
 export default TeachSessionHistory;

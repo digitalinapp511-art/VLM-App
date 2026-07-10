@@ -3,12 +3,13 @@
  * Agora RTC video/audio call + HTML5 Collaborative Whiteboard
  */
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useLocation, useNavigate } from "react-router-dom";
 import { PATHS } from "@/routes/paths";
 import {
   Mic, MicOff, Video, VideoOff, PhoneOff, PenLine, Eraser, Trash2,
   Minimize2, ChevronLeft, Undo, Redo, Pencil, FileText, PenTool,
-  ShieldCheck, MessageSquare, Paperclip
+  ShieldCheck, MessageSquare, Volume2, VolumeX, Paperclip, Plus
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
@@ -20,10 +21,12 @@ import AgoraRTC, {
 } from "agora-rtc-sdk-ng";
 import { useSocket } from "@/hooks/use-socket";
 import { studentApi } from "@/lib/student-api";
+import { apiClient } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
+import { Card, CardContent } from "@/components/ui/card";
+import { useStudentProfile } from "@/hooks/use-student";
 import { motion, AnimatePresence } from "framer-motion";
-
-let agoraClient: IAgoraRTCClient | null = null;
 
 const COLORS = ["#0f172a", "#ef4444", "#3b82f6", "#10b981", "#f59e0b"];
 
@@ -40,15 +43,89 @@ export default function VideoCallSession() {
 
   const isAudioOnly = sessionType === "audio";
 
+  const agoraClientRef = useRef<IAgoraRTCClient | null>(null);
+
+  const [currentTeacher, setCurrentTeacher] = useState<any>(teacher);
+  const [currentRequestId, setCurrentRequestId] = useState<string>("");
+
   const [joined, setJoined] = useState(false);
   const [micMuted, setMicMuted] = useState(false);
   const [camOff, setCamOff] = useState(false);
+  const [isSpeaker, setIsSpeaker] = useState(true);
   const [remoteJoined, setRemoteJoined] = useState(false);
   const [duration, setDuration] = useState(0);
+  const [deductions, setDeductions] = useState<{ id: number; text: string }[]>([]);
   const localVideoRef = useRef<HTMLDivElement>(null);
   const remoteVideoRef = useRef<HTMLDivElement>(null);
   const localTrackRef = useRef<any[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const { data: profile } = useStudentProfile();
+  const student = (profile as any)?.data ?? profile;
+
+  const queryClient = useQueryClient();
+
+  // Trigger floating "-10" visual deduction badge and backend API reduction every 60 seconds
+  useEffect(() => {
+    if (duration > 0 && duration % 60 === 0 && sessionId && !sessionId.startsWith("mock-")) {
+      const id = Date.now();
+      setDeductions((prev) => [...prev, { id, text: "-10" }]);
+      // Call backend to subtract 10 credits from student account
+      studentApi.deductSessionCredits(sessionId)
+        .then(() => {
+          queryClient.invalidateQueries({ queryKey: ["studentProfile"] });
+        })
+        .catch((err) => console.error("Error deducting credits:", err));
+
+      setTimeout(() => {
+        setDeductions((prev) => prev.filter((d) => d.id !== id));
+      }, 2000);
+    }
+  }, [duration, sessionId, queryClient]);
+
+  // Fetch session details on mount to sync timer and ensure we have correct teacher details & doubt ID
+  useEffect(() => {
+    if (!sessionId) return;
+    apiClient.get(`/sessions/${sessionId}`)
+      .then(res => {
+        if (res.data?.success && res.data.data) {
+          const s = res.data.data;
+          if (s.teacherId) {
+            setCurrentTeacher({
+              name: s.teacherId.fullName,
+              photo: s.teacherId.profilePhoto,
+              gender: s.teacherId.gender
+            });
+          }
+          if (s.doubtRequestId) {
+            setCurrentRequestId(s.doubtRequestId);
+          }
+          if (typeof s.elapsedSeconds === "number") {
+            setDuration(s.elapsedSeconds);
+          } else if (s.startedAt) {
+            const elapsed = Math.floor((Date.now() - new Date(s.startedAt).getTime()) / 1000);
+            setDuration(Math.max(0, elapsed));
+          }
+        }
+      })
+      .catch(err => console.error("Error loading session details:", err));
+  }, [sessionId]);
+
+  const toggleSpeaker = () => {
+    const newState = !isSpeaker;
+    setIsSpeaker(newState);
+    if (agoraClientRef.current) {
+      agoraClientRef.current.remoteUsers.forEach((user) => {
+        if (user.audioTrack) {
+          if (newState) {
+            user.audioTrack.play();
+          } else {
+            user.audioTrack.stop();
+          }
+        }
+      });
+    }
+  };
 
   // Live Chat
   const [showChat, setShowChat] = useState(false);
@@ -115,25 +192,32 @@ export default function VideoCallSession() {
 
   // ── Agora join ──────────────────────────────────────────────────────────
   useEffect(() => {
+    let client: IAgoraRTCClient | null = null;
     const joinChannel = async () => {
       try {
         const tokenData = await studentApi.getAgoraToken(sessionId);
         const { token, channelName, appId } = tokenData;
 
-        agoraClient = AgoraRTC.createClient({ mode: "rtc", codec: "vp8" });
+        client = AgoraRTC.createClient({ mode: "rtc", codec: "vp8" });
+        agoraClientRef.current = client;
 
-        agoraClient.on("user-published", async (user, mediaType) => {
-          await agoraClient!.subscribe(user, mediaType);
+        client.on("user-published", async (user, mediaType) => {
+          if (!client) return;
+          await client.subscribe(user, mediaType);
           setRemoteJoined(true);
           if (mediaType === "video" && remoteVideoRef.current && !isAudioOnly) {
             user.videoTrack?.play(remoteVideoRef.current);
           }
-          if (mediaType === "audio") user.audioTrack?.play();
+          if (mediaType === "audio") {
+            if (isSpeaker) {
+              user.audioTrack?.play();
+            }
+          }
         });
 
-        agoraClient.on("user-left", () => setRemoteJoined(false));
+        client.on("user-left", () => setRemoteJoined(false));
 
-        await agoraClient.join(appId, channelName, token, null);
+        await client.join(appId, channelName, token, null);
 
         let audioTrack: any = null;
         let videoTrack: any = null;
@@ -166,8 +250,10 @@ export default function VideoCallSession() {
           localTrackRef.current.push(videoTrack);
         }
 
-        await agoraClient.publish(tracks);
-        setJoined(true);
+        if (client && client.connectionState === "CONNECTED") {
+          await client.publish(tracks);
+          setJoined(true);
+        }
         timerRef.current = setInterval(() => setDuration((d) => d + 1), 1000);
       } catch (err: any) {
         console.error("Agora join failed (student):", err);
@@ -181,7 +267,10 @@ export default function VideoCallSession() {
       if (timerRef.current) clearInterval(timerRef.current);
       localTrackRef.current.forEach((t) => { t.stop(); t.close(); });
       localTrackRef.current = [];
-      agoraClient?.leave().catch(() => {});
+      if (client) {
+        client.leave().catch(() => {});
+      }
+      agoraClientRef.current = null;
     };
   }, [sessionId]);
 
@@ -197,8 +286,8 @@ export default function VideoCallSession() {
 
   // Ensure remote video track plays when the element mounts or remote joined status updates
   useEffect(() => {
-    if (!isAudioOnly && remoteJoined && remoteVideoRef.current && agoraClient) {
-      const remoteUsers = agoraClient.remoteUsers;
+    if (!isAudioOnly && remoteJoined && remoteVideoRef.current && agoraClientRef.current) {
+      const remoteUsers = agoraClientRef.current.remoteUsers;
       for (const user of remoteUsers) {
         if (user.videoTrack) {
           user.videoTrack.play(remoteVideoRef.current);
@@ -219,7 +308,7 @@ export default function VideoCallSession() {
     if (timerRef.current) clearInterval(timerRef.current);
     localTrackRef.current.forEach((t) => { t.stop(); t.close(); });
     localTrackRef.current = [];
-    await agoraClient?.leave().catch(() => {});
+    await agoraClientRef.current?.leave().catch(() => {});
     navigate(PATHS.SESSION_FEEDBACK, { state: { sessionId, subjectName, duration } });
   }, [sessionId, duration, navigate]);
 
@@ -248,7 +337,7 @@ export default function VideoCallSession() {
         if (localVideoRef.current) {
           newVideoTrack.play(localVideoRef.current);
         }
-        await agoraClient?.publish([newVideoTrack]);
+        await agoraClientRef.current?.publish([newVideoTrack]);
         setCamOff(false);
         toast.success("Camera turned ON!");
       } catch (err: any) {
@@ -435,17 +524,41 @@ export default function VideoCallSession() {
               {subjectName || "Doubt Session"}
             </h2>
             <p className="text-[8px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest truncate mt-0.5">
-              Doubt ID: {sessionId ? sessionId.slice(-6).toUpperCase() : "#VLM-CALL"}
+              Doubt ID: {currentRequestId ? currentRequestId.slice(-6).toUpperCase() : "#VLM-CALL"}
             </p>
           </div>
 
-          <div className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-[10px] font-black text-slate-850 dark:text-white shadow-xs shrink-0">
-            {formatDuration(duration)}
+          {/* Credits Display */}
+          <div className="relative shrink-0">
+            <AnimatePresence>
+              {deductions.map((d) => (
+                <motion.div
+                  key={d.id}
+                  initial={{ opacity: 0, y: 5, scale: 0.8 }}
+                  animate={{ opacity: 1, y: -25, scale: 1.1 }}
+                  exit={{ opacity: 0, y: -45, scale: 0.9 }}
+                  transition={{ duration: 1.2, ease: "easeOut" }}
+                  className="absolute left-1/2 -translate-x-1/2 bg-red-500 text-white font-black text-[9px] px-1.5 py-0.5 rounded-full shadow-md z-30"
+                >
+                  {d.text}
+                </motion.div>
+              ))}
+            </AnimatePresence>
+            <div 
+              onClick={() => navigate(PATHS.WALLET)}
+              className="flex items-center gap-1 px-2 py-1 rounded-lg bg-violet-50 dark:bg-violet-950/20 border border-violet-100 dark:border-violet-900/40 text-violet-600 dark:text-violet-400 cursor-pointer hover:scale-105 active:scale-95 transition-all shadow-xs font-bold"
+            >
+              <span className="text-[8px] uppercase tracking-wider">Credits:</span>
+              <span className="text-[10px]">{student?.wallet?.humanChatCredits ?? 0}</span>
+              <div className="w-3.5 h-3.5 rounded-full bg-violet-600 text-white flex items-center justify-center">
+                <Plus size={8} className="stroke-[3]" />
+              </div>
+            </div>
           </div>
         </div>
 
         {/* Main Area */}
-        <div className="flex-1 relative flex items-center justify-center bg-slate-950">
+        <div className={cn("flex-1 relative flex flex-col items-center justify-center", isAudioOnly ? "bg-transparent px-4 py-8" : "bg-slate-950")}>
           {showWhiteboard ? (
             <div className="absolute inset-0 bg-white">
               {/* STUDENT CANVAS: read-only, no mouse/touch drawing handlers */}
@@ -454,14 +567,76 @@ export default function VideoCallSession() {
                 className="absolute inset-0 block bg-white"
               />
             </div>
+          ) : isAudioOnly ? (
+            <div className="w-full flex-1 flex flex-col justify-center items-center">
+              {/* ── TEACHER CARD BLOCK (Vertically Spaced) ── */}
+              <div className="relative w-full max-w-[340px] mx-auto mt-12 mb-4 shrink-0">
+                  <div className="absolute -top-10 left-1/2 -translate-x-1/2 z-20">
+                      <Avatar className="h-20 w-20 border-4 border-white dark:border-[#0b081e] ring-2 ring-violet-500/20 shadow-2xl">
+                          <AvatarImage src={currentTeacher?.photo || `https://api.dicebear.com/7.x/avataaars/svg?seed=${currentTeacher?.name || "Teacher"}`} />
+                          <AvatarFallback>TC</AvatarFallback>
+                      </Avatar>
+                  </div>
+
+                  <Card className="border border-slate-150 dark:border-[#221c4e] bg-white dark:bg-[#161233] rounded-[2rem] pt-14 pb-6 shadow-sm">
+                      <CardContent className="flex flex-col items-center text-center space-y-1.5 p-4">
+                          <h2 className="text-base font-black text-slate-800 dark:text-white tracking-wide">
+                              {currentTeacher?.name ? (currentTeacher.gender === 'male' ? `${currentTeacher.name.split(' ')[0]} Sir` : `${currentTeacher.name.split(' ')[0]} Ma'am`) : "Teacher"}
+                          </h2>
+                          <p className="text-xs font-bold text-slate-500 dark:text-slate-400">{subjectName}</p>
+                          <p className="text-[9px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider">
+                              Doubt ID: {currentRequestId ? currentRequestId.slice(-6).toUpperCase() : "#VLM-CALL"}
+                          </p>
+
+                          <div className="w-full py-2.5 px-4">
+                              <Separator className="bg-slate-100 dark:bg-slate-900" />
+                          </div>
+
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400 tracking-wide font-bold leading-relaxed">
+                              {subjectName}
+                          </p>
+                      </CardContent>
+                  </Card>
+              </div>
+
+              {/* ── WAVEFORM & TIMER ── */}
+              <div className="flex flex-col items-center justify-center min-h-[140px] shrink-0 mt-6 w-full">
+                  <div className="space-y-0.5 text-center mb-1">
+                      <p className="text-[9px] font-black tracking-[0.2em] text-slate-400 dark:text-slate-550 uppercase">Voice Connection Active</p>
+                      <h3 className="text-3xl font-black tracking-wider text-slate-850 dark:text-white">
+                          {formatDuration(duration)}
+                      </h3>
+                  </div>
+
+                  <div className="h-16 w-full max-w-[240px] mx-auto">
+                      <svg viewBox="0 0 200 60" className="w-full h-full opacity-60">
+                          <path
+                              d="M0 30 Q 25 10, 50 30 T 100 30 T 150 30 T 200 30"
+                              fill="none"
+                              stroke="#7c3aed"
+                              strokeWidth="2.5"
+                              className="animate-pulse"
+                          />
+                          <path
+                              d="M0 40 Q 30 20, 60 40 T 120 40 T 180 40"
+                              fill="none"
+                              stroke="#db2777"
+                              strokeWidth="2.5"
+                              className="animate-pulse"
+                              style={{ animationDelay: '0.5s' }}
+                          />
+                      </svg>
+                  </div>
+              </div>
+            </div>
           ) : (
             <>
               {/* BIG IMAGE: Teacher Video Stream */}
-              {remoteJoined && !isAudioOnly ? (
+              {remoteJoined ? (
                 <div ref={remoteVideoRef} className="absolute inset-0 bg-[#060b18] flex items-center justify-center" />
               ) : (
                 <div className="flex flex-col items-center justify-center text-center space-y-2">
-                  <p className="text-2xl font-black tracking-wide text-slate-850 dark:text-white uppercase">{teacher?.name || "Teacher Name"}</p>
+                  <p className="text-2xl font-black tracking-wide text-slate-850 dark:text-white uppercase">{currentTeacher?.name || "Teacher Name"}</p>
                   <p className="text-sm font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">Faculty</p>
                 </div>
               )}
@@ -516,6 +691,26 @@ export default function VideoCallSession() {
                 </button>
                 <span className="text-[7.5px] font-black text-slate-500 dark:text-slate-400 tracking-wider uppercase">
                   {camOff ? "Cam Off" : "Cam On"}
+                </span>
+              </div>
+            )}
+
+            {/* SPEAKER Toggle */}
+            {isAudioOnly && (
+              <div className="flex flex-col items-center gap-1">
+                <button
+                  onClick={toggleSpeaker}
+                  className={cn(
+                    "h-11 w-11 rounded-2xl flex items-center justify-center border transition-all shadow-xs cursor-pointer",
+                    !isSpeaker 
+                      ? "bg-rose-500/10 border-rose-500/20 text-rose-500" 
+                      : "bg-slate-100 dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-800 dark:text-white"
+                  )}
+                >
+                  {isSpeaker ? <Volume2 size={16} /> : <VolumeX size={16} />}
+                </button>
+                <span className="text-[7.5px] font-black text-slate-500 dark:text-slate-400 tracking-wider uppercase">
+                  {isSpeaker ? "Speaker On" : "Speaker Off"}
                 </span>
               </div>
             )}

@@ -8,7 +8,7 @@ import { PATHS } from "@/routes/paths";
 import {
   Mic, MicOff, Video, VideoOff, PhoneOff, PenLine, Eraser, Trash2,
   Minimize2, ChevronLeft, Undo, Redo, Pencil, FileText, PenTool,
-  ShieldCheck, MessageSquare, Volume2, Paperclip
+  ShieldCheck, MessageSquare, Volume2, VolumeX, Paperclip
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
@@ -21,13 +21,12 @@ import AgoraRTC, {
 import { motion, AnimatePresence } from "framer-motion";
 import { useSocket } from "@/hooks/use-socket";
 import { teacherApi } from "@/lib/teacher-api";
+import { apiClient } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
 import ConnectionVisualizer from "@/components/basic/teacher/ConnectionVisualizer";
 import AudioWaveform from "@/components/basic/teacher/AudioWaveform";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-
-let agoraClient: IAgoraRTCClient | null = null;
 
 const COLORS = ["#0f172a", "#ef4444", "#3b82f6", "#10b981", "#f59e0b"];
 
@@ -44,15 +43,65 @@ export default function TeacherVideoSession() {
 
   const isAudioOnly = sessionType === "audio";
 
+  const agoraClientRef = useRef<IAgoraRTCClient | null>(null);
+
+  const [currentStudent, setCurrentStudent] = useState<any>(student);
+  const [currentRequestId, setCurrentRequestId] = useState<string>("");
+
   const [joined, setJoined] = useState(false);
   const [micMuted, setMicMuted] = useState(false);
   const [camOff, setCamOff] = useState(false);
+  const [isSpeaker, setIsSpeaker] = useState(true);
   const [remoteJoined, setRemoteJoined] = useState(false);
   const [duration, setDuration] = useState(0);
   const localVideoRef = useRef<HTMLDivElement>(null);
   const remoteVideoRef = useRef<HTMLDivElement>(null);
   const localTrackRef = useRef<any[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Fetch session details on mount to sync timer and ensure we have correct student details & doubt ID
+  useEffect(() => {
+    if (!sessionId) return;
+    apiClient.get(`/sessions/${sessionId}`)
+      .then(res => {
+        if (res.data?.success && res.data.data) {
+          const s = res.data.data;
+          if (s.studentId) {
+            setCurrentStudent({
+              name: s.studentId.nickname || s.studentId.fullName,
+              photo: s.studentId.profilePhoto,
+              class: s.studentId.class
+            });
+          }
+          if (s.doubtRequestId) {
+            setCurrentRequestId(s.doubtRequestId);
+          }
+          if (typeof s.elapsedSeconds === "number") {
+            setDuration(s.elapsedSeconds);
+          } else if (s.startedAt) {
+            const elapsed = Math.floor((Date.now() - new Date(s.startedAt).getTime()) / 1000);
+            setDuration(Math.max(0, elapsed));
+          }
+        }
+      })
+      .catch(err => console.error("Error loading session details:", err));
+  }, [sessionId]);
+
+  const toggleSpeaker = () => {
+    const newState = !isSpeaker;
+    setIsSpeaker(newState);
+    if (agoraClientRef.current) {
+      agoraClientRef.current.remoteUsers.forEach((user) => {
+        if (user.audioTrack) {
+          if (newState) {
+            user.audioTrack.play();
+          } else {
+            user.audioTrack.stop();
+          }
+        }
+      });
+    }
+  };
 
   // Live Chat
   const [showChat, setShowChat] = useState(false);
@@ -119,27 +168,35 @@ export default function TeacherVideoSession() {
 
   // ── Agora join ──────────────────────────────────────────────────────────
   useEffect(() => {
+    let client: IAgoraRTCClient | null = null;
+
     const joinChannel = async () => {
       try {
         const tokenData = await teacherApi.getAgoraToken(sessionId);
         const { token, channelName, appId } = tokenData;
 
         toast.info("Agora client initializing...");
-        agoraClient = AgoraRTC.createClient({ mode: "rtc", codec: "vp8" });
+        client = AgoraRTC.createClient({ mode: "rtc", codec: "vp8" });
+        agoraClientRef.current = client;
 
-        agoraClient.on("user-published", async (user, mediaType) => {
-          await agoraClient!.subscribe(user, mediaType);
+        client.on("user-published", async (user, mediaType) => {
+          if (!client) return;
+          await client.subscribe(user, mediaType);
           setRemoteJoined(true);
           if (mediaType === "video" && remoteVideoRef.current && !isAudioOnly) {
             user.videoTrack?.play(remoteVideoRef.current);
           }
-          if (mediaType === "audio") user.audioTrack?.play();
+          if (mediaType === "audio") {
+            if (isSpeaker) {
+              user.audioTrack?.play();
+            }
+          }
         });
 
-        agoraClient.on("user-left", () => setRemoteJoined(false));
+        client.on("user-left", () => setRemoteJoined(false));
 
         toast.info("Joining channel...");
-        await agoraClient.join(appId, channelName, token, null);
+        await client.join(appId, channelName, token, null);
         toast.info("Agora joined. Requesting microphone...");
 
         let audioTrack: any = null;
@@ -175,7 +232,7 @@ export default function TeacherVideoSession() {
           localTrackRef.current.push(videoTrack);
         }
 
-        await agoraClient.publish(tracks);
+        await client.publish(tracks);
         toast.success("Joined call successfully!");
         setJoined(true);
         timerRef.current = setInterval(() => setDuration((d) => d + 1), 1000);
@@ -191,7 +248,12 @@ export default function TeacherVideoSession() {
       if (timerRef.current) clearInterval(timerRef.current);
       localTrackRef.current.forEach((t) => { t.stop(); t.close(); });
       localTrackRef.current = [];
-      agoraClient?.leave().catch(() => {});
+      const activeClient = agoraClientRef.current;
+      if (activeClient) {
+        activeClient.leave().catch(() => {});
+      }
+      agoraClientRef.current = null;
+      client = null;
     };
   }, [sessionId]);
 
@@ -207,8 +269,8 @@ export default function TeacherVideoSession() {
 
   // Ensure remote video track plays when the element mounts or remote joined status updates
   useEffect(() => {
-    if (!isAudioOnly && remoteJoined && remoteVideoRef.current && agoraClient) {
-      const remoteUsers = agoraClient.remoteUsers;
+    if (!isAudioOnly && remoteJoined && remoteVideoRef.current && agoraClientRef.current) {
+      const remoteUsers = agoraClientRef.current.remoteUsers;
       for (const user of remoteUsers) {
         if (user.videoTrack) {
           user.videoTrack.play(remoteVideoRef.current);
@@ -229,7 +291,7 @@ export default function TeacherVideoSession() {
     if (timerRef.current) clearInterval(timerRef.current);
     localTrackRef.current.forEach((t) => { t.stop(); t.close(); });
     localTrackRef.current = [];
-    await agoraClient?.leave().catch(() => {});
+    await agoraClientRef.current?.leave().catch(() => {});
     try {
       await teacherApi.endSession(sessionId, {});
     } catch { /* ignore */ }
@@ -237,13 +299,13 @@ export default function TeacherVideoSession() {
     navigate(PATHS.TEACHER_RESOLVE_DOUBT, {
       state: {
         sessionId,
-        studentName: student?.name || "Student",
+        studentName: currentStudent?.name || "Student",
         subjectName,
         teacherName: "You",
         role: "Faculty",
       }
     });
-  }, [sessionId, navigate]);
+  }, [sessionId, currentStudent, navigate]);
 
   const toggleMic = () => {
     const audioTrack = localTrackRef.current.find(t => t.trackMediaType === "audio");
@@ -270,7 +332,7 @@ export default function TeacherVideoSession() {
         if (localVideoRef.current) {
           newVideoTrack.play(localVideoRef.current);
         }
-        await agoraClient?.publish([newVideoTrack]);
+        await agoraClientRef.current?.publish([newVideoTrack]);
         setCamOff(false);
         toast.success("Camera turned ON!");
       } catch (err: any) {
@@ -465,17 +527,17 @@ export default function TeacherVideoSession() {
               <div className="relative w-full max-w-[340px] mx-auto mt-12 mb-4 shrink-0">
                 <div className="absolute -top-10 left-1/2 -translate-x-1/2 z-20">
                   <Avatar className="h-20 w-20 border-4 border-[#0b081e] ring-2 ring-violet-500/20 shadow-2xl">
-                    <AvatarImage src={student?.profilePhoto || student?.photo || student?.avatar || student?.imageUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${student?.name || "Student"}`} />
+                    <AvatarImage src={currentStudent?.photo || `https://api.dicebear.com/7.x/avataaars/svg?seed=${currentStudent?.name || "Student"}`} />
                     <AvatarFallback>ST</AvatarFallback>
                   </Avatar>
                 </div>
 
                 <Card className="border border-slate-800 bg-[#161233] rounded-[2rem] pt-14 pb-6 shadow-sm">
                   <CardContent className="flex flex-col items-center text-center space-y-1.5 p-4 text-white">
-                    <h2 className="text-base font-black tracking-wide text-white">{student?.name || "Student User"}</h2>
-                    <p className="text-xs font-bold text-slate-350">{student?.class || "Mathematics"}</p>
+                    <h2 className="text-base font-black tracking-wide text-white">{currentStudent?.name || "Student User"}</h2>
+                    <p className="text-xs font-bold text-slate-350">{currentStudent?.class ? `Class ${currentStudent.class}` : "Class 12"}</p>
                     <p className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">
-                      Doubt ID: {sessionId ? sessionId.slice(-6).toUpperCase() : "#VLM-CALL"}
+                      Doubt ID: {currentRequestId ? currentRequestId.slice(-6).toUpperCase() : "#VLM-CALL"}
                     </p>
 
                     <div className="w-full py-2.5 px-4">
@@ -541,11 +603,33 @@ export default function TeacherVideoSession() {
                   {/* SPEAKER */}
                   <div className="flex flex-col justify-center items-center space-y-2 shrink-0">
                     <button
-                      className="h-14 w-14 rounded-full border-2 border-cyan-400 bg-cyan-400 text-slate-950 flex flex-col justify-center items-center shadow-md shadow-cyan-400/20 cursor-pointer"
+                      onClick={toggleSpeaker}
+                      className={cn(
+                        "h-14 w-14 rounded-full border-2 flex flex-col justify-center items-center transition-all duration-350 active:scale-95 cursor-pointer",
+                        !isSpeaker 
+                          ? "border-rose-500 bg-rose-500/10 text-rose-500" 
+                          : "border-cyan-400 bg-cyan-400 text-slate-950 shadow-md shadow-cyan-400/20"
+                      )}
                     >
-                      <Volume2 size={20} className="stroke-[2.5px]" />
+                      {isSpeaker ? <Volume2 size={20} className="stroke-[2.5px]" /> : <VolumeX size={20} className="stroke-[2.5px]" />}
                     </button>
                     <span className="text-[9px] font-black tracking-widest uppercase text-slate-400">Speaker</span>
+                  </div>
+
+                  {/* CHAT Toggle */}
+                  <div className="flex flex-col justify-center items-center space-y-2 shrink-0">
+                    <button
+                      onClick={() => setShowChat(prev => !prev)}
+                      className={cn(
+                        "h-14 w-14 rounded-full border-2 flex flex-col justify-center items-center transition-all duration-350 active:scale-95 cursor-pointer",
+                        showChat 
+                          ? "border-violet-500 bg-violet-600 text-white shadow-md shadow-violet-500/20" 
+                          : "border-cyan-400 bg-cyan-400 text-slate-950 shadow-md shadow-cyan-400/20"
+                      )}
+                    >
+                      <MessageSquare size={20} className="stroke-[2.5px]" />
+                    </button>
+                    <span className="text-[9px] font-black tracking-widest uppercase text-slate-400">Chat</span>
                   </div>
 
                   {/* END CALL */}
@@ -698,110 +782,6 @@ export default function TeacherVideoSession() {
                 </div>
               </div>
 
-              {/* Slide-out Live Chat Panel */}
-              <AnimatePresence>
-                {showChat && (
-                  <motion.div
-                    initial={{ x: "100%" }}
-                    animate={{ x: 0 }}
-                    exit={{ x: "100%" }}
-                    className="absolute right-0 top-0 bottom-0 w-80 bg-[#161233]/95 backdrop-blur-md border-l border-slate-800 z-30 flex flex-col shadow-2xl"
-                  >
-                    {/* Chat Header */}
-                    <div className="flex items-center justify-between p-4 border-b border-slate-800">
-                      <h3 className="text-sm font-black text-white uppercase tracking-wider">Live Chat</h3>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => setShowChat(false)}
-                        className="h-8 w-8 rounded-lg hover:bg-slate-900 text-white"
-                      >
-                        <Minimize2 size={16} />
-                      </Button>
-                    </div>
-
-                    {/* Messages Area */}
-                    <div className="flex-1 p-4 overflow-y-auto space-y-3">
-                      {messages.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center h-full text-slate-500 font-bold uppercase tracking-wider text-center p-6 space-y-2">
-                          <MessageSquare size={24} className="opacity-40" />
-                          <p className="text-[10px]">No messages yet</p>
-                        </div>
-                      ) : (
-                        messages.map((msg, i) => {
-                          const isMe = msg.senderRole === "teacher" || msg.senderId === "teacher" || msg.senderName === "You";
-                          return (
-                            <div
-                              key={i}
-                              className={cn(
-                                "flex flex-col max-w-[85%] rounded-2xl p-3 text-xs leading-normal",
-                                isMe
-                                  ? "bg-violet-600 text-white rounded-tr-none ml-auto"
-                                  : "bg-slate-900 text-white rounded-tl-none mr-auto border border-slate-800"
-                              )}
-                            >
-                              <span className="text-[9px] font-black opacity-60 uppercase mb-0.5">
-                                {isMe ? "You" : (student?.name || "Student")}
-                              </span>
-                              {msg.mediaUrl ? (
-                                <a href={msg.mediaUrl} target="_blank" rel="noopener noreferrer" className="block mt-1 max-w-[180px] rounded-lg overflow-hidden border border-slate-800">
-                                  {msg.mediaUrl.match(/\.(jpeg|jpg|gif|png)$/i) || msg.type === "media" ? (
-                                    <img src={msg.mediaUrl} alt="attachment" className="w-full h-auto object-cover max-h-32" />
-                                  ) : (
-                                    <div className="p-2 bg-slate-900 text-white flex items-center gap-1">
-                                      <FileText size={16} />
-                                      <span className="text-[10px] underline truncate">{msg.mediaUrl.split('/').pop()}</span>
-                                    </div>
-                                  )}
-                                </a>
-                              ) : (
-                                <p className="font-medium whitespace-pre-wrap break-words break-all">{msg.content}</p>
-                              )}
-                            </div>
-                          );
-                        })
-                      )}
-                    </div>
-
-                    {/* Input Area */}
-                    <div className="p-3 border-t border-slate-850 flex items-end gap-2">
-                      <input
-                        type="file"
-                        ref={fileInputRef}
-                        onChange={handleAttachFile}
-                        className="hidden"
-                      />
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={() => fileInputRef.current?.click()}
-                        className="h-10 w-10 rounded-xl bg-slate-900 border border-slate-800 text-white shrink-0 hover:bg-slate-850 mb-0.5"
-                      >
-                        <Paperclip size={16} />
-                      </Button>
-                      <textarea
-                        rows={1}
-                        value={chatInput}
-                        onChange={(e) => setChatInput(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" && !e.shiftKey) {
-                            e.preventDefault();
-                            handleSendChat();
-                          }
-                        }}
-                        placeholder="Type a message..."
-                        className="flex-1 min-h-[40px] max-h-[80px] py-2.5 px-3 rounded-xl border border-slate-800 bg-slate-900 text-xs font-semibold text-white focus:outline-none focus:ring-1 focus:ring-violet-550 resize-none overflow-y-auto"
-                      />
-                      <Button
-                        onClick={handleSendChat}
-                        className="h-10 px-4 rounded-xl bg-violet-600 hover:bg-violet-500 text-white font-black text-xs uppercase mb-0.5"
-                      >
-                        Send
-                      </Button>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
             </motion.div>
           )
         ) : (
@@ -939,6 +919,110 @@ export default function TeacherVideoSession() {
                   ))}
                 </div>
               </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      {/* Slide-out Live Chat Panel */}
+      <AnimatePresence>
+        {showChat && (
+          <motion.div
+            initial={{ x: "100%" }}
+            animate={{ x: 0 }}
+            exit={{ x: "100%" }}
+            className="absolute right-0 top-0 bottom-0 w-80 bg-[#161233]/95 backdrop-blur-md border-l border-slate-800 z-50 flex flex-col shadow-2xl"
+          >
+            {/* Chat Header */}
+            <div className="flex items-center justify-between p-4 border-b border-slate-800">
+              <h3 className="text-sm font-black text-white uppercase tracking-wider">Live Chat</h3>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setShowChat(false)}
+                className="h-8 w-8 rounded-lg hover:bg-slate-900 text-white"
+              >
+                <Minimize2 size={16} />
+              </Button>
+            </div>
+
+            {/* Messages Area */}
+            <div className="flex-1 p-4 overflow-y-auto space-y-3">
+              {messages.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-full text-slate-500 font-bold uppercase tracking-wider text-center p-6 space-y-2">
+                  <MessageSquare size={24} className="opacity-40" />
+                  <p className="text-[10px]">No messages yet</p>
+                </div>
+              ) : (
+                messages.map((msg, i) => {
+                  const isMe = msg.senderRole === "teacher" || msg.senderId === "teacher" || msg.senderName === "You";
+                  return (
+                    <div
+                      key={i}
+                      className={cn(
+                        "flex flex-col max-w-[85%] rounded-2xl p-3 text-xs leading-normal",
+                        isMe
+                          ? "bg-violet-600 text-white rounded-tr-none ml-auto"
+                          : "bg-slate-900 text-white rounded-tl-none mr-auto border border-slate-800"
+                      )}
+                    >
+                      <span className="text-[9px] font-black opacity-60 uppercase mb-0.5">
+                        {isMe ? "You" : (currentStudent?.name || "Student")}
+                      </span>
+                      {msg.mediaUrl ? (
+                        <a href={msg.mediaUrl} target="_blank" rel="noopener noreferrer" className="block mt-1 max-w-[180px] rounded-lg overflow-hidden border border-slate-800">
+                          {msg.mediaUrl.match(/\.(jpeg|jpg|gif|png)$/i) || msg.type === "media" ? (
+                            <img src={msg.mediaUrl} alt="attachment" className="w-full h-auto object-cover max-h-32" />
+                          ) : (
+                            <div className="p-2 bg-slate-900 text-white flex items-center gap-1">
+                              <FileText size={16} />
+                              <span className="text-[10px] underline truncate">{msg.mediaUrl.split('/').pop()}</span>
+                            </div>
+                          )}
+                        </a>
+                      ) : (
+                        <p className="font-medium whitespace-pre-wrap break-words break-all">{msg.content}</p>
+                      )}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            {/* Input Area */}
+            <div className="p-3 border-t border-slate-850 flex items-end gap-2">
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleAttachFile}
+                className="hidden"
+              />
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => fileInputRef.current?.click()}
+                className="h-10 w-10 rounded-xl bg-slate-900 border border-slate-800 text-white shrink-0 hover:bg-slate-850 mb-0.5"
+              >
+                <Paperclip size={16} />
+              </Button>
+              <textarea
+                rows={1}
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSendChat();
+                  }
+                }}
+                placeholder="Type a message..."
+                className="flex-1 min-h-[40px] max-h-[80px] py-2.5 px-3 rounded-xl border border-slate-800 bg-slate-900 text-xs font-semibold text-white focus:outline-none focus:ring-1 focus:ring-violet-550 resize-none overflow-y-auto"
+              />
+              <Button
+                onClick={handleSendChat}
+                className="h-10 px-4 rounded-xl bg-violet-600 hover:bg-violet-500 text-white font-black text-xs uppercase mb-0.5"
+              >
+                Send
+              </Button>
             </div>
           </motion.div>
         )}

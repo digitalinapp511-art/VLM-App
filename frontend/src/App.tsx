@@ -99,6 +99,7 @@ import ResolveDoubtPage from "./pages/teacher/ResolveDoubtPage";
 import { useEffect, useState } from "react";
 import { connectSocket, disconnectSocket, getSocket } from "@/lib/socket";
 import { toast } from "sonner";
+import { Toaster } from "@/components/ui/sonner";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -147,27 +148,7 @@ function SocketInitializer({ setActiveRequest }: { setActiveRequest: (data: any)
         });
       });
 
-      // Poll pending requests on mount so offline/reconnecting users don't miss notifications
-      const checkPendingRequests = async () => {
-        try {
-          const role = localStorage.getItem("vlm_role");
-          if (role === "student") {
-            const res = await apiClient.get("/student/parent-requests");
-            if (res.data?.success && Array.isArray(res.data.data) && res.data.data.length > 0) {
-              const req = res.data.data[0];
-              setActiveRequest({
-                requestId: req.requestId,
-                parentName: req.fullName,
-                parentId: req._id,
-                parentEmailOrMobile: req.email || req.mobile || "",
-              });
-            }
-          }
-        } catch (err) {
-          console.error("Failed to load pending parent requests:", err);
-        }
-      };
-      checkPendingRequests();
+
 
       return () => {
         socket.off("parent_link_request");
@@ -214,6 +195,7 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <SocketInitializer setActiveRequest={setActiveRequest} />
+        <Toaster position="top-center" />
         <Routes>
           {/* Public auth */}
           <Route path={PATHS.SPLASH} element={<SplashPage />} />
@@ -251,7 +233,7 @@ export default function App() {
               {/* Student flows (immersive) */}
               <Route path={PATHS.ASK_DOUBT} element={<AskDoubt />} />
               <Route path={PATHS.MCQ} element={<Mcq />} />
-              <Route path={PATHS.AUDIO_CALL} element={<AudioCall />} />
+              <Route path={PATHS.AUDIO_CALL} element={<VideoCallSession />} />
               <Route path={PATHS.LIVE_SESSION} element={<LiveSession />} />
               <Route path={PATHS.VIDEO_CALL_SESSION} element={<VideoCallSession />} />
               <Route path={PATHS.SHORT_LIVE_SESSION} element={<ShortLiveSessions />} />

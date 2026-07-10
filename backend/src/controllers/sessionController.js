@@ -116,9 +116,18 @@ export const acceptDoubtRequest = asyncHandler(async (req, res) => {
 
   await request.save();
 
-  // Update teacher status to busy
+  // Update teacher status to IN_SESSION (busy)
   teacher.availabilityStatus = 'busy';
   await teacher.save();
+
+  // Update Redis presence — teacher is now in a session and unavailable for dispatch
+  try {
+    const { setTeacherState, releaseDispatchLock, TEACHER_PRESENCE } = await import('../services/presenceService.js');
+    await setTeacherState(teacher._id, TEACHER_PRESENCE.IN_SESSION);
+    await releaseDispatchLock(teacher._id); // release any pending dispatch lock
+  } catch (e) {
+    console.error('[acceptDoubtRequest presenceService error]', e.message);
+  }
 
   // Fetch student's userId for notification
   const student = await Student.findById(request.studentId);
@@ -182,27 +191,32 @@ export const declineDoubtRequest = asyncHandler(async (req, res) => {
   request.routedTeachers[rtIndex].respondedAt = new Date();
   teacher.metrics.missedRequests = (teacher.metrics.missedRequests || 0) + 1;
 
-  // Check if all teachers have rejected/missed
-  const allDone = request.routedTeachers.every(
-    (t) => ['rejected', 'missed', 'cancelled'].includes(t.status)
-  );
-
-  if (allDone) {
-    request.status = 'missed';
-    const student = await Student.findById(request.studentId);
-    if (student) {
-      emitSessionDeclined(student.userId.toString(), {
-        requestId: request._id.toString(),
-        message: 'All teachers declined. Please try again.',
-      });
-    }
-  }
-
   await request.save();
   await teacher.save();
 
+  // Release dispatch lock so teacher is available again for future requests
+  try {
+    const { releaseDispatchLock } = await import('../services/presenceService.js');
+    await releaseDispatchLock(teacher._id);
+  } catch (e) {
+    console.error('[declineDoubtRequest] releaseDispatchLock error:', e.message);
+  }
+
+  // Immediately trigger next dispatch cycle for this request (don't wait 15s)
+  // Only if the request is still searching (not already accepted by someone else)
+  const freshRequest = await DoubtRequest.findById(req.params.requestId);
+  if (freshRequest && freshRequest.status === 'searching') {
+    try {
+      const { enqueueDispatchNext } = await import('../queues/dispatchQueue.js');
+      await enqueueDispatchNext(freshRequest._id, teacher._id);
+    } catch (e) {
+      console.error('[declineDoubtRequest] enqueueDispatchNext error:', e.message);
+    }
+  }
+
   res.json({ success: true, message: 'Request declined' });
 });
+
 
 /**
  * Get all incoming (pending) doubt requests for a teacher.
@@ -248,7 +262,7 @@ export const endSession = asyncHandler(async (req, res) => {
   session.status = 'completed';
   session.endedAt = new Date();
   session.duration = session.startedAt
-    ? Math.max(1, Math.floor((session.endedAt - session.startedAt) / 60000))
+    ? Math.max(1, Math.floor((session.endedAt - session.startedAt) / 1000))
     : 1;
   if (summary) session.teacherSummary = summary;
   if (keyNotes) session.keyNotes = keyNotes;
@@ -260,6 +274,13 @@ export const endSession = asyncHandler(async (req, res) => {
     teacher.availabilityStatus = 'online';
     teacher.metrics.totalSessions = (teacher.metrics.totalSessions || 0) + 1;
     await teacher.save();
+    // Set teacher back to ONLINE in Redis presence
+    try {
+      const { setTeacherState, TEACHER_PRESENCE } = await import('../services/presenceService.js');
+      await setTeacherState(teacher._id, TEACHER_PRESENCE.ONLINE);
+    } catch (e) {
+      console.error('[endSession presenceService error]', e.message);
+    }
   }
 
   res.json({

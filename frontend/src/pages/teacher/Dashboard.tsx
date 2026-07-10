@@ -48,7 +48,7 @@ const Dashboard: React.FC = () => {
           });
         } else {
           navigate(PATHS.TEACHER_CHAT_SESSION, {
-            state: { sessionId, student: incomingRequest.student }
+            state: { sessionId, student: incomingRequest.student, requestId: incomingRequest.requestId }
           });
         }
       }
@@ -111,9 +111,22 @@ const Dashboard: React.FC = () => {
 
   React.useEffect(() => {
     const s = getSocket();
-    if (s) s.emit("teacher_online");
+    if (!s) return;
+
+    const emitOnline = () => s.emit("teacher_online");
+
+    // If already connected, emit immediately; otherwise wait for connect
+    if (s.connected) {
+      emitOnline();
+    } else {
+      s.once("connect", emitOnline);
+    }
+
     return () => {
-      if (s) s.emit("teacher_offline");
+      s.off("connect", emitOnline);
+      // NOTE: Do NOT emit teacher_offline here — navigating away from the
+      // dashboard to other teacher pages should NOT change the availability.
+      // Presence is managed by DB status + socket auto-restore on reconnect.
     };
   }, []);
 

@@ -41,6 +41,11 @@ export const studentApi = {
     return data;
   },
 
+  cancelDoubtRequest: async (requestId: string) => {
+    const { data } = await apiClient.post(`/student/doubts/${requestId}/cancel`);
+    return data;
+  },
+
   submitDoubtWithImages: async (formData: FormData) => {
     // Falls back to /student/doubts/upload if backend handles it separately. 
     // Otherwise keep as is, if backend supports it.
@@ -105,6 +110,11 @@ export const studentApi = {
   getAgoraToken: async (sessionId: string) => {
     const { data } = await apiClient.get(`/student/sessions/${sessionId}/agora-token`);
     return data.data;
+  },
+
+  deductSessionCredits: async (sessionId: string) => {
+    const { data } = await apiClient.post(`/student/sessions/${sessionId}/deduct-credits`);
+    return data;
   },
 
   createDoubt: async (payload: {

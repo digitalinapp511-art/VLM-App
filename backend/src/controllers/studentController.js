@@ -10,7 +10,6 @@ import Referral from '../models/Referral.js';
 import Parent from '../models/Parent.js';
 import ParentChildRequest from '../models/ParentChildRequest.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
-import { findMatchingTeachers } from '../services/matchingService.js';
 import { createNotification } from '../services/notificationService.js';
 import { getIo } from '../socket/index.js';
 import { getFileUrl } from '../middleware/upload.js';
@@ -39,6 +38,32 @@ export const createStudentProfile = asyncHandler(async (req, res) => {
   const authUser = await User.findById(req.user._id);
   if (!authUser) return res.status(401).json({ success: false, message: 'Unauthorized' });
 
+  // Sync phone and email to authUser if they are provided in body but missing on User model
+  let authUserUpdated = false;
+  if (req.body.mobile && !authUser.mobile) {
+    const cleanMobile = req.body.mobile.trim();
+    const duplicateUser = await User.findOne({ mobile: cleanMobile });
+    if (duplicateUser && duplicateUser._id.toString() !== authUser._id.toString()) {
+      return res.status(400).json({ success: false, message: 'This mobile number is already linked to another account' });
+    }
+    authUser.mobile = cleanMobile;
+    authUser.isMobileVerified = true;
+    authUserUpdated = true;
+  }
+  if (req.body.email && !authUser.email) {
+    const cleanEmail = req.body.email.trim().toLowerCase();
+    const duplicateUser = await User.findOne({ email: cleanEmail });
+    if (duplicateUser && duplicateUser._id.toString() !== authUser._id.toString()) {
+      return res.status(400).json({ success: false, message: 'This email address is already linked to another account' });
+    }
+    authUser.email = cleanEmail;
+    authUser.isEmailVerified = true;
+    authUserUpdated = true;
+  }
+  if (authUserUpdated) {
+    await authUser.save();
+  }
+
   let student = await Student.findOne({ userId: req.user._id });
   if (student) {
     // Guard: make sure this doc belongs to the authenticated user
@@ -47,7 +72,7 @@ export const createStudentProfile = asyncHandler(async (req, res) => {
       return res.status(403).json({ success: false, message: 'Profile ownership mismatch' });
     }
     Object.assign(student, req.body);
-    // Sync contact from User record (don't let client override verified fields)
+    // Sync contact from User record
     if (authUser.email) student.email = authUser.email;
     if (authUser.mobile) student.mobile = authUser.mobile;
     await student.save();
@@ -71,43 +96,65 @@ export const createStudentProfile = asyncHandler(async (req, res) => {
 });
 
 export const getStudentProfile = asyncHandler(async (req, res) => {
-  const student = await Student.findOne({ userId: req.user._id });
+  const student = await Student.findOne({ userId: req.user._id })
+    .populate('userId', 'email mobile isEmailVerified isMobileVerified');
   if (!student) return res.json({ success: true, data: null });
-  
-  const studentObj = student.toObject();
-  const totalActiveSeconds = await getAccumulatedActiveSeconds(student._id);
-  studentObj.activeSecondsSinceLastSpin = totalActiveSeconds - (student.lastSpinActiveSeconds || 0);
 
+  const studentObj = student.toObject();
+  // NOTE: activeSecondsSinceLastSpin is deliberately NOT computed here (expensive
+  // aggregate). It is fetched separately by the Spinner / Dashboard screens.
   res.json({ success: true, data: studentObj });
-});
-
-export const getDashboard = asyncHandler(async (req, res) => {
-  const student = await Student.findOne({ userId: req.user._id });
+});export const getDashboard = asyncHandler(async (req, res) => {
+  const student = await Student.findOne({ userId: req.user._id })
+    .select('firstName nickname streak totalPoints lastSpinActiveSeconds lastSpinDate wallet.totalPoints class board profilePhoto');
+  
   if (!student) return res.json({ success: true, data: null });
 
-  const studentObj = student.toObject();
-  const totalActiveSeconds = await getAccumulatedActiveSeconds(student._id);
-  studentObj.activeSecondsSinceLastSpin = totalActiveSeconds - (student.lastSpinActiveSeconds || 0);
+  // Lightweight parallel calls
+  const { default: Notification } = await import('../models/Notification.js');
+  const { default: ParentChildRequest } = await import('../models/ParentChildRequest.js');
 
-  const recentSessions = await Session.find({ studentId: student._id })
-    .sort({ createdAt: -1 })
-    .limit(5)
-    .populate('teacherId', 'fullName profilePhoto');
+  const [
+    totalActiveSeconds,
+    unreadNotificationCount,
+    pendingParentRequestCount
+  ] = await Promise.all([
+    getAccumulatedActiveSeconds(student._id),
+    Notification.countDocuments({ userId: req.user._id, isRead: false }),
+    ParentChildRequest.countDocuments({ studentId: student._id, status: 'pending' })
+  ]);
+
+  let activeTeachersCount = 0;
+  try {
+    const { getOnlineTeacherCount } = await import('../services/presenceService.js');
+    activeTeachersCount = await getOnlineTeacherCount();
+  } catch (err) {
+    console.error('[Dashboard online count error]', err);
+  }
+
+  const activeSecondsSinceLastSpin = totalActiveSeconds - (student.lastSpinActiveSeconds || 0);
 
   res.json({
     success: true,
     data: {
-      student: studentObj,
-      recentSessions,
-      wallet: student.wallet,
-      subscription: student.subscription,
-      streak: student.streak,
-      totalPoints: student.totalPoints,
-      spinUnlocked: student.spinUnlocked,
+      student: {
+        _id: student._id,
+        firstName: student.firstName,
+        nickname: student.nickname,
+        profilePhoto: student.profilePhoto || "",
+        streak: student.streak || 0,
+        totalPoints: student.totalPoints || 0,
+        activeSecondsSinceLastSpin,
+        lastSpinDate: student.lastSpinDate,
+        class: student.class,
+        board: student.board,
+      },
+      activeTeachersCount,
+      unreadNotificationCount,
+      pendingParentRequestCount,
     },
   });
 });
-
 export const getPlans = asyncHandler(async (req, res) => {
   const { class: cls } = req.query;
   const query = cls ? { class: cls, isActive: true } : { isActive: true };
@@ -147,130 +194,84 @@ export const activateTrial = asyncHandler(async (req, res) => {
 
 export const submitDoubt = asyncHandler(async (req, res) => {
   const student = await Student.findOne({ userId: req.user._id });
+  if (!student) return res.status(404).json({ success: false, message: 'Student not found' });
+
   const { subject, class: cls, board, language, sessionType, doubtText, doubtImage, topic, preferredTeacherId } = req.body;
 
+  const finalClass = cls || student.class;
+  const finalBoard = board || student.board;
+  const finalLanguage = language || student.preferredLanguage || 'English';
+
+  // Step 1: Create Session document
   const session = await Session.create({
     studentId: student._id,
     type: sessionType || 'chat',
     subject,
-    class: cls || student.class,
-    board: board || student.board,
-    language: language || student.preferredLanguage,
+    class: finalClass,
+    board: finalBoard,
+    language: finalLanguage,
     doubtText,
     doubtImage,
     topic,
     status: 'searching',
   });
 
-  const teachers = await findMatchingTeachers({
-    subject,
-    class: cls || student.class,
-    language: language || student.preferredLanguage,
-    board: board || student.board,
-    preferredTeacherId,
-  });
-
-  const timerSec = parseInt(process.env.REQUEST_RESPONSE_TIMER_SEC || '20', 10);
-  const timerExpiresAt = new Date(Date.now() + timerSec * 1000);
-
+  // Step 2: Create DoubtRequest with status = queued (matching happens in worker)
   const doubtRequest = await DoubtRequest.create({
     studentId: student._id,
     sessionId: session._id,
     subject,
-    class: cls || student.class,
-    board,
-    language,
-    sessionType,
+    class: finalClass,
+    board: finalBoard,
+    language: finalLanguage,
+    sessionType: sessionType || 'chat',
     doubtText,
     doubtImage,
     topic,
     preferredTeacherId,
-    routedTeachers: teachers.map((t) => ({
-      teacherId: t._id,
-      timerExpiresAt,
-    })),
+    routedTeachers: [],     // Populated by dispatch worker as it dispatches
     status: 'searching',
-    timerExpiresAt,
   });
 
-  session.routedTeachers = teachers.map((t) => t._id);
-  await session.save();
+  // Step 3: Enqueue dispatch job — controller returns immediately, worker does the matching
+  const { enqueueDispatch } = await import('../queues/dispatchQueue.js');
+  await enqueueDispatch(doubtRequest._id);
 
-  // Emit socket event to each matched teacher's personal room
+  // Notify student their request is queued
   const io = getIo();
   if (io) {
-    const requestPayload = {
+    io.to(`user:${req.user._id.toString()}`).emit('request-created', {
       requestId: doubtRequest._id.toString(),
       sessionId: session._id.toString(),
-      sessionType: sessionType || 'chat',
-      subject,
-      class: cls || student.class,
-      board: board || student.board,
-      language: language || student.preferredLanguage,
-      doubtText,
-      topic,
-      timerExpiresAt,
-      student: {
-        name: student.fullName,
-        nickname: student.nickname,
-        class: student.class,
-        photo: student.profilePhoto,
-      },
-    };
-
-    for (const teacher of teachers) {
-      const targetUserId = teacher.userId._id ? teacher.userId._id.toString() : teacher.userId.toString();
-      const roomName = `user:${targetUserId}`;
-      const room = io.sockets.adapter.rooms.get(roomName);
-      console.log(`Emitting new_request to ${roomName}. Sockets in room:`, room ? room.size : 0);
-      console.log('Payload being sent:', JSON.stringify(requestPayload));
-      io.to(roomName).emit('new_request', requestPayload);
-
-      // Also persist DB notification
-      await createNotification(
-        targetUserId,
-        'new_request',
-        'New Doubt Request',
-        `${subject} - Class ${cls || student.class}`,
-        { sessionId: session._id, doubtRequestId: doubtRequest._id },
-        `/teacher/requests/${doubtRequest._id}`
-      );
-    }
-  } else {
-    // Fallback: just send DB notifications
-    for (const teacher of teachers) {
-      await createNotification(
-        teacher.userId,
-        'new_request',
-        'New Doubt Request',
-        `${subject} - Class ${cls || student.class}`,
-        { sessionId: session._id, doubtRequestId: doubtRequest._id },
-        `/teacher/requests/${doubtRequest._id}`
-      );
-    }
+      status: 'searching',
+      message: 'Finding the best teacher for you...',
+    });
   }
 
   res.json({
     success: true,
-    data: { session, doubtRequest, teachersFound: teachers.length },
-    message: teachers.length ? 'Searching for teachers...' : 'No teachers available',
+    data: { session, doubtRequest },
+    message: 'Searching for teachers...',
   });
 });
 
 export const submitDoubtWithImages = asyncHandler(async (req, res) => {
   const student = await Student.findOne({ userId: req.user._id });
+  if (!student) return res.status(404).json({ success: false, message: 'Student not found' });
+
   const doubtText = req.body.text || req.body.doubtText || '';
   const doubtImage = req.file ? getFileUrl(req.file.filename, 'documents') : (req.body.doubtImage || '');
   const subject = req.body.subject || 'General';
-  const cls = req.body.class || student?.class || '10';
-  const board = req.body.board || student?.board || 'CBSE';
-  const language = req.body.language || student?.preferredLanguage || 'English';
+  const cls = req.body.class || student.class || '10';
+  const board = req.body.board || student.board || 'CBSE';
+  const language = req.body.language || student.preferredLanguage || 'English';
   const sessionType = req.body.sessionType || 'chat';
   const topic = req.body.topic || '';
   const preferredTeacherId = req.body.preferredTeacherId;
 
+  // Step 1: Create Session
   const session = await Session.create({
-    studentId: student?._id,
+    studentId: student._id,
     type: sessionType,
     subject,
     class: cls,
@@ -282,19 +283,9 @@ export const submitDoubtWithImages = asyncHandler(async (req, res) => {
     status: 'searching',
   });
 
-  const teachers = await findMatchingTeachers({
-    subject,
-    class: cls,
-    language,
-    board,
-    preferredTeacherId,
-  });
-
-  const timerSec = parseInt(process.env.REQUEST_RESPONSE_TIMER_SEC || '20', 10);
-  const timerExpiresAt = new Date(Date.now() + timerSec * 1000);
-
+  // Step 2: Create DoubtRequest — controller does NOT match here
   const doubtRequest = await DoubtRequest.create({
-    studentId: student?._id,
+    studentId: student._id,
     sessionId: session._id,
     subject,
     class: cls,
@@ -305,75 +296,28 @@ export const submitDoubtWithImages = asyncHandler(async (req, res) => {
     doubtImage,
     topic,
     preferredTeacherId,
-    routedTeachers: teachers.map((t) => ({
-      teacherId: t._id,
-      timerExpiresAt,
-    })),
+    routedTeachers: [],
     status: 'searching',
-    timerExpiresAt,
   });
 
-  session.routedTeachers = teachers.map((t) => t._id);
-  await session.save();
+  // Step 3: Enqueue dispatch job asynchronously
+  const { enqueueDispatch } = await import('../queues/dispatchQueue.js');
+  await enqueueDispatch(doubtRequest._id);
 
-  // Emit socket event to each matched teacher's personal room
   const io = getIo();
   if (io) {
-    const requestPayload = {
+    io.to(`user:${req.user._id.toString()}`).emit('request-created', {
       requestId: doubtRequest._id.toString(),
       sessionId: session._id.toString(),
-      sessionType: sessionType || 'chat',
-      subject,
-      class: cls,
-      board,
-      language,
-      doubtText,
-      doubtImage,
-      topic,
-      timerExpiresAt,
-      student: {
-        name: student?.fullName || '',
-        nickname: student?.nickname || '',
-        class: student?.class || '',
-        photo: student?.profilePhoto || student?.photo || '',
-      },
-    };
-
-    for (const teacher of teachers) {
-      const targetUserId = teacher.userId._id ? teacher.userId._id.toString() : teacher.userId.toString();
-      const roomName = `user:${targetUserId}`;
-      const room = io.sockets.adapter.rooms.get(roomName);
-      console.log(`Emitting new_request to ${roomName} (image). Sockets in room:`, room ? room.size : 0);
-      io.to(roomName).emit('new_request', requestPayload);
-
-      // Also persist DB notification
-      await createNotification(
-        targetUserId,
-        'new_request',
-        'New Doubt Request',
-        `${subject} - Class ${cls}`,
-        { sessionId: session._id, doubtRequestId: doubtRequest._id },
-        `/teacher/requests/${doubtRequest._id}`
-      );
-    }
-  } else {
-    // Fallback: just send DB notifications
-    for (const teacher of teachers) {
-      await createNotification(
-        teacher.userId,
-        'new_request',
-        'New Doubt Request',
-        `${subject} - Class ${cls}`,
-        { sessionId: session._id, doubtRequestId: doubtRequest._id },
-        `/teacher/requests/${doubtRequest._id}`
-      );
-    }
+      status: 'searching',
+      message: 'Finding the best teacher for you...',
+    });
   }
 
   res.json({
     success: true,
-    data: { session, doubtRequest, teachersFound: teachers.length },
-    message: teachers.length ? 'Searching for teachers...' : 'No teachers available',
+    data: { session, doubtRequest },
+    message: 'Searching for teachers...',
   });
 });
 
@@ -388,6 +332,53 @@ export const getDoubtById = asyncHandler(async (req, res) => {
   }
 
   res.json({ success: true, data: doubtRequest });
+});
+
+export const cancelDoubtRequest = asyncHandler(async (req, res) => {
+  const doubtRequest = await DoubtRequest.findById(req.params.id);
+  if (!doubtRequest) {
+    return res.status(404).json({ success: false, message: 'Doubt request not found' });
+  }
+
+  // Only cancel if still pending or searching
+  if (['searching', 'queued', 'dispatching'].includes(doubtRequest.status)) {
+    doubtRequest.status = 'cancelled';
+    await doubtRequest.save();
+
+    if (doubtRequest.sessionId) {
+      const Session = (await import('../models/Session.js')).default;
+      await Session.findByIdAndUpdate(doubtRequest.sessionId, { status: 'cancelled' });
+    }
+
+    // Release dispatch lock for currently routed teacher
+    const activeRoute = doubtRequest.routedTeachers.find(t => t.status === 'pending');
+    if (activeRoute) {
+      try {
+        const { releaseDispatchLock } = await import('../services/presenceService.js');
+        await releaseDispatchLock(activeRoute.teacherId);
+
+        // Notify active teacher via Socket.io
+        const Teacher = (await import('../models/Teacher.js')).default;
+        const teacherDoc = await Teacher.findById(activeRoute.teacherId).select('userId');
+        if (teacherDoc && teacherDoc.userId) {
+          const room = `user:${teacherDoc.userId.toString()}`;
+          const cancelPayload = { requestId: doubtRequest._id.toString() };
+          
+          const io = getIo();
+          if (io) {
+            io.to(room).emit('request_expired', cancelPayload);
+          }
+          const { publishSocketEvent } = await import('../services/redisService.js');
+          await publishSocketEvent(room, 'request_expired', cancelPayload);
+          console.log(`[CancelDoubtRequest] Emitted request_expired to room user:${teacherDoc.userId.toString()}`);
+        }
+      } catch (err) {
+        console.error('[CancelDoubtRequest] Failed to release lock/notify teacher:', err.message);
+      }
+    }
+  }
+
+  res.json({ success: true, message: 'Doubt request cancelled successfully' });
 });
 
 export const getAvailableTeachers = asyncHandler(async (req, res) => {
@@ -667,35 +658,37 @@ export const claimSpinReward = asyncHandler(async (req, res) => {
     return res.status(404).json({ success: false, message: 'Student not found' });
   }
 
-  const totalActiveSeconds = await getAccumulatedActiveSeconds(student._id);
-  const activeSecondsSinceSpin = totalActiveSeconds - (student.lastSpinActiveSeconds || 0);
-
-  if (activeSecondsSinceSpin < 7200) {
-    const secondsRemaining = 7200 - activeSecondsSinceSpin;
-    return res.status(400).json({ 
-      success: false, 
-      message: `Spin Wheel is locked! Come back in ${Math.ceil(secondsRemaining / 60)} minutes of app usage`,
-      secondsLeft: secondsRemaining 
-    });
+  // ── 24-hour cooldown gate (matches frontend timer) ──
+  if (student.lastSpinDate) {
+    const diffMs = Date.now() - new Date(student.lastSpinDate).getTime();
+    const cooldownMs = 24 * 60 * 60 * 1000; // 24 hours
+    if (diffMs < cooldownMs) {
+      const secondsRemaining = Math.ceil((cooldownMs - diffMs) / 1000);
+      return res.status(400).json({
+        success: false,
+        message: `Spin Wheel is locked! Come back in ${Math.ceil(secondsRemaining / 3600)} hours`,
+        secondsLeft: secondsRemaining,
+      });
+    }
   }
 
   const now = new Date();
   student.lastSpinDate = now;
-  student.lastSpinActiveSeconds = totalActiveSeconds;
 
   if (rewardType === 'POINTS') {
-    student.totalPoints += amount;
-    student.wallet.totalPoints += amount;
-    student.wallet.balance += amount;
+    student.totalPoints += (amount || 0);
+    student.wallet.totalPoints += (amount || 0);
+    student.wallet.balance += (amount || 0);
     await logStudentPointsTransaction(req.user._id, amount, 'bonus', 'Lucky Spin Wheel Reward');
   } else if (rewardType === 'CREDITS') {
-    student.wallet.aiCredits += amount;
+    student.wallet.aiCredits += (amount || 0);
     await logStudentPointsTransaction(req.user._id, amount, 'bonus', `Lucky Spin Wheel Reward (${amount} AI Credits)`);
   }
+  // TRY_AGAIN and OFF rewards just record the spin date, no credit given
   
   student.markModified('wallet');
   await student.save();
-  res.json({ success: true, message: `Successfully claimed ${amount} ${rewardType}`, data: student });
+  res.json({ success: true, message: rewardType === 'TRY_AGAIN' ? 'Better luck next time!' : `Successfully claimed ${amount} ${rewardType}`, data: student });
 });
 
 export const rechargeWallet = asyncHandler(async (req, res) => {
@@ -1178,6 +1171,9 @@ export const submitUsageHeartbeat = asyncHandler(async (req, res) => {
     return res.status(404).json({ success: false, message: 'Student not found' });
   }
 
+  // Get dynamic activeSeconds parameter from req.body with a fallback of 60 seconds
+  const activeSeconds = parseInt(req.body.activeSeconds || '60', 10);
+
   // Get current date normalized to UTC midnight
   const now = new Date();
   const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
@@ -1199,8 +1195,8 @@ export const submitUsageHeartbeat = asyncHandler(async (req, res) => {
     });
   }
 
-  // Increment active seconds by 60 (since frontend pings every 60 seconds)
-  usage.totalActiveSeconds = (usage.totalActiveSeconds || 0) + 60;
+  // Increment active seconds dynamically
+  usage.totalActiveSeconds = (usage.totalActiveSeconds || 0) + activeSeconds;
   usage.totalActiveMinutes = Math.floor(usage.totalActiveSeconds / 60);
   usage.lastSeen = now;
   await usage.save();
@@ -1214,5 +1210,22 @@ export const submitUsageHeartbeat = asyncHandler(async (req, res) => {
     totalActiveSeconds: usage.totalActiveSeconds,
     activeSecondsSinceLastSpin: activeSecondsSinceSpin,
     canSpin: activeSecondsSinceSpin >= 7200, // 2 hours = 7200 seconds
+  });
+});
+
+export const deductSessionCredits = asyncHandler(async (req, res) => {
+  const { sessionId } = req.params;
+  const student = await Student.findOne({ userId: req.user._id });
+  if (!student) return res.status(404).json({ success: false, message: 'Student not found' });
+
+  // Deduct 10 credits
+  const creditsToDeduct = 10;
+  student.wallet.humanChatCredits = Math.max(0, (student.wallet.humanChatCredits || 0) - creditsToDeduct);
+  await student.save();
+
+  res.json({
+    success: true,
+    message: 'Credits deducted successfully',
+    remainingCredits: student.wallet.humanChatCredits
   });
 });

@@ -5,7 +5,7 @@ import {
   getChapters, claimSpinReward, getStudentWalletHistory, rechargeWallet, submitDoubtWithImages, getDoubtById,
   getAvailableTeachers, getParentRequests, approveParentRequest, rejectParentRequest,
   getAiChatHistory, submitAiChatQuery, getAiChatSessions, deleteAiChatSession, clearAllAiChatHistory,
-  getStudentStats, submitUsageHeartbeat
+  getStudentStats, submitUsageHeartbeat, cancelDoubtRequest, deductSessionCredits
 } from '../controllers/studentController.js';
 import {
   getSessionHistory, getSessionMessages, sendMessage, resolveSession,
@@ -55,6 +55,7 @@ router.post('/usage-heartbeat', submitUsageHeartbeat);
 router.post('/doubt', submitDoubt);
 router.post('/doubts/upload', upload.single('images'), cloudinaryUploadMiddleware, submitDoubtWithImages);
 router.get('/doubts/:id', getDoubtById);
+router.post('/doubts/:id/cancel', cancelDoubtRequest);
 router.get('/teachers', getAvailableTeachers);
 router.get('/mcq/daily', getDailyMcq);
 router.post('/mcq/submit', submitMcq);
@@ -62,7 +63,8 @@ router.post('/favorite-teacher', toggleFavoriteTeacher);
 router.get('/sessions', getSessionHistory);
 router.get('/sessions/:sessionId/messages', getSessionMessages);
 router.post('/sessions/messages', sendMessage);
-router.post('/sessions/resolve', resolveSession);
+router.post('/sessions/:sessionId/resolve', resolveSession);
+router.post('/sessions/:sessionId/deduct-credits', deductSessionCredits);
 router.get('/notifications', getNotifications);
 router.put('/notifications/read-all', markAllNotificationsRead);
 router.put('/notifications/:id/read', markNotificationRead);
@@ -91,5 +93,35 @@ router.post('/chat/upload', upload.single('media'), cloudinaryUploadMiddleware, 
   const mediaUrl = getFileUrl(req.file.filename, 'chat');
   res.json({ success: true, url: mediaUrl });
 });
+
+router.post('/debug-match', asyncHandler(async (req, res) => {
+  const { subject, class: cls, language, board } = req.body;
+  const { findEligibleTeachers } = await import('../services/matchingService.js');
+  
+  // Also get the raw DB teachers for comparison
+  const Teacher = (await import('../models/Teacher.js')).default;
+  const allTeachers = await Teacher.find({}).select('firstName subjects classes languages boards availabilityStatus applicationStatus');
+  
+  const { getAvailableTeacherIds } = await import('../services/presenceService.js');
+  const availableRedisIds = await getAvailableTeacherIds();
+
+  const matchedTeachers = await findEligibleTeachers({
+    subject,
+    class: cls,
+    language,
+    board,
+    studentId: req.user._id,
+  });
+
+  res.json({
+    success: true,
+    data: {
+      input: { subject, class: cls, language, board },
+      redisAvailableIds: availableRedisIds,
+      matchedTeachers,
+      allTeachersInDB: allTeachers,
+    }
+  });
+}));
 
 export default router;

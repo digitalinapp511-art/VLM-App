@@ -122,4 +122,43 @@ router.post('/chat/upload', upload.single('media'), cloudinaryUploadMiddleware, 
   res.json({ success: true, url: mediaUrl });
 });
 
+// ── Debug: inspect this teacher's current Redis + DB state ───────────────────
+// GET /api/teacher/debug-state
+router.get('/debug-state', asyncHandler(async (req, res) => {
+  const teacher = await Teacher.findOne({ userId: req.user._id });
+  if (!teacher) return res.status(404).json({ success: false, message: 'Teacher not found' });
+
+  const { getTeacherState, getAvailableTeacherIds, hasDispatchLock } = await import('../services/presenceService.js');
+
+  const [redisState, availableIds, isLocked] = await Promise.all([
+    getTeacherState(teacher._id),
+    getAvailableTeacherIds(),
+    hasDispatchLock(teacher._id),
+  ]);
+
+  const isInAvailableSet = availableIds.includes(teacher._id.toString());
+
+  res.json({
+    success: true,
+    debug: {
+      teacherId: teacher._id,
+      userId: teacher.userId,
+      firstName: teacher.firstName,
+      applicationStatus: teacher.applicationStatus,
+      availabilityStatus: teacher.availabilityStatus,
+      subjects: teacher.subjects,
+      classes: teacher.classes,
+      boards: teacher.boards,
+      languages: teacher.languages,
+      redis: {
+        state: redisState,
+        isInAvailableSet,
+        isLocked,
+        totalOnlineCount: availableIds.length,
+        allOnlineIds: availableIds,
+      },
+    },
+  });
+}));
+
 export default router;

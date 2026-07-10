@@ -10,7 +10,7 @@ import { PATHS } from "@/routes/paths";
 import {
   MessageCircle,
   Video,
-  Headphones,
+  Mic,
   Bot,
   FileText,
   BookOpen,
@@ -18,6 +18,7 @@ import {
   Target,
   Brain,
   Star,
+  History,
 } from "lucide-react";
 
 interface QuickTile {
@@ -25,6 +26,7 @@ interface QuickTile {
   icon: React.ReactNode;
   bg: string;
   to: string;
+  state?: any;
 }
 
 export default function QuickAccessGrid() {
@@ -36,18 +38,21 @@ export default function QuickAccessGrid() {
       icon: <MessageCircle size={22} className="text-green-600 dark:text-green-400" />,
       bg: "bg-green-100 dark:bg-green-950/40",
       to: PATHS.ASK_DOUBT,
+      state: { type: "chat" }
     },
     {
-      label: "Video Call",
+      label: "Video",
       icon: <Video size={22} className="text-blue-600 dark:text-blue-400" />,
       bg: "bg-blue-100 dark:bg-blue-950/40",
       to: PATHS.ASK_DOUBT,
+      state: { type: "video" }
     },
     {
-      label: "Chat Support",
-      icon: <Headphones size={22} className="text-purple-600 dark:text-purple-400" />,
+      label: "Voice",
+      icon: <Mic size={22} className="text-purple-600 dark:text-purple-400" />,
       bg: "bg-purple-100 dark:bg-purple-950/40",
       to: PATHS.ASK_DOUBT,
+      state: { type: "audio" }
     },
     {
       label: "AI Tutor",
@@ -62,21 +67,9 @@ export default function QuickAccessGrid() {
       to: PATHS.LIBRARY,
     },
     {
-      label: "NCERT Solutions",
-      icon: <BookOpen size={22} className="text-emerald-600 dark:text-emerald-400" />,
-      bg: "bg-emerald-100 dark:bg-emerald-950/40",
-      to: PATHS.LIBRARY,
-    },
-    {
       label: "MCQ",
       icon: <ClipboardList size={22} className="text-cyan-600 dark:text-cyan-400" />,
       bg: "bg-cyan-100 dark:bg-cyan-950/40",
-      to: PATHS.MCQ,
-    },
-    {
-      label: "Mock Tests",
-      icon: <Target size={22} className="text-red-600 dark:text-red-400" />,
-      bg: "bg-red-100 dark:bg-red-950/40",
       to: PATHS.MCQ,
     },
     {
@@ -86,10 +79,22 @@ export default function QuickAccessGrid() {
       to: PATHS.MCQ,
     },
     {
-      label: "Important Qs",
+      label: "Imp Qs",
       icon: <Star size={22} className="text-orange-500 dark:text-orange-400" />,
       bg: "bg-orange-100 dark:bg-orange-950/40",
       to: PATHS.LIBRARY,
+    },
+    {
+      label: "NCERT Solutions",
+      icon: <BookOpen size={22} className="text-emerald-600 dark:text-emerald-400" />,
+      bg: "bg-emerald-100 dark:bg-emerald-950/40",
+      to: PATHS.LIBRARY,
+    },
+    {
+      label: "History",
+      icon: <History size={22} className="text-indigo-600 dark:text-indigo-400" />,
+      bg: "bg-indigo-100 dark:bg-indigo-950/40",
+      to: PATHS.SESSION_HISTORY,
     },
   ];
 
@@ -98,7 +103,12 @@ export default function QuickAccessGrid() {
       {/* Section header */}
       <div className="flex items-center justify-between mb-4">
         <h2 className="font-black text-slate-800 text-sm dark:text-slate-100">Quick Access</h2>
-        <button className="text-xs font-bold text-violet-600 dark:text-violet-400">View All</button>
+        <button 
+          onClick={() => navigate(PATHS.SESSION_HISTORY)}
+          className="text-xs font-bold text-violet-600 dark:text-violet-400 hover:underline"
+        >
+          View All
+        </button>
       </div>
 
       {/* 5-col grid */}
@@ -106,7 +116,7 @@ export default function QuickAccessGrid() {
         {tiles.map((tile) => (
           <button
             key={tile.label}
-            onClick={() => navigate(tile.to)}
+            onClick={() => navigate(tile.to, { state: tile.state })}
             className="flex flex-col items-center gap-1.5 group"
           >
             <div

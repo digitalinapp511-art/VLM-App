@@ -7,8 +7,37 @@ import { asyncHandler } from '../middleware/errorHandler.js';
 import { createNotification } from '../services/notificationService.js';
 import { getIo } from '../socket/index.js';
 import { generateVlmId } from '../utils/vlmIdGenerator.js';
+import User from '../models/User.js';
 
 export const createParentProfile = asyncHandler(async (req, res) => {
+  const authUser = await User.findById(req.user._id);
+  if (authUser) {
+    let authUserUpdated = false;
+    if (req.body.mobile && !authUser.mobile) {
+      const cleanMobile = req.body.mobile.trim();
+      const duplicateUser = await User.findOne({ mobile: cleanMobile });
+      if (duplicateUser && duplicateUser._id.toString() !== authUser._id.toString()) {
+        return res.status(400).json({ success: false, message: 'This mobile number is already linked to another account' });
+      }
+      authUser.mobile = cleanMobile;
+      authUser.isMobileVerified = true;
+      authUserUpdated = true;
+    }
+    if (req.body.email && !authUser.email) {
+      const cleanEmail = req.body.email.trim().toLowerCase();
+      const duplicateUser = await User.findOne({ email: cleanEmail });
+      if (duplicateUser && duplicateUser._id.toString() !== authUser._id.toString()) {
+        return res.status(400).json({ success: false, message: 'This email address is already linked to another account' });
+      }
+      authUser.email = cleanEmail;
+      authUser.isEmailVerified = true;
+      authUserUpdated = true;
+    }
+    if (authUserUpdated) {
+      await authUser.save();
+    }
+  }
+
   let parent = await Parent.findOne({ userId: req.user._id });
   if (parent) {
     Object.assign(parent, req.body);

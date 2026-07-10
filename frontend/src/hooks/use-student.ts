@@ -16,6 +16,8 @@ export function useStudentProfile() {
   return useQuery<StudentProfile>({
     queryKey: ["studentProfile"],
     queryFn: studentApi.getProfile,
+    staleTime: 5 * 60 * 1000, // 5 minutes stale time
+    gcTime: 10 * 60 * 1000, // 10 minutes cache retention
   });
 }
 
@@ -32,12 +34,14 @@ export function useUpdateProfile() {
     mutationFn: (payload) => studentApi.updateProfile(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["studentProfile"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
     },
   });
 }
 
 export function useDashboard() {
-  const isBypass = localStorage.getItem("dev_bypass_auth") === "true";
+  const hasToken = !!localStorage.getItem("vlm_token");
+  const isBypass = localStorage.getItem("dev_bypass_auth") === "true" && !hasToken;
   return useQuery<DashboardData>({
     queryKey: ["dashboard"],
     queryFn: isBypass
@@ -81,6 +85,8 @@ export function useDashboard() {
           ],
         })
       : studentApi.getDashboard,
+    staleTime: 30000, // 30 seconds stale time
+    gcTime: 5 * 60 * 1000, // Keep in cache for 5 mins
   });
 }
 
@@ -88,6 +94,7 @@ export function useLiveClasses<T = any>() {
   return useQuery<T>({
     queryKey: ["liveClasses"],
     queryFn: studentApi.getLiveClasses,
+    staleTime: 60000, // 1 minute
   });
 }
 

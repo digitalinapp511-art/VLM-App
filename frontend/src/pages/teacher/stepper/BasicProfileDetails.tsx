@@ -33,7 +33,9 @@ const BasicProfileDetails: React.FC = () => {
   });
 
   const [form, setForm] = useState({
-    fullName: "",
+    firstName: "",
+    middleName: "",
+    lastName: "",
     gender: "",
     dob: "",
     address: "",
@@ -52,11 +54,13 @@ const BasicProfileDetails: React.FC = () => {
       const defaultEmail = isEmailLogin ? (profile.user?.email || loginIdentifier) : "";
       const defaultMobile = !isEmailLogin ? (profile.user?.mobile || loginIdentifier) : "";
 
-      const dbName = (profile.fullName || "").trim();
-      const isDefaultName = !dbName || dbName.toLowerCase() === "teacher";
+      const dbFirstName = (profile.firstName || "").trim();
+      const isDefaultFirstName = !dbFirstName || dbFirstName.toLowerCase() === "teacher";
 
       setForm({
-        fullName: isDefaultName ? "" : dbName,
+        firstName: isDefaultFirstName ? "" : dbFirstName,
+        middleName: profile.middleName || "",
+        lastName: profile.lastName || "",
         gender: profile.gender || "",
         dob:
           profile.dob && !isNaN(new Date(profile.dob).getTime())
@@ -92,7 +96,7 @@ const BasicProfileDetails: React.FC = () => {
 
   const handleContinue = async () => {
     const newErrors: Record<string, string> = {};
-    if (!form.fullName.trim()) newErrors.fullName = "Full Name is required";
+    if (!form.firstName.trim()) newErrors.firstName = "First Name is required";
     if (!form.gender) newErrors.gender = "Gender is required";
     if (!form.dob) newErrors.dob = "Date of birth is required";
     if (!form.address.trim()) newErrors.address = "Address is required";
@@ -121,7 +125,9 @@ const BasicProfileDetails: React.FC = () => {
       }
 
       await teacherApi.updateProfile({
-        fullName: form.fullName,
+        firstName: form.firstName,
+        middleName: form.middleName,
+        lastName: form.lastName,
         gender: form.gender,
         dob: form.dob,
         address: form.address,
@@ -211,13 +217,29 @@ const BasicProfileDetails: React.FC = () => {
             <div className="flex-grow flex flex-col gap-3 min-w-[200px]">
               <RegistrationField
                 icon={<User />}
-                label="Full Name"
-                placeholder="Enter Full Name"
-                value={form.fullName}
+                label="First Name"
+                placeholder="First Name"
+                value={form.firstName}
                 required
-                error={errors.fullName}
-                onChange={(e: any) => updateField("fullName", e.target.value)}
+                error={errors.firstName}
+                onChange={(e: any) => updateField("firstName", e.target.value)}
               />
+              <div className="grid grid-cols-2 gap-2">
+                <RegistrationField
+                  icon={<User />}
+                  label="Middle Name"
+                  placeholder="Middle Name"
+                  value={form.middleName}
+                  onChange={(e: any) => updateField("middleName", e.target.value)}
+                />
+                <RegistrationField
+                  icon={<User />}
+                  label="Last Name"
+                  placeholder="Last Name"
+                  value={form.lastName}
+                  onChange={(e: any) => updateField("lastName", e.target.value)}
+                />
+              </div>
               <RegistrationField
                 icon={<User />}
                 label="Gender"

@@ -1,7 +1,7 @@
 import React from "react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
-import { Book, Clock, CircleDollarSign, Calendar, CheckSquare, Hourglass } from "lucide-react";
+import { Book, Clock, IndianRupee, Calendar, CheckSquare, Hourglass } from "lucide-react";
 
 interface SessionCardProps {
   studentName: string;
@@ -11,6 +11,7 @@ interface SessionCardProps {
   earnings: string;
   date: string;
   status: "RESOLVED" | "UNRESOLVED";
+  studentAvatar?: string;
 }
 
 const SessionItemCard: React.FC<SessionCardProps> = ({
@@ -21,6 +22,7 @@ const SessionItemCard: React.FC<SessionCardProps> = ({
   earnings,
   date,
   status,
+  studentAvatar,
 }) => {
   const isResolved = status === "RESOLVED";
 
@@ -36,7 +38,16 @@ const SessionItemCard: React.FC<SessionCardProps> = ({
     >
       {/* Header Info */}
       <div className="flex items-center gap-3">
-        <div className="w-12 h-12 rounded-full border border-cyan-400/30 bg-zinc-900" />
+        <div className="w-12 h-12 rounded-full border border-cyan-400/30 bg-zinc-900 overflow-hidden flex items-center justify-center">
+          <img 
+            src={studentAvatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(studentName)}`} 
+            alt={studentName}
+            className="w-full h-full object-cover"
+            onError={(e) => {
+              (e.target as HTMLImageElement).src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(studentName)}`;
+            }}
+          />
+        </div>
         <h3 className="text-white font-bold text-lg">
           {studentName} <span className="text-zinc-500 font-medium text-sm ml-1">| {grade}</span>
         </h3>
@@ -61,8 +72,8 @@ const SessionItemCard: React.FC<SessionCardProps> = ({
         <div className="space-y-1">
           <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">Earnings</p>
           <div className="flex items-center gap-1.5">
-            <CircleDollarSign size={14} className="text-yellow-600" />
-            <span className="text-[13px] font-black text-emerald-400">${earnings}</span>
+            <IndianRupee size={14} className="text-yellow-600" />
+            <span className="text-[13px] font-black text-emerald-400">{earnings}</span>
           </div>
         </div>
       </div>

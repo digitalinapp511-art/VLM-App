@@ -21,7 +21,9 @@ export default function TeacherEditProfile() {
   const [photoPreview, setPhotoPreview] = useState<string>("");
 
   const [form, setForm] = useState({
-    fullName: "",
+    firstName: "",
+    middleName: "",
+    lastName: "",
     gender: "",
     dob: "",
     address: "",
@@ -30,6 +32,9 @@ export default function TeacherEditProfile() {
     pincode: "",
     email: "",
     mobile: "",
+    subjects: [] as string[],
+    classes: [] as string[],
+    boards: [] as string[],
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -47,11 +52,13 @@ export default function TeacherEditProfile() {
       const defaultEmail = isEmailLogin ? (profile.user?.email || loginIdentifier) : "";
       const defaultMobile = !isEmailLogin ? (profile.user?.mobile || loginIdentifier) : "";
 
-      const dbName = (profile.fullName || "").trim();
-      const isDefaultName = !dbName || dbName.toLowerCase() === "teacher";
+      const dbFirstName = (profile.firstName || "").trim();
+      const isDefaultFirstName = !dbFirstName || dbFirstName.toLowerCase() === "teacher";
 
       setForm({
-        fullName: isDefaultName ? "" : dbName,
+        firstName: isDefaultFirstName ? "" : dbFirstName,
+        middleName: profile.middleName || "",
+        lastName: profile.lastName || "",
         gender: profile.gender || "",
         dob: profile.dob ? new Date(profile.dob).toISOString().split('T')[0] : "",
         address: profile.address || "",
@@ -60,6 +67,9 @@ export default function TeacherEditProfile() {
         pincode: profile.pincode || "",
         email: defaultEmail,
         mobile: defaultMobile,
+        subjects: profile.subjects || [],
+        classes: profile.classes || [],
+        boards: profile.boards || [],
       });
       if (profile.profilePhoto) {
         setPhotoPreview(profile.profilePhoto);
@@ -108,7 +118,7 @@ export default function TeacherEditProfile() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const newErrors: Record<string, string> = {};
-    if (!form.fullName.trim()) newErrors.fullName = "Full Name is required";
+    if (!form.firstName.trim()) newErrors.firstName = "First Name is required";
     if (!form.gender) newErrors.gender = "Gender is required";
     if (!form.dob) newErrors.dob = "Date of Birth is required";
     if (!form.address.trim()) newErrors.address = "Address is required";
@@ -166,8 +176,8 @@ export default function TeacherEditProfile() {
         <div className="flex flex-col items-center gap-4 p-6 rounded-3xl border border-white/5 bg-white/[0.02] backdrop-blur-md">
           <div className="relative group">
             <Avatar className="w-24 h-24 border-2 border-white/10 bg-zinc-800">
-              <AvatarImage src={photoPreview || `https://api.dicebear.com/7.x/avataaars/svg?seed=${form.fullName || "Teacher"}`} />
-              <AvatarFallback>{(form.fullName || "T")[0]}</AvatarFallback>
+              <AvatarImage src={photoPreview || `https://api.dicebear.com/7.x/avataaars/svg?seed=${form.firstName || "Teacher"}`} />
+              <AvatarFallback>{(form.firstName || "T")[0]}</AvatarFallback>
             </Avatar>
             <button 
               type="button"
@@ -187,21 +197,51 @@ export default function TeacherEditProfile() {
           </h3>
 
           <div className="space-y-3.5">
-            {/* Full Name */}
+            {/* Split Names */}
             <div className="flex flex-col gap-1">
-              <label className="text-xs font-semibold text-zinc-400 uppercase ml-1">Full Name</label>
+              <label className="text-xs font-semibold text-zinc-400 uppercase ml-1">First Name</label>
               <div className={cn(
                 "flex items-center gap-3 p-3.5 rounded-2xl border bg-black/40 transition-all",
-                errors.fullName ? "border-red-500/50 bg-red-500/[0.01]" : "border-white/5"
+                errors.firstName ? "border-red-500/50 bg-red-500/[0.01]" : "border-white/5"
               )}>
                 <User size={16} className="text-zinc-500" />
                 <input
                   type="text"
-                  value={form.fullName}
-                  onChange={(e) => setForm(f => ({ ...f, fullName: e.target.value }))}
+                  value={form.firstName}
+                  onChange={(e) => setForm(f => ({ ...f, firstName: e.target.value }))}
                   className="bg-transparent border-none outline-none text-sm text-zinc-200 w-full"
-                  placeholder="Full Name"
+                  placeholder="First Name"
                 />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-semibold text-zinc-400 uppercase ml-1">Middle Name</label>
+                <div className="flex items-center gap-3 p-3.5 rounded-2xl border border-white/5 bg-black/40 transition-all">
+                  <User size={16} className="text-zinc-500" />
+                  <input
+                    type="text"
+                    value={form.middleName}
+                    onChange={(e) => setForm(f => ({ ...f, middleName: e.target.value }))}
+                    className="bg-transparent border-none outline-none text-sm text-zinc-200 w-full"
+                    placeholder="Middle Name"
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-semibold text-zinc-400 uppercase ml-1">Last Name</label>
+                <div className="flex items-center gap-3 p-3.5 rounded-2xl border border-white/5 bg-black/40 transition-all">
+                  <User size={16} className="text-zinc-500" />
+                  <input
+                    type="text"
+                    value={form.lastName}
+                    onChange={(e) => setForm(f => ({ ...f, lastName: e.target.value }))}
+                    className="bg-transparent border-none outline-none text-sm text-zinc-200 w-full"
+                    placeholder="Last Name"
+                  />
+                </div>
               </div>
             </div>
 
@@ -354,6 +394,110 @@ export default function TeacherEditProfile() {
                   />
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+        {/* Teaching Details Card (Subjects, Classes, Boards) */}
+        <div className="p-5 rounded-3xl border border-white/5 bg-white/[0.02] backdrop-blur-md space-y-5">
+          <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-widest border-b border-white/5 pb-2 flex items-center gap-2">
+            <User size={16} /> Teaching Specializations
+          </h3>
+
+          {/* Subjects Selection */}
+          <div className="space-y-2 text-left">
+            <label className="text-xs font-semibold text-zinc-400 uppercase ml-1">Subjects Taught</label>
+            <div className="flex flex-wrap gap-2">
+              {["maths", "science", "physics", "chemistry", "biology", "english", "hindi", "sst", "accounts", "economics", "computer", "others"].map((sub) => {
+                const isSelected = form.subjects.includes(sub);
+                return (
+                  <button
+                    key={sub}
+                    type="button"
+                    onClick={() => {
+                      setForm(f => ({
+                        ...f,
+                        subjects: isSelected ? f.subjects.filter(s => s !== sub) : [...f.subjects, sub]
+                      }));
+                    }}
+                    className={cn(
+                      "px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all border uppercase",
+                      isSelected 
+                        ? "bg-blue-600 border-blue-500 text-white shadow-md shadow-blue-500/20" 
+                        : "bg-white/[0.02] border-white/5 text-zinc-400 hover:text-zinc-200"
+                    )}
+                  >
+                    {sub}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Classes Selection */}
+          <div className="space-y-2 text-left">
+            <label className="text-xs font-semibold text-zinc-400 uppercase ml-1">Classes Taught</label>
+            <div className="flex flex-wrap gap-2">
+              {[
+                { id: "1-5", label: "Class 1-5" },
+                { id: "6-8", label: "Class 6-8" },
+                { id: "9-10", label: "Class 9-10" },
+                { id: "11-12", label: "Class 11-12" }
+              ].map((clsItem) => {
+                const isSelected = form.classes.includes(clsItem.id);
+                return (
+                  <button
+                    key={clsItem.id}
+                    type="button"
+                    onClick={() => {
+                      setForm(f => ({
+                        ...f,
+                        classes: isSelected ? f.classes.filter(c => c !== clsItem.id) : [...f.classes, clsItem.id]
+                      }));
+                    }}
+                    className={cn(
+                      "px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all border uppercase",
+                      isSelected 
+                        ? "bg-purple-650 border-purple-500 text-white shadow-md shadow-purple-500/20" 
+                        : "bg-white/[0.02] border-white/5 text-zinc-400 hover:text-zinc-200"
+                    )}
+                  >
+                    {clsItem.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Boards Selection */}
+          <div className="space-y-2 text-left">
+            <label className="text-xs font-semibold text-zinc-400 uppercase ml-1">Boards</label>
+            <div className="flex flex-wrap gap-2">
+              {[
+                { id: "cbse", label: "CBSE" },
+                { id: "state", label: "State Board" }
+              ].map((boardItem) => {
+                const isSelected = form.boards.includes(boardItem.id);
+                return (
+                  <button
+                    key={boardItem.id}
+                    type="button"
+                    onClick={() => {
+                      setForm(f => ({
+                        ...f,
+                        boards: isSelected ? f.boards.filter(b => b !== boardItem.id) : [...f.boards, boardItem.id]
+                      }));
+                    }}
+                    className={cn(
+                      "px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all border uppercase",
+                      isSelected 
+                        ? "bg-amber-600 border-amber-500 text-white shadow-md shadow-amber-500/20" 
+                        : "bg-white/[0.02] border-white/5 text-zinc-400 hover:text-zinc-200"
+                    )}
+                  >
+                    {boardItem.label}
+                  </button>
+                );
+              })}
             </div>
           </div>
         </div>

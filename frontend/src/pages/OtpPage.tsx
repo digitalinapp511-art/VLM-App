@@ -15,6 +15,7 @@ import { useVerifyOtp } from "@/hooks/use-auth";
 import { PATHS } from "@/routes/paths";
 import type { Role, VerifyOtpResponse } from "@/types";
 import { authApi } from "@/lib/auth-api";
+import logoImg from "../assets/logo.png";
 
 function resolvePostOtpPath(role: Role, isNewUser: boolean, responseData?: any): string {
   if (role === "teacher") {
@@ -42,10 +43,16 @@ function resolvePostOtpPath(role: Role, isNewUser: boolean, responseData?: any):
 
 export default function OtpVerificationPage() {
   const [otpValue, setOtpValue] = useState("");
-  const [timer, setTimer] = useState(58);
+  const [timer, setTimer] = useState(120);
   const [sentOtp, setSentOtp] = useState<string | null>(
     sessionStorage.getItem("vlm_sent_otp")
   );
+
+  const formatTimer = (totalSeconds: number) => {
+    const mins = Math.floor(totalSeconds / 60);
+    const secs = totalSeconds % 60;
+    return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+  };
 
   const navigate = useNavigate();
   const verifyMutation = useVerifyOtp();
@@ -86,6 +93,130 @@ export default function OtpVerificationPage() {
       }
     );
   };
+
+  if (role === "student") {
+    return (
+      <div className="relative flex min-h-svh w-full flex-col items-center justify-center bg-[#f4f6ff] text-slate-800 p-4 overflow-hidden">
+        {/* Subtle radial glow accents */}
+        <div className="pointer-events-none absolute -top-40 -left-40 w-96 h-96 rounded-full bg-violet-600/5 blur-[100px] -z-10" />
+        <div className="pointer-events-none absolute -bottom-40 -right-40 w-96 h-96 rounded-full bg-indigo-650/5 blur-[100px] -z-10" />
+
+        {/* Content Box */}
+        <div className="w-full max-w-sm flex flex-col items-center z-10 space-y-6">
+          {/* Logo & Header */}
+          <div className="flex flex-col items-center text-center space-y-2">
+            <div className="h-14 w-auto flex items-center justify-center">
+              <img src={logoImg} alt="VLM Academy" className="h-12 w-auto" />
+            </div>
+            <h1 className="text-xl font-black tracking-tight text-slate-800 mt-3">Enter Verification Code</h1>
+            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">A 6-digit code has been sent</p>
+          </div>
+
+          {/* OTP Card */}
+          <div className="w-full bg-white/80 backdrop-blur-xl border border-slate-200/80 rounded-[2rem] p-6 sm:p-8 shadow-xl flex flex-col items-center space-y-5">
+            <div className="text-center space-y-1.5 w-full">
+              <h3 className="text-slate-400 text-[10px] font-black uppercase tracking-wider">
+                Verifying Credentials
+              </h3>
+              <div className="flex items-center justify-center gap-1.5 pt-0.5">
+                <span className="text-slate-800 text-base font-extrabold tracking-tight">
+                  {maskedEmail}
+                </span>
+                <div className="bg-green-500 rounded-full p-0.5">
+                  <CheckCircle2 size={10} className="text-white fill-current" />
+                </div>
+              </div>
+
+              {sentOtp && (
+                <div className="mt-2 px-3 py-1 bg-violet-500/10 border border-violet-500/20 rounded-xl inline-flex flex-col items-center">
+                  <span className="text-[8px] font-black text-violet-600 uppercase tracking-widest">Sent OTP (Testing)</span>
+                  <span className="text-xs font-mono font-black text-slate-700 mt-0.5">{sentOtp}</span>
+                </div>
+              )}
+            </div>
+
+            {/* OTP Slots */}
+            <div className="w-full">
+              <InputOTP
+                maxLength={6}
+                value={otpValue}
+                onChange={(val) => setOtpValue(val)}
+                className="w-full"
+              >
+                <InputOTPGroup className="gap-1.5 flex w-full justify-between">
+                  {[...Array(6)].map((_, i) => (
+                    <InputOTPSlot
+                      key={i}
+                      index={i}
+                      className={cn(
+                        "h-10 w-10 sm:h-11 sm:w-11 rounded-xl border border-slate-200 bg-slate-50 text-sm sm:text-base font-bold text-slate-800 transition-all duration-300",
+                        "data-[active=true]:ring-2 data-[active=true]:ring-violet-500/50 data-[active=true]:border-violet-500"
+                      )}
+                    />
+                  ))}
+                </InputOTPGroup>
+              </InputOTP>
+            </div>
+
+            {verifyMutation.isError && (
+              <p className="text-rose-500 text-xs font-semibold text-center animate-pulse">
+                {(verifyMutation.error as any)?.response?.data?.message || 
+                 (verifyMutation.error as any)?.response?.data?.error || 
+                 "Invalid OTP. Please try again."}
+              </p>
+            )}
+
+            {/* Timer Badge */}
+            <div className="flex items-center gap-1.5 bg-slate-100 px-4 py-1.5 rounded-full border border-slate-200 shadow-inner">
+              <Clock size={12} className="text-amber-500" />
+              <span className="text-slate-650 text-[10px] font-bold">
+                Time remaining: <span className="font-mono ml-0.5">{formatTimer(timer)}</span>
+              </span>
+            </div>
+
+            {/* Resend Action */}
+            <div className="text-center w-full">
+              <span className="text-slate-400 text-[10px] font-bold block">
+                Didn't receive code?
+              </span>
+              <Button
+                variant="link"
+                disabled={timer > 0}
+                className="text-violet-600 text-xs font-black p-0 h-auto underline underline-offset-2 hover:text-violet-500 mt-0.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                onClick={async () => {
+                  if (timer > 0) return;
+                  if (email) {
+                    try {
+                      const data = await authApi.sendOtp(email, "login");
+                      const receivedOtp = data?.otp || data?.code || data?.data?.otp || data?.data?.code;
+                      if (receivedOtp) {
+                        sessionStorage.setItem("vlm_sent_otp", String(receivedOtp));
+                        setSentOtp(String(receivedOtp));
+                      }
+                    } catch (err) {
+                      console.error("Failed to resend OTP", err);
+                    }
+                  }
+                  setTimer(120);
+                }}
+              >
+                Resend OTP
+              </Button>
+            </div>
+
+            {/* Submit Button */}
+            <Button
+              disabled={otpValue.length !== 6 || verifyMutation.isPending}
+              onClick={handleVerify}
+              className="w-full h-12 rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-700 hover:from-violet-500 hover:to-indigo-600 text-white font-black text-xs uppercase tracking-widest shadow-md shadow-violet-500/10 active:scale-[0.98] transition-all cursor-pointer disabled:opacity-50 mt-2 border-none"
+            >
+              {verifyMutation.isPending ? "Verifying..." : "Verify & Log In"}
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="relative vlm-bg-navy flex min-h-svh w-full flex-col items-center justify-center bg-[#050505] px-6 overflow-hidden">
@@ -171,10 +302,7 @@ export default function OtpVerificationPage() {
             <span className="text-white/80 text-[11px]">
               Time remaining:
               <span className="font-mono ml-1">
-                00:
-                {timer < 10
-                  ? `0${timer}`
-                  : timer}
+                {formatTimer(timer)}
               </span>
             </span>
           </div>
@@ -186,8 +314,10 @@ export default function OtpVerificationPage() {
 
             <Button
               variant="link"
-              className="text-blue-400 text-xs font-semibold p-0 h-auto underline underline-offset-2 hover:text-blue-300 mt-0.5"
+              disabled={timer > 0}
+              className="text-blue-400 text-xs font-semibold p-0 h-auto underline underline-offset-2 hover:text-blue-300 mt-0.5 disabled:opacity-50 disabled:cursor-not-allowed"
               onClick={async () => {
+                if (timer > 0) return;
                 if (email) {
                   try {
                     const data = await authApi.sendOtp(email, "login");
@@ -200,7 +330,7 @@ export default function OtpVerificationPage() {
                     console.error("Failed to resend OTP", err);
                   }
                 }
-                setTimer(58);
+                setTimer(120);
               }}
             >
               Resend OTP

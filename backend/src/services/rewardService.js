@@ -26,22 +26,49 @@ export const creditTeacher = async (teacherId, earningType, points, description,
   const teacher = await Teacher.findById(teacherId);
   if (!teacher) throw new Error('Teacher not found');
 
-  teacher.wallet.totalPoints += points;
-  teacher.wallet.withdrawableBalance += pointsToInr(points);
-  teacher.metrics.todayEarnings += pointsToInr(points);
-  await teacher.save();
+  const todayStr = new Date().toISOString().split('T')[0];
+  if (teacher.metrics.todayEarningsDate !== todayStr) {
+    teacher.metrics.todayEarnings = 0;
+    teacher.metrics.todayEarningsDate = todayStr;
+  }
 
-  return WalletTransaction.create({
-    userId: teacher.userId,
-    role: 'teacher',
-    type: 'credit',
-    earningType,
-    points,
-    inrAmount: pointsToInr(points),
-    description,
-    sessionId,
-    status: 'credited',
-  });
+  const isSessionEarning = ['session', 'chat', 'audio', 'video', 'doubt'].includes(earningType);
+
+  if (isSessionEarning) {
+    const inrAmount = points; // points parameter is direct INR amount for sessions
+    teacher.wallet.withdrawableBalance += inrAmount;
+    teacher.metrics.todayEarnings += inrAmount;
+    await teacher.save();
+
+    return WalletTransaction.create({
+      userId: teacher.userId,
+      role: 'teacher',
+      type: 'credit',
+      earningType,
+      points: 0,
+      inrAmount,
+      description,
+      sessionId,
+      status: 'credited',
+    });
+  } else {
+    teacher.wallet.totalPoints += points;
+    teacher.wallet.withdrawableBalance += pointsToInr(points);
+    teacher.metrics.todayEarnings += pointsToInr(points);
+    await teacher.save();
+
+    return WalletTransaction.create({
+      userId: teacher.userId,
+      role: 'teacher',
+      type: 'credit',
+      earningType,
+      points,
+      inrAmount: pointsToInr(points),
+      description,
+      sessionId,
+      status: 'credited',
+    });
+  }
 };
 
 export const debitTeacher = async (teacherId, earningType, points, description) => {

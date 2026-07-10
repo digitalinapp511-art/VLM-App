@@ -37,7 +37,7 @@ const ProfileReview: React.FC = () => {
 
   const p = profile;
   const user = p?.userId || p?.user;
-  const dbName = (p?.fullName || "").trim();
+  const dbName = [p?.firstName, p?.middleName, p?.lastName].filter(Boolean).join(" ").trim() || (p?.fullName || "").trim();
   const displayFullName = !dbName || dbName.toLowerCase() === "teacher" ? "" : dbName;
 
   return (

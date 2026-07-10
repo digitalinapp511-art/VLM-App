@@ -24,8 +24,30 @@ export function IncomingRequestPopup({
   onDecline: () => void;
   accepting: boolean;
 }) {
-  const { formatted, secondsLeft } = useCountdown(request.timerExpiresAt);
-  const isUrgent = secondsLeft <= 60;
+  const [secondsLeft, setSecondsLeft] = React.useState(15);
+  React.useEffect(() => {
+    const id = setInterval(() => {
+      setSecondsLeft((prev) => {
+        if (prev <= 1) {
+          clearInterval(id);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  const declinedRef = React.useRef(false);
+  React.useEffect(() => {
+    if (secondsLeft <= 0 && !declinedRef.current) {
+      declinedRef.current = true;
+      onDecline();
+    }
+  }, [secondsLeft, onDecline]);
+
+  const isUrgent = secondsLeft <= 10;
+  const formatted = `0m ${secondsLeft.toString().padStart(2, "0")}s`;
 
   const sessionTypeLabel =
     request.sessionType === "video" ? "Video Call" : request.sessionType === "audio" ? "Audio Call" : "Chat Session";

@@ -5,7 +5,9 @@ const teacherSchema = new mongoose.Schema(
   {
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, unique: true },
     vlmTeacherId: { type: String, unique: true, sparse: true, index: true },
-    fullName: { type: String, required: true },
+    firstName: { type: String, required: true },
+    middleName: String,
+    lastName: String,
     profilePhoto: String,
     gender: { type: String, enum: ['male', 'female', 'other'] },
     dateOfBirth: Date,
@@ -91,6 +93,7 @@ const teacherSchema = new mongoose.Schema(
       completionRate: { type: Number, default: 100 },
       performanceScore: { type: Number, default: 0 },
       todayEarnings: { type: Number, default: 0 },
+      todayEarningsDate: { type: String },
       weeklyLiveTarget: { type: Number, default: 0 },
       weeklyLiveCompleted: { type: Number, default: 0 },
       streak: { type: Number, default: 0 },
@@ -105,7 +108,15 @@ const teacherSchema = new mongoose.Schema(
     isApproved: { type: Boolean, default: false },
     adminPriority: { type: Number, default: 0 },
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
+  }
 );
+
+teacherSchema.virtual('fullName').get(function() {
+  return [this.firstName, this.middleName, this.lastName].filter(Boolean).join(' ');
+});
 
 export default mongoose.model('Teacher', teacherSchema);

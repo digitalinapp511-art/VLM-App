@@ -6,6 +6,7 @@ import { ChevronLeft, PhoneOff, Paperclip, Image as ImageIcon, Mic, Send, Square
 import { motion, AnimatePresence } from "framer-motion";
 import { useSocket } from "@/hooks/use-socket";
 import { teacherApi } from "@/lib/teacher-api";
+import { apiClient } from "@/lib/api-client";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -67,6 +68,9 @@ export default function ChatSession() {
   const location = useLocation();
   const { sessionId, student, subjectName = "Doubt Session", requestId } = location.state || {};
 
+  const [currentStudent, setCurrentStudent] = useState<any>(student);
+  const [currentRequestId, setCurrentRequestId] = useState<string>(requestId || "");
+
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState("");
   const [duration, setDuration] = useState(0);
@@ -84,6 +88,33 @@ export default function ChatSession() {
   // Media Recorder Refs
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<BlobPart[]>([]);
+
+  // Fetch session details on mount to sync timer and ensure we have correct student details & doubt ID
+  useEffect(() => {
+    if (!sessionId) return;
+    apiClient.get(`/sessions/${sessionId}`)
+      .then(res => {
+        if (res.data?.success && res.data.data) {
+          const s = res.data.data;
+          if (s.studentId) {
+            setCurrentStudent({
+              name: s.studentId.nickname || s.studentId.fullName,
+              photo: s.studentId.profilePhoto
+            });
+          }
+          if (s.doubtRequestId) {
+            setCurrentRequestId(s.doubtRequestId);
+          }
+          if (typeof s.elapsedSeconds === "number") {
+            setDuration(s.elapsedSeconds);
+          } else if (s.startedAt) {
+            const elapsed = Math.floor((Date.now() - new Date(s.startedAt).getTime()) / 1000);
+            setDuration(Math.max(0, elapsed));
+          }
+        }
+      })
+      .catch(err => console.error("Error loading session details:", err));
+  }, [sessionId]);
 
   const {
     sendMessage,
@@ -338,11 +369,11 @@ export default function ChatSession() {
           </div>
           <div className="flex items-center gap-3">
             <div className="text-right">
-              <p className="text-sm font-bold leading-none">{student?.name || "Aisha Sharma"}</p>
-              <p className="text-[9px] text-white/50 mt-1 uppercase tracking-wider">Doubt ID: {requestId ? requestId.slice(-6).toUpperCase() : "#VLM-C-456"}</p>
+              <p className="text-sm font-bold leading-none">{currentStudent?.name || "Student"}</p>
+              <p className="text-[9px] text-white/50 mt-1 uppercase tracking-wider">Doubt ID: {currentRequestId ? currentRequestId.slice(-6).toUpperCase() : "#VLM-C-456"}</p>
             </div>
             <Avatar className="h-8 w-8 ring-2 ring-white/10">
-              <AvatarImage src={student?.photo || `https://api.dicebear.com/7.x/avataaars/svg?seed=${student?.name}`} />
+              <AvatarImage src={currentStudent?.photo || `https://api.dicebear.com/7.x/avataaars/svg?seed=${currentStudent?.name}`} />
               <AvatarFallback>ST</AvatarFallback>
             </Avatar>
           </div>
@@ -356,7 +387,7 @@ export default function ChatSession() {
               <div key={msg.id} className={cn("flex flex-col w-full", isMe ? "items-end" : "items-start")}>
                 {!isMe && (
                   <span className="text-[10px] text-yellow-400 font-black tracking-wide mb-1.5 ml-1">
-                    {student?.name?.split(' ')[0] || "Aisha"}
+                    {currentStudent?.name?.split(' ')[0] || "Student"}
                   </span>
                 )}
                 {isMe && (
@@ -367,18 +398,18 @@ export default function ChatSession() {
                 
                 <div
                   className={cn(
-                    "rounded-2xl max-w-[85%] border overflow-hidden backdrop-blur-md flex flex-col gap-1",
+                    "rounded-2xl max-w-[85%] overflow-hidden flex flex-col gap-1 shadow-2xl",
                     isMe
-                      ? "border-cyan-400 bg-cyan-950/20 text-white rounded-tr-sm shadow-[0_0_15px_rgba(34,211,238,0.2)]"
-                      : "border-yellow-400 bg-yellow-950/20 text-white rounded-tl-sm shadow-[0_0_15px_rgba(250,204,21,0.2)]",
-                    msg.type === "image" ? "p-1.5" : "p-3.5"
+                      ? "bg-gradient-to-r from-cyan-500 to-blue-600 text-white rounded-tr-sm"
+                      : "bg-[#161a27] text-white border border-white/5 rounded-tl-sm",
+                    msg.type === "image" ? "p-1.5" : "p-4"
                   )}
                 >
                   {msg.type === "image" && msg.mediaUrl && (
                     <img 
                       src={msg.mediaUrl} 
                       alt="Attached" 
-                      className="rounded-xl w-full h-auto max-h-[300px] object-cover bg-black/20 cursor-pointer" 
+                      className="rounded-xl w-full h-auto max-h-[300px] object-cover bg-[#0d1017] cursor-pointer" 
                       onClick={() => setExpandedImage(msg.mediaUrl!)}
                     />
                   )}
@@ -394,7 +425,7 @@ export default function ChatSession() {
               </div>
             );
           })}
-          {typingUserId && typingUserId !== student?.userId && (
+          {typingUserId && typingUserId !== currentStudent?.userId && (
             <div className="text-[10px] text-yellow-400 italic animate-pulse px-2">
               Student is typing...
             </div>

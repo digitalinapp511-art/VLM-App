@@ -9,6 +9,8 @@ import {
   LogOut,
   History,
   Wallet,
+  X,
+  Check,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
@@ -20,13 +22,82 @@ import { authApi } from "@/lib/auth-api";
 import { useStudentProfile } from "@/hooks/use-student";
 import LoadingSkeleton from "@/components/basic/student/LoadingSkeleton";
 import { toast } from "sonner";
+import { apiClient } from "@/lib/api-client";
 
 export default function ProfileView() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { data: profile, isLoading, error: profileError } = useStudentProfile();
+  const { data: profile, isLoading, error: profileError, refetch } = useStudentProfile();
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [copied, setCopied] = useState(false);
+
+
+  const [verifyingType, setVerifyingType] = useState<"email" | "mobile" | null>(null);
+  const [verifyingVal, setVerifyingVal] = useState("");
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpCode, setOtpCode] = useState("");
+  const [otpError, setOtpError] = useState("");
+  const [isSendingOtp, setIsSendingOtp] = useState(false);
+  const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
+  const [sentOtp, setSentOtp] = useState<string | null>(null);
+
+  const startVerification = async (type: "email" | "mobile", value: string) => {
+    if (!value) return;
+    setVerifyingType(type);
+    setVerifyingVal(value);
+    setOtpSent(false);
+    setOtpCode("");
+    setOtpError("");
+    setSentOtp(null);
+    setIsSendingOtp(true);
+
+    try {
+      const data = await authApi.sendOtp(value, "verify");
+      const receivedOtp = data?.otp || data?.code || data?.data?.otp || data?.data?.code;
+      if (receivedOtp) {
+        setSentOtp(String(receivedOtp));
+      }
+      setOtpSent(true);
+      toast.success("Verification code sent successfully!");
+    } catch (err: any) {
+      console.error(err);
+      const errMsg = err?.response?.data?.message || err?.message || "Failed to send verification code";
+      setOtpError(errMsg);
+      toast.error(errMsg);
+    } finally {
+      setIsSendingOtp(false);
+    }
+  };
+
+  const handleVerifyOtp = async () => {
+    if (!otpCode || otpCode.length !== 6) {
+      setOtpError("Please enter a valid 6-digit verification code");
+      return;
+    }
+    setIsVerifyingOtp(true);
+    setOtpError("");
+
+    try {
+      const payload = verifyingType === "email" 
+        ? { email: verifyingVal, otp: otpCode } 
+        : { mobile: verifyingVal, otp: otpCode };
+      
+      const { data } = await apiClient.post("/auth/verify-profile-contact", payload);
+      if (data.success) {
+        toast.success(data.message || "Contact details verified successfully!");
+        setVerifyingType(null);
+        refetch();
+      } else {
+        setOtpError(data.message || "Invalid OTP code");
+      }
+    } catch (err: any) {
+      console.error(err);
+      const errMsg = err?.response?.data?.message || err?.message || "OTP verification failed";
+      setOtpError(errMsg);
+    } finally {
+      setIsVerifyingOtp(false);
+    }
+  };
 
   useEffect(() => {
     if (profileError) {
@@ -138,6 +209,80 @@ export default function ProfileView() {
           </div>
         </div>
 
+        {/* ── ACCOUNT STATUS & VERIFICATION CARD ── */}
+        <div className="p-5 rounded-3xl border border-slate-100 dark:border-[#221c4e] bg-white dark:bg-[#161233] shadow-sm space-y-4 w-full text-slate-800 dark:text-slate-100">
+          <h3 className="text-xs font-black text-slate-455 dark:text-slate-500 uppercase tracking-wide text-left">
+            Account Credentials
+          </h3>
+          
+          {/* Email Field */}
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5 text-left">
+              <p className="text-[10px] uppercase tracking-wider text-slate-400 dark:text-white/40 font-bold">Email Address</p>
+              <p className="text-sm font-bold text-slate-850 dark:text-white truncate max-w-[200px]">{p.userId?.email || p.email || 'Not Added'}</p>
+            </div>
+            <div className="shrink-0 pl-2">
+              {(() => {
+                const emailVal = p.userId?.email || p.email;
+                const emailVerified = (p.userId?.isEmailVerified && emailVal) || (p.isEmailVerified && emailVal);
+                if (emailVerified) return (
+                  <span className="inline-flex items-center gap-1 text-[9px] font-black text-emerald-600 bg-emerald-50 dark:bg-emerald-500/10 dark:text-emerald-400 px-2.5 py-1 rounded-full uppercase tracking-wider">
+                    Verified
+                  </span>
+                );
+                if (emailVal) return (
+                  <button
+                    onClick={() => startVerification("email", emailVal)}
+                    className="text-[9px] font-black text-violet-600 hover:text-violet-500 bg-violet-50 hover:bg-violet-100 dark:bg-violet-500/10 dark:text-violet-400 dark:hover:bg-violet-500/20 px-3 py-1 rounded-full uppercase tracking-wider cursor-pointer transition-colors"
+                  >
+                    Verify
+                  </button>
+                );
+                return (
+                  <span className="text-[9px] font-black text-slate-400 bg-slate-100 dark:bg-white/5 px-2.5 py-1 rounded-full uppercase tracking-wider">
+                    Not Added
+                  </span>
+                );
+              })()}
+            </div>
+          </div>
+
+          {/* Divider */}
+          <div className="h-px bg-slate-100 dark:bg-slate-800" />
+
+          {/* Mobile Field */}
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5 text-left">
+              <p className="text-[10px] uppercase tracking-wider text-slate-400 dark:text-white/40 font-bold">Phone Number</p>
+              <p className="text-sm font-bold text-slate-850 dark:text-white">{p.userId?.mobile || p.mobile ? `+91 ${p.userId?.mobile || p.mobile}` : 'Not Added'}</p>
+            </div>
+            <div className="shrink-0 pl-2">
+              {(() => {
+                const mobileVal = p.userId?.mobile || p.mobile;
+                const mobileVerified = (p.userId?.isMobileVerified && mobileVal) || (p.isMobileVerified && mobileVal);
+                if (mobileVerified) return (
+                  <span className="inline-flex items-center gap-1 text-[9px] font-black text-emerald-600 bg-emerald-50 dark:bg-emerald-500/10 dark:text-emerald-400 px-2.5 py-1 rounded-full uppercase tracking-wider">
+                    Verified
+                  </span>
+                );
+                if (mobileVal) return (
+                  <button
+                    onClick={() => startVerification("mobile", mobileVal)}
+                    className="text-[9px] font-black text-violet-600 hover:text-violet-500 bg-violet-50 hover:bg-violet-100 dark:bg-violet-500/10 dark:text-violet-400 dark:hover:bg-violet-500/20 px-3 py-1 rounded-full uppercase tracking-wider cursor-pointer transition-colors"
+                  >
+                    Verify
+                  </button>
+                );
+                return (
+                  <span className="text-[9px] font-black text-slate-400 bg-slate-100 dark:bg-white/5 px-2.5 py-1 rounded-full uppercase tracking-wider">
+                    Not Added
+                  </span>
+                );
+              })()}
+            </div>
+          </div>
+        </div>
+
         {/* ── HISTORY / NAVIGATION CARD ── */}
         <div className="p-3 rounded-3xl border border-slate-100 dark:border-[#221c4e] bg-white dark:bg-[#161233] shadow-sm w-full space-y-2">
           <div 
@@ -237,6 +382,90 @@ export default function ProfileView() {
           </div>
         )}
       </AnimatePresence>
+
+      {/* ── Verification Modal Overlay ── */}
+      {verifyingType && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="w-full max-w-sm rounded-[2rem] border border-slate-200 dark:border-white/10 bg-white dark:bg-[#0f0b26] p-6 shadow-2xl relative text-slate-800 dark:text-white space-y-4">
+            
+            {/* Close Button */}
+            <button 
+              onClick={() => setVerifyingType(null)} 
+              className="absolute top-4 right-4 text-slate-400 dark:text-white/40 hover:text-slate-650 dark:hover:text-white cursor-pointer"
+            >
+              <X size={20} />
+            </button>
+
+            <div className="text-center space-y-1">
+              <h3 className="text-base font-black tracking-tight">
+                Verify {verifyingType === "email" ? "Email Address" : "Phone Number"}
+              </h3>
+              <p className="text-xs text-slate-455 dark:text-slate-500 font-bold">
+                {verifyingVal}
+              </p>
+            </div>
+
+            {otpError && (
+              <p className="text-rose-500 text-xs font-semibold text-center bg-rose-500/10 py-2 px-3 rounded-xl">
+                {otpError}
+              </p>
+            )}
+
+            {!otpSent ? (
+              <div className="space-y-4 pt-2">
+                <p className="text-xs text-slate-500 dark:text-white/60 text-center leading-relaxed font-semibold">
+                  We need to verify this {verifyingType} before updating your account status. We will send a 6-digit OTP verification code.
+                </p>
+                <Button
+                  onClick={() => startVerification(verifyingType, verifyingVal)}
+                  disabled={isSendingOtp}
+                  className="w-full h-12 rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-700 hover:from-violet-500 hover:to-indigo-600 text-white font-black text-xs uppercase tracking-widest shadow-md shadow-violet-500/10 cursor-pointer border-none"
+                >
+                  {isSendingOtp ? "Sending OTP..." : "Send Verification Code"}
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-4 pt-2">
+                {sentOtp && (
+                  <div className="px-3 py-1.5 bg-violet-500/10 border border-violet-500/20 rounded-xl flex flex-col items-center">
+                    <span className="text-[8px] font-black text-violet-600 dark:text-violet-400 uppercase tracking-widest">Sent OTP (Testing)</span>
+                    <span className="text-sm font-mono font-black text-slate-700 dark:text-white mt-0.5">{sentOtp}</span>
+                  </div>
+                )}
+                <div className="space-y-1 text-left">
+                  <label className="text-[9px] uppercase tracking-widest text-slate-400 dark:text-slate-500 font-black">Enter Verification Code</label>
+                  <input
+                    type="text"
+                    maxLength={6}
+                    placeholder="Enter 6-digit OTP"
+                    value={otpCode}
+                    onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ""))}
+                    className="bg-slate-50 dark:bg-[#070417] border border-slate-200 dark:border-violet-950 rounded-2xl h-12 w-full text-center text-sm font-bold tracking-widest text-slate-800 dark:text-white outline-none focus-within:border-violet-500/50"
+                  />
+                </div>
+                <div className="flex gap-2.5">
+                  <Button
+                    onClick={() => startVerification(verifyingType, verifyingVal)}
+                    disabled={isSendingOtp || isVerifyingOtp}
+                    variant="outline"
+                    className="flex-1 h-12 rounded-2xl text-xs font-black uppercase border-slate-200 dark:border-white/10 text-slate-650 dark:text-white/80 cursor-pointer"
+                  >
+                    Resend
+                  </Button>
+                  <Button
+                    onClick={handleVerifyOtp}
+                    disabled={otpCode.length !== 6 || isVerifyingOtp}
+                    className="flex-1 h-12 rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-700 hover:from-violet-500 hover:to-indigo-600 text-white font-black text-xs uppercase tracking-widest shadow-md shadow-violet-500/10 cursor-pointer border-none"
+                  >
+                    {isVerifyingOtp ? "Verifying..." : "Verify"}
+                  </Button>
+                </div>
+              </div>
+            )}
+
+          </div>
+        </div>
+      )}
 
     </div>
   );

@@ -68,21 +68,11 @@ export default function StudentDashboard() {
     mcqCompleted,
     mcqTotal,
     activeTeachersCount,
+    unreadNotificationCount,
+    pendingParentRequestCount,
   } = useStudentDashboard();
 
-  const { data: rawNotifications } = useQuery<any>({
-    queryKey: ["studentNotifications"],
-    queryFn: studentApi.getNotifications,
-    staleTime: 60_000,
-  });
-
-  const notificationsList = Array.isArray(rawNotifications?.data)
-    ? rawNotifications.data
-    : Array.isArray(rawNotifications)
-      ? rawNotifications
-      : [];
-
-  const unreadCount = notificationsList.filter((n: any) => !n.isRead && n.type !== 'parent_link_request').length;
+  const unreadCount = unreadNotificationCount;
 
   const [showLockedModal, setShowLockedModal] = useState(false);
   const [secondsLeft, setSecondsLeft] = useState(() => {
@@ -96,12 +86,9 @@ export default function StudentDashboard() {
       setSecondsLeft(0);
       return;
     }
-    const cached = sessionStorage.getItem("vlm_spin_seconds_left");
-    if (!cached) {
-      const remSeconds = Math.max(0, 7200 - (activeSecondsSinceLastSpin || 0));
-      setSecondsLeft(remSeconds);
-      sessionStorage.setItem("vlm_spin_seconds_left", remSeconds.toString());
-    }
+    const remSeconds = Math.max(0, 7200 - (activeSecondsSinceLastSpin || 0));
+    setSecondsLeft(remSeconds);
+    sessionStorage.setItem("vlm_spin_seconds_left", remSeconds.toString());
   }, [activeSecondsSinceLastSpin]);
 
   useEffect(() => {

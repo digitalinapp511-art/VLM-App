@@ -21,12 +21,9 @@ export default function RewardsBanner({ activeSecondsSinceLastSpin = 0, onLocked
       setSecondsLeft(0);
       return;
     }
-    const cached = sessionStorage.getItem("vlm_spin_seconds_left");
-    if (!cached) {
-      const remSeconds = Math.max(0, 7200 - activeSecondsSinceLastSpin);
-      setSecondsLeft(remSeconds);
-      sessionStorage.setItem("vlm_spin_seconds_left", remSeconds.toString());
-    }
+    const remSeconds = Math.max(0, 7200 - activeSecondsSinceLastSpin);
+    setSecondsLeft(remSeconds);
+    sessionStorage.setItem("vlm_spin_seconds_left", remSeconds.toString());
   }, [activeSecondsSinceLastSpin]);
 
   useEffect(() => {

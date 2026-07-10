@@ -3,6 +3,8 @@ import { createApp } from './app.js';
 import { connectDB } from './config/db.js';
 import { initSocket } from './socket/index.js';
 import User from './models/User.js';
+import { connectRedis } from './services/redisService.js';
+import { startDispatchWorker } from './workers/dispatchWorker.js';
 
 const app = createApp();
 const server = http.createServer(app);
@@ -27,6 +29,11 @@ const seedAdmin = async () => {
 
 const start = async () => {
   await connectDB();
+  await connectRedis();
+
+  // Start the production dispatch worker (replaces legacy doubtQueue worker)
+  startDispatchWorker();
+
   await seedAdmin();
   initSocket(server);
 
@@ -40,3 +47,4 @@ start().catch((err) => {
   console.error('Failed to start server:', err);
   process.exit(1);
 });
+

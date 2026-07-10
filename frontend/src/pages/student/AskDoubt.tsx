@@ -1,9 +1,4 @@
-/**
- * AskDoubt.tsx — student side
- * ─────────────────────────────────────────────────────────────────────────────
- * Redesigned to match the light, gamified VLM Academy dashboard theme.
- * Added fully functional image upload & camera capture functionality.
- */
+
 import { useState, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -76,6 +71,16 @@ export default function AskDoubt() {
   };
 
   const handleConnect = async () => {
+    if (!selectedSubjectName) {
+      toast.error("Please select a subject.");
+      return;
+    }
+
+    if (!question.trim() && !selectedImage) {
+      toast.error("Please enter a question or capture/attach an image of your doubt.");
+      return;
+    }
+
     const getSessionTypeString = (type: string) => {
       if (type === "Human Chat") return "chat";
       if (type === "Audio Call") return "audio";
@@ -87,15 +92,20 @@ export default function AskDoubt() {
     try {
       let doubt;
       const typeStr = getSessionTypeString(sessionType);
-      
+
+      const studentProfile = (profile as any)?.data || profile;
+      const studentClass = studentProfile?.class || studentProfile?.className || "12";
+      const studentBoard = studentProfile?.board || "CBSE";
+      const studentLanguage = studentProfile?.language || studentProfile?.medium || "English";
+
       if (selectedImage) {
         // Submit doubt with image using multipart/form-data
         const formData = new FormData();
         formData.append("images", selectedImage);
         formData.append("subject", selectedSubjectName || "Mathematics");
-        formData.append("class", (profile as any)?.class || (profile as any)?.className || "10");
-        formData.append("board", (profile as any)?.board || "CBSE");
-        formData.append("language", "Hindi");
+        formData.append("class", studentClass);
+        formData.append("board", studentBoard);
+        formData.append("language", studentLanguage);
         formData.append("sessionType", typeStr);
         formData.append("doubtText", question);
         formData.append("topic", selectedChapterId || "");
@@ -105,9 +115,9 @@ export default function AskDoubt() {
         // Submit text-only doubt
         doubt = await studentApi.createDoubt({
           subject: selectedSubjectName || "Mathematics",
-          class: (profile as any)?.class || (profile as any)?.className || "10",
-          board: (profile as any)?.board || "CBSE",
-          language: "Hindi",
+          class: studentClass,
+          board: studentBoard,
+          language: studentLanguage,
           sessionType: typeStr,
           doubtText: question,
           topic: selectedChapterId || "",
@@ -126,15 +136,29 @@ export default function AskDoubt() {
           }
         });
       } else {
+        const formattedClass = studentClass.toLowerCase().includes("class")
+          ? studentClass
+          : `Class ${studentClass}${studentClass.endsWith("th") ? "" : "th"}`;
+
         navigate(PATHS.TEACHER_SEARCHING, {
           state: {
             doubtId: doubt?.data?.doubtRequest?._id || doubt?.data?.session?._id || doubt?.id,
             sessionId: doubt?.data?.session?._id,
             subjectName: selectedSubjectName || "Mathematics",
-            className: (profile as any)?.class || (profile as any)?.className || "10th",
+            className: formattedClass,
             sessionType: sessionType,
             initialQuestion: question,
             initialImage: uploadedImgUrl,
+            originalParams: {
+              subject: selectedSubjectName || "Mathematics",
+              class: studentClass,
+              board: studentBoard,
+              language: studentLanguage,
+              sessionType: typeStr,
+              doubtText: question,
+              topic: selectedChapterId || "",
+              doubtImage: uploadedImgUrl
+            }
           }
         });
       }
@@ -155,7 +179,7 @@ export default function AskDoubt() {
 
   return (
     <div className="min-h-svh w-full bg-[#f4f6ff] dark:bg-[#0b081e] text-slate-800 dark:text-slate-100 flex flex-col items-center pb-28 overflow-x-hidden font-sans transition-colors duration-300">
-      
+
       {/* Hidden inputs */}
       <input
         type="file"
@@ -176,7 +200,7 @@ export default function AskDoubt() {
       {/* ── HEADER ── */}
       <header className="w-full max-w-xl flex items-center justify-between px-6 py-6 mt-4">
         <button
-          onClick={() => navigate(-1)}
+          onClick={() => navigate(PATHS.STUDENT_DASHBOARD || "/student-dashboard")}
           className="h-10 w-10 rounded-full bg-white dark:bg-[#161233] border border-slate-100 dark:border-slate-800 shadow-sm flex items-center justify-center text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-white active:scale-90 transition-transform"
         >
           <ChevronLeft size={20} />
@@ -192,14 +216,17 @@ export default function AskDoubt() {
       </header>
 
       <main className="w-full max-w-xl px-4 space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-500">
-        
+
         {/* ── INPUT SECTION CARD ── */}
         <Card className="border-slate-100 dark:border-slate-800 bg-white dark:bg-[#161233] rounded-3xl overflow-hidden shadow-sm">
           <CardContent className="p-5 space-y-4">
-            
+
             {/* Subject Select */}
             <div className="space-y-1.5">
-              <Label className="text-slate-700 dark:text-slate-300 text-xs font-black">Select Subject</Label>
+              <Label className="text-slate-700 dark:text-slate-300 text-xs font-black flex items-center justify-between">
+                <span>Select Subject</span>
+                <span className="text-[10px] text-rose-500 font-bold">Required</span>
+              </Label>
               <Select onValueChange={(val: string | null) => {
                 const selectedId = String(val ?? "");
                 const sub = subjects?.find((s: { id: string; name: string }) => s.id === selectedId);
@@ -219,7 +246,10 @@ export default function AskDoubt() {
 
             {/* Chapter Select */}
             <div className="space-y-1.5">
-              <Label className="text-slate-700 dark:text-slate-300 text-xs font-black">Select Chapter</Label>
+              <Label className="text-slate-700 dark:text-slate-300 text-xs font-black flex items-center justify-between">
+                <span>Select Chapter</span>
+                <span className="text-[10px] text-slate-400 font-normal">Optional</span>
+              </Label>
               <Select onValueChange={(value: string | null) => setSelectedChapterId(value ?? "")}>
                 <SelectTrigger className="w-full rounded-2xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-855 dark:text-slate-250 focus:ring-violet-500/50">
                   <SelectValue placeholder="Select Chapter" />
@@ -236,7 +266,10 @@ export default function AskDoubt() {
 
             {/* Detailed Question Area */}
             <div className="space-y-1.5 relative">
-              <Label className="text-slate-700 dark:text-slate-300 text-xs font-black">Type your question</Label>
+              <Label className="text-slate-700 dark:text-slate-300 text-xs font-black flex items-center justify-between">
+                <span>Type your question</span>
+                <span className="text-[10px] text-rose-500 font-bold">Required</span>
+              </Label>
               <Textarea
                 placeholder="Type your detailed question here..."
                 className="min-h-[160px] rounded-2xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-855 dark:text-slate-100 placeholder:text-slate-300 dark:placeholder:text-slate-600 p-4 focus-visible:ring-violet-500/50"
@@ -358,8 +391,8 @@ function SessionCard({ icon, title, desc, active, onClick }: any) {
       onClick={onClick}
       className={cn(
         "cursor-pointer flex-none w-[120px] shrink-0 rounded-2xl transition-all duration-300 border-slate-200/80 dark:border-slate-800 shadow-sm",
-        active 
-          ? "bg-violet-50 dark:bg-violet-950/30 border-violet-400 dark:border-violet-500 text-violet-700 dark:text-violet-300 ring-1 ring-violet-400 dark:ring-violet-500" 
+        active
+          ? "bg-violet-50 dark:bg-violet-950/30 border-violet-400 dark:border-violet-500 text-violet-700 dark:text-violet-300 ring-1 ring-violet-400 dark:ring-violet-500"
           : "bg-white dark:bg-[#161233] hover:bg-slate-50 dark:hover:bg-slate-850 text-slate-600 dark:text-slate-400"
       )}
     >
