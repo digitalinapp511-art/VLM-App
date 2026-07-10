@@ -34,6 +34,7 @@ export default function TeacherSearching() {
   const [requestCount, setRequestCount] = useState(4);
   const [cancelled, setCancelled] = useState(false);
   const [noTeacher, setNoTeacher] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
 
   // Socket: listen for session_accepted, request_missed, session_declined
   const { sessionAccepted, sessionMissed, sessionDeclined } = useSocket({ autoConnect: true });
@@ -50,11 +51,11 @@ export default function TeacherSearching() {
       setRequestCount(2);
     }, 8000);
     return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
-  }, []);
+  }, [retryCount]);
 
   // ── Handle session_accepted ─────────────────────────────────────────────
   useEffect(() => {
-    if (!sessionAccepted || cancelled) return;
+    if (!sessionAccepted || cancelled || sessionAccepted.requestId !== doubtId) return;
     const data = sessionAccepted;
 
     toast.success(`${data.teacherName} accepted! Connecting…`);
@@ -115,11 +116,14 @@ export default function TeacherSearching() {
 
   // ── Handle request_missed / session_declined ────────────────────────────
   useEffect(() => {
-    if (sessionMissed || sessionDeclined) {
+    if (sessionMissed?.requestId === doubtId) {
       setNoTeacher(true);
       setStatusMessage("No teachers available right now. Please try again.");
+    } else if (sessionDeclined?.requestId === doubtId) {
+      setNoTeacher(true);
+      setStatusMessage("Teacher declined the request. Please try again.");
     }
-  }, [sessionMissed, sessionDeclined]);
+  }, [sessionMissed, sessionDeclined, doubtId]);
 
   const handleCancel = async () => {
     setCancelled(true);
@@ -164,8 +168,8 @@ export default function TeacherSearching() {
         replace: true
       });
       
-      // Force page reload to cleanly restart socket initialization and countdown parameters
-      window.location.reload();
+      // Trigger status rotation again without reloading the page
+      setRetryCount(prev => prev + 1);
     } catch (err) {
       toast.error("Failed to retry request. Please try again.");
     }

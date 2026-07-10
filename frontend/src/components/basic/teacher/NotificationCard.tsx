@@ -9,8 +9,8 @@ interface NotificationCardProps {
   message: string;
   time: string;
   isUnread?: boolean;
-  actionText: string;
-  onAction: () => void;
+  actionText?: string;
+  onAction?: () => void;
 }
 
 const NotificationCard: React.FC<NotificationCardProps> = ({
@@ -58,15 +58,17 @@ const NotificationCard: React.FC<NotificationCardProps> = ({
             {message}
           </p>
 
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onAction();
-            }}
-            className="text-[13px] font-bold text-cyan-400 hover:text-cyan-300 transition-colors pt-1"
-          >
-            {actionText}
-          </button>
+          {actionText && onAction && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onAction();
+              }}
+              className="text-[13px] font-bold text-cyan-400 hover:text-cyan-300 transition-colors pt-1"
+            >
+              {actionText}
+            </button>
+          )}
         </div>
       </div>
     </motion.div>

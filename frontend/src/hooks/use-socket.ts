@@ -24,11 +24,13 @@ export interface IncomingRequest {
   doubtImage?: string;
   topic?: string;
   timerExpiresAt: string;
+  ratePerMinute?: number;
   student: {
     name: string;
     nickname?: string;
     class: string;
     photo?: string;
+    planStatus?: string;
   };
 }
 

@@ -129,7 +129,7 @@ export function IncomingRequestPopup({
 
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5 bg-white/5 border border-white/5 rounded-full px-3 py-1.5">
-              <span className="text-[10px] font-black text-emerald-400">₹10/min</span>
+              <span className="text-[10px] font-black text-emerald-400">₹{request.ratePerMinute || 10}/min</span>
             </div>
 
             <div

@@ -81,7 +81,7 @@ const Notifications: React.FC = () => {
 
   const handleMarkRead = async (id: string) => {
     try {
-      await teacherApi.readNotification(id);
+      await teacherApi.markNotificationRead(id);
       setNotifications(prev => prev.map(n => n._id === id ? { ...n, isRead: true } : n));
     } catch (err: any) {
       console.error("Failed to mark notification as read", err);

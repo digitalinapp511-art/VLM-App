@@ -68,25 +68,36 @@ const emitToTeacher = async (teacherUserId, requestPayload) => {
 /**
  * Build the payload sent to teacher.
  */
-const buildRequestPayload = (request, student, timerExpiresAt) => ({
-  requestId: request._id.toString(),
-  sessionId: request.sessionId?.toString() || '',
-  sessionType: request.sessionType || 'chat',
-  subject: request.subject,
-  class: request.class,
-  board: request.board,
-  language: request.language,
-  doubtText: request.doubtText,
-  doubtImage: request.doubtImage || null,
-  topic: request.topic || null,
-  timerExpiresAt: timerExpiresAt.toISOString(),
-  student: {
-    name: student?.fullName || student?.firstName || 'Student',
-    nickname: student?.nickname || '',
-    class: student?.class || '',
-    photo: student?.profilePhoto || null,
-  },
-});
+const buildRequestPayload = (request, student, timerExpiresAt) => {
+  // Calculate rate based on class (Classes 1-8: 3, 9-10: 4, 11-12: 5)
+  const classStr = request.class || student?.class || '10';
+  const classNum = parseInt(String(classStr).replace(/\D/g, ''), 10) || 10;
+  let ratePerMinute = 4;
+  if (classNum >= 1 && classNum <= 8) ratePerMinute = 3;
+  else if (classNum >= 11 && classNum <= 12) ratePerMinute = 5;
+
+  return {
+    requestId: request._id.toString(),
+    sessionId: request.sessionId?.toString() || '',
+    sessionType: request.sessionType || 'chat',
+    subject: request.subject,
+    class: request.class,
+    board: request.board,
+    language: request.language,
+    doubtText: request.doubtText,
+    doubtImage: request.doubtImage || null,
+    topic: request.topic || null,
+    timerExpiresAt: timerExpiresAt.toISOString(),
+    ratePerMinute,
+    student: {
+      name: student?.fullName || student?.firstName || 'Student',
+      nickname: student?.nickname || '',
+      class: student?.class || '',
+      photo: student?.profilePhoto || null,
+      planStatus: student?.subscription?.status || 'free',
+    },
+  };
+};
 
 /**
  * Core dispatch logic: find next eligible teacher and notify them.

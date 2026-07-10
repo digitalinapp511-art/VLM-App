@@ -39,7 +39,14 @@ export default function AskDoubt() {
   const [selectedSubjectName, setSelectedSubjectName] = useState<string>("");
   const [question, setQuestion] = useState(location.state?.question || "");
   const [searchParams] = useSearchParams();
-  const [sessionType, setSessionType] = useState("AI Tutor");
+  const getInitialSessionType = () => {
+    const type = location.state?.type;
+    if (type === "chat") return "Human Chat";
+    if (type === "audio") return "Audio Call";
+    if (type === "video") return "Video Call";
+    return "AI Tutor";
+  };
+  const [sessionType, setSessionType] = useState(getInitialSessionType());
   const navigate = useNavigate();
   const [selectedChapterId, setSelectedChapterId] = useState<string>("");
   const { data: profile } = useStudentProfile();
