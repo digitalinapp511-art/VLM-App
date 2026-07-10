@@ -34,10 +34,13 @@ export const teacherApi = {
     return data;
   },
 
-  uploadDocument: async (file: File, documentType: 'aadhaar' | 'qualification' | 'experience') => {
+  uploadDocument: async (file: File, documentType: string, name?: string) => {
     const form = new FormData();
     form.append('document', file);
-    form.append('documentType', documentType);
+    form.append('type', documentType);
+    if (name) {
+      form.append('name', name);
+    }
     const { data } = await apiClient.post('/teacher/documents', form, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });

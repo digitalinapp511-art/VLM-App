@@ -1,23 +1,28 @@
 import mongoose from 'mongoose';
 import { TEACHER_STATUS } from '../config/constants.js';
 
+
 const teacherSchema = new mongoose.Schema(
   {
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, unique: true },
     vlmTeacherId: { type: String, unique: true, sparse: true, index: true },
     firstName: { type: String, required: true },
     middleName: String,
-    lastName: String,
+    lastName: { type: String, required: true },
     profilePhoto: String,
     gender: { type: String, enum: ['male', 'female', 'other'] },
     dateOfBirth: Date,
+    bio: String,
+    teachingStyle: String,
     address: String,
     state: String,
     city: String,
     pincode: String,
     email: String,
-    bio: String,
-    teachingStyle: String,
+    subjects: [String],
+    classes: [String],
+    boards: [String],
+    languages: [String],
     qualification: {
       highestQualification: String,
       instituteName: String,
@@ -25,7 +30,6 @@ const teacherSchema = new mongoose.Schema(
       hasBEd: { type: Boolean, default: false },
       teachingCertification: String,
       additionalCertifications: [String],
-      certificateUrl: String,
     },
     experience: {
       totalYears: Number,
@@ -35,16 +39,17 @@ const teacherSchema = new mongoose.Schema(
       summary: String,
       resumeUrl: String,
     },
-    subjects: [String],
-    classes: [String],
-    boards: [String],
-    languages: [String],
-    documents: {
-      aadhaar: String,
-      qualificationCert: String,
-      experienceProof: String,
-      resume: String,
-      additional: [String],
+    bankDetails: {
+      accountHolder: String,
+      accountNumber: String,
+      ifsc: String,
+      bankName: String,
+      isVerified: { type: Boolean, default: false },
+    },
+    wallet: {
+      totalPoints: { type: Number, default: 0 },
+      withdrawableBalance: { type: Number, default: 0 },
+      pendingConversion: { type: Number, default: 0 },
     },
     demoVideo: {
       url: String,
@@ -59,46 +64,15 @@ const teacherSchema = new mongoose.Schema(
     rejectionReason: String,
     reapplyAfter: Date,
     onboardingStep: { type: Number, default: 0 },
+    isApproved: { type: Boolean, default: false },
+    adminPriority: { type: Number, default: 0 },
     availabilityStatus: {
       type: String,
       enum: ['online', 'offline', 'busy'],
       default: 'offline',
     },
-    manuallySetOffline: { type: Boolean, default: false }, // true only when teacher explicitly clicked offline
-    availabilitySlots: [{
-      day: { type: String, enum: ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] },
-      startTime: String,
-      endTime: String,
-      subjects: [String],
-      repeatWeekly: { type: Boolean, default: true },
-    }],
-    bankDetails: {
-      accountHolder: String,
-      accountNumber: String,
-      ifsc: String,
-      bankName: String,
-      isVerified: { type: Boolean, default: false },
-    },
-    wallet: {
-      totalPoints: { type: Number, default: 0 },
-      withdrawableBalance: { type: Number, default: 0 },
-      pendingConversion: { type: Number, default: 0 },
-    },
-    metrics: {
-      totalSessions: { type: Number, default: 0 },
-      missedRequests: { type: Number, default: 0 },
-      rating: { type: Number, default: 0 },
-      ratingCount: { type: Number, default: 0 },
-      responseSpeed: { type: Number, default: 0 },
-      acceptanceRate: { type: Number, default: 100 },
-      completionRate: { type: Number, default: 100 },
-      performanceScore: { type: Number, default: 0 },
-      todayEarnings: { type: Number, default: 0 },
-      todayEarningsDate: { type: String },
-      weeklyLiveTarget: { type: Number, default: 0 },
-      weeklyLiveCompleted: { type: Number, default: 0 },
-      streak: { type: Number, default: 0 },
-    },
+    manuallySetOffline: { type: Boolean, default: false },
+
     interview: {
       scheduledAt: Date,
       slotId: { type: mongoose.Schema.Types.ObjectId, ref: 'Interview' },
@@ -106,8 +80,6 @@ const teacherSchema = new mongoose.Schema(
       notes: String,
       recordingUrl: String,
     },
-    isApproved: { type: Boolean, default: false },
-    adminPriority: { type: Number, default: 0 },
   },
   {
     timestamps: true,
@@ -116,7 +88,7 @@ const teacherSchema = new mongoose.Schema(
   }
 );
 
-teacherSchema.virtual('fullName').get(function() {
+teacherSchema.virtual('fullName').get(function () {
   return [this.firstName, this.middleName, this.lastName].filter(Boolean).join(' ');
 });
 

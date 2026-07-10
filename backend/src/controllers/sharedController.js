@@ -2,6 +2,7 @@ import Session from '../models/Session.js';
 import Message from '../models/Message.js';
 import DoubtRequest from '../models/DoubtRequest.js';
 import Teacher from '../models/Teacher.js';
+import TeacherMetrics from '../models/TeacherMetrics.js';
 import Student from '../models/Student.js';
 import Review from '../models/Review.js';
 import WalletTransaction from '../models/WalletTransaction.js';
@@ -91,7 +92,12 @@ export const respondToRequest = asyncHandler(async (req, res) => {
   } else {
     request.routedTeachers[rtIndex].status = 'rejected';
     request.routedTeachers[rtIndex].respondedAt = new Date();
-    teacher.metrics.missedRequests = (teacher.metrics.missedRequests || 0);
+    // Increment missedRequests on the split TeacherMetrics model
+    await TeacherMetrics.findOneAndUpdate(
+      { teacherId: teacher._id },
+      { $inc: { missedRequests: 1 } },
+      { upsert: true }
+    );
 
     // Release dispatch lock so the next teacher can be dispatched immediately
     try {
@@ -151,8 +157,8 @@ export const completeSession = asyncHandler(async (req, res) => {
   }
 
   if (session.earnings.status !== 'credited') {
-    const durationMinutes = Math.max(1, Math.round(session.duration / 60));
-    const points = await calculateSessionEarning(session.type, durationMinutes, 0); // 0 rating initially
+    const durationMinutes = Math.max(1, Math.floor(session.duration / 60));
+    const points = await calculateSessionEarning(session, durationMinutes, 0); // 0 rating initially
     await creditTeacher(session.teacherId, session.type, points, `Session ${session.type} completed`, sessionId);
     session.earnings.points = points;
     session.earnings.status = 'credited';
@@ -163,9 +169,12 @@ export const completeSession = asyncHandler(async (req, res) => {
   const teacher = await Teacher.findById(session.teacherId);
   if (teacher) {
     teacher.availabilityStatus = 'online';
-    teacher.metrics.totalSessions += 1;
     await teacher.save();
-    // Set back to ONLINE in Redis presence
+    await TeacherMetrics.findOneAndUpdate(
+      { teacherId: teacher._id },
+      { $inc: { totalSessions: 1 } },
+      { upsert: true }
+    );
     try {
       const { setTeacherState, TEACHER_PRESENCE } = await import('../services/presenceService.js');
       await setTeacherState(teacher._id, TEACHER_PRESENCE.ONLINE);
@@ -196,8 +205,8 @@ export const resolveSession = asyncHandler(async (req, res) => {
     isPositive: rating >= 3,
   });
 
-  const durationMinutes = Math.max(1, Math.round(session.duration / 60));
-  const newPoints = await calculateSessionEarning(session.type, durationMinutes, rating);
+  const durationMinutes = Math.max(1, Math.floor(session.duration / 60));
+  const newPoints = await calculateSessionEarning(session, durationMinutes, rating);
 
   if (!session.earnings) {
     session.earnings = { points: 0, status: 'pending' };
@@ -221,12 +230,21 @@ export const resolveSession = asyncHandler(async (req, res) => {
 
   const teacher = await Teacher.findById(session.teacherId);
   if (teacher) {
-    const newCount = teacher.metrics.ratingCount + 1;
-    teacher.metrics.rating = ((teacher.metrics.rating * teacher.metrics.ratingCount) + rating) / newCount;
-    teacher.metrics.ratingCount = newCount;
     teacher.availabilityStatus = 'online';
-    teacher.metrics.totalSessions = (teacher.metrics.totalSessions || 0) + 1;
     await teacher.save();
+
+    // Update rating and totalSessions atomically on TeacherMetrics
+    const existingMetrics = await TeacherMetrics.findOne({ teacherId: teacher._id });
+    if (existingMetrics) {
+      const newCount = existingMetrics.ratingCount + 1;
+      const newRating = ((existingMetrics.rating * existingMetrics.ratingCount) + rating) / newCount;
+      await TeacherMetrics.findOneAndUpdate(
+        { teacherId: teacher._id },
+        { $set: { rating: newRating, ratingCount: newCount }, $inc: { totalSessions: 1 } }
+      );
+    } else {
+      await TeacherMetrics.create({ teacherId: teacher._id, rating, ratingCount: 1, totalSessions: 1 });
+    }
 
     try {
       const { setTeacherState, TEACHER_PRESENCE } = await import('../services/presenceService.js');
@@ -254,7 +272,11 @@ export const getSessionHistory = asyncHandler(async (req, res) => {
   }
 
   if (type) query.type = type;
-  if (status) query.status = status;
+  if (status) {
+    query.status = status;
+  } else {
+    query.status = { $in: ['active', 'completed'] };
+  }
 
   const sessions = await Session.find(query)
     .sort({ createdAt: -1 })
@@ -501,6 +523,7 @@ export const getEarningsHistory = asyncHandler(async (req, res) => {
 
 export const getAnalytics = asyncHandler(async (req, res) => {
   const teacher = await Teacher.findOne({ userId: req.user._id });
+  const metrics = await TeacherMetrics.findOne({ teacherId: teacher._id }) || {};
   const earnings = await WalletTransaction.find({
     userId: req.user._id,
     type: 'credit',
@@ -510,7 +533,7 @@ export const getAnalytics = asyncHandler(async (req, res) => {
   res.json({
     success: true,
     data: {
-      metrics: teacher.metrics,
+      metrics,
       earningsTrend: earnings,
       referralCount: await Referral.countDocuments({ referrerId: req.user._id, status: 'rewarded' }),
     },

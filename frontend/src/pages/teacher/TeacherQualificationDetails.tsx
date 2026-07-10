@@ -38,15 +38,20 @@ const teachingCertificationOptions = [
   "None / Not Certified"
 ];
 
+import type { Certificate } from "@/components/basic/teacher/CertificateGrid";
+
 const TeacherQualificationDetails: React.FC = () => {
   const navigate = useNavigate();
-  const [hasBEd, setHasBEd] = useState(true);
+  const [hasBEd, setHasBEd] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [certificates, setCertificates] = useState<Certificate[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
+
   const [form, setForm] = useState({
-    highestQualification: highestQualificationOptions[0],
+    highestQualification: "",
     instituteName: "",
     passingYear: "",
-    teachingCertification: teachingCertificationOptions[0],
+    teachingCertification: "",
   });
 
   const { data: profile } = useQuery({
@@ -56,19 +61,46 @@ const TeacherQualificationDetails: React.FC = () => {
   });
 
   useEffect(() => {
-    if (profile && profile.qualification) {
-      const q = profile.qualification;
-      setForm({
-        highestQualification: q.highestQualification || highestQualificationOptions[0],
-        instituteName: q.instituteName || "",
-        passingYear: q.passingYear ? String(q.passingYear) : "",
-        teachingCertification: q.teachingCertification || teachingCertificationOptions[0],
-      });
-      if (q.hasBEd !== undefined) {
-        setHasBEd(q.hasBEd);
+    if (profile) {
+      if (profile.qualification) {
+        const q = profile.qualification;
+        setForm({
+          highestQualification: q.highestQualification || "",
+          instituteName: q.instituteName || "",
+          passingYear: q.passingYear ? String(q.passingYear) : "",
+          teachingCertification: q.teachingCertification || "",
+        });
+        if (q.hasBEd !== undefined) {
+          setHasBEd(q.hasBEd);
+        }
+      }
+      if (profile.uploadedDocuments) {
+        const additionals = profile.uploadedDocuments.filter((d: any) => d.type === "additional");
+        setCertificates(additionals);
       }
     }
   }, [profile]);
+
+  const handleUploadCertificate = async (file: File) => {
+    setIsUploading(true);
+    try {
+      const response = await teacherApi.uploadDocument(file, "additional", file.name);
+      if (response && response.url) {
+        const newCert: Certificate = {
+          name: file.name,
+          url: response.url,
+          type: "additional"
+        };
+        setCertificates(prev => [...prev, newCert]);
+        toast.success("Certificate uploaded successfully!");
+      }
+    } catch (err: any) {
+      console.error(err);
+      toast.error("Failed to upload certificate");
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
   const saveMutation = useMutation({
     mutationFn: async (payload: any) => {
@@ -102,7 +134,8 @@ const TeacherQualificationDetails: React.FC = () => {
       instituteName: form.instituteName,
       passingYear: Number(form.passingYear),
       teachingCertification: form.teachingCertification,
-      hasBEd: hasBEd
+      hasBEd: hasBEd,
+      additionalCertifications: certificates.map(c => c.url)
     });
   };
 
@@ -160,7 +193,11 @@ const TeacherQualificationDetails: React.FC = () => {
           <div className="pt-2">
             <BEdToggle value={hasBEd} onChange={setHasBEd} />
           </div>
-          <CertificateGrid />
+          <CertificateGrid 
+            certificates={certificates} 
+            onUpload={handleUploadCertificate} 
+            isUploading={isUploading} 
+          />
           <Button
             onClick={handleContinue}
             disabled={saveMutation.isPending}

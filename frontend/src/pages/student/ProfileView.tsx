@@ -11,6 +11,7 @@ import {
   Wallet,
   X,
   Check,
+  ShieldCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
@@ -211,8 +212,8 @@ export default function ProfileView() {
 
         {/* ── ACCOUNT STATUS & VERIFICATION CARD ── */}
         <div className="p-5 rounded-3xl border border-slate-100 dark:border-[#221c4e] bg-white dark:bg-[#161233] shadow-sm space-y-4 w-full text-slate-800 dark:text-slate-100">
-          <h3 className="text-xs font-black text-slate-455 dark:text-slate-500 uppercase tracking-wide text-left">
-            Account Credentials
+          <h3 className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-wide flex items-center gap-2 text-left">
+            <ShieldCheck size={15} className="text-violet-600 dark:text-violet-400" /> Account Credentials
           </h3>
           
           {/* Email Field */}

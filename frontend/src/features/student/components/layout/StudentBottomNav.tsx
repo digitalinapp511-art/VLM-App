@@ -61,7 +61,7 @@ export default function StudentBottomNav({ onFabClick }: StudentBottomNavProps) 
   const isShortsPage = pathname === PATHS.SHORT_VIDEO_FEED;
 
   return (
-    <nav className="fixed bottom-0 inset-x-0 z-50 bg-white dark:bg-[#110d2c] border-t border-slate-100 dark:border-[#221c4e] shadow-[0_-4px_20px_rgba(0,0,0,0.06)] transition-colors duration-300">
+    <nav className="fixed bottom-0 inset-x-0 z-[100] bg-white dark:bg-[#110d2c] border-t border-slate-100 dark:border-[#221c4e] shadow-[0_-4px_20px_rgba(0,0,0,0.06)] transition-colors duration-300">
       <div className="max-w-3xl mx-auto flex items-center justify-around px-4 py-2.5">
         {NAV_ITEMS.map((item) => {
           const isActive = pathname === item.to;

@@ -47,14 +47,31 @@ router.post('/onboarding/upload', upload.single('file'), cloudinaryUploadMiddlew
   res.json({ success: true, url });
 });
 
-router.post('/documents', upload.single('document'), cloudinaryUploadMiddleware, (req, res) => {
+router.post('/documents', upload.single('document'), cloudinaryUploadMiddleware, asyncHandler(async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ success: false, message: 'No file uploaded' });
   }
   const folder = req.file?.mimetype?.startsWith('video/') ? 'videos' : 'documents';
   const url = getFileUrl(req.file.filename, folder);
+
+  const teacher = await Teacher.findOne({ userId: req.user._id });
+  if (teacher) {
+    const Document = (await import('../models/Document.js')).default;
+    const documentName = req.body.name || req.file.originalname || req.file.filename;
+    const documentType = req.body.type || 'additional';
+
+    await Document.create({
+      userId: req.user._id,
+      teacherId: teacher._id,
+      type: documentType,
+      name: documentName,
+      url: url,
+      status: 'pending'
+    });
+  }
+
   res.json({ success: true, url });
-});
+}));
 
 router.post('/demo-video', upload.single('video'), cloudinaryUploadMiddleware, (req, res) => {
   if (!req.file) {

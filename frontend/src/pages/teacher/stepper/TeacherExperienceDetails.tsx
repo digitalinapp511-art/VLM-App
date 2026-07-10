@@ -17,11 +17,14 @@ import { SelectionChip } from "@/components/basic/teacher/ModeSelector";
 
 const TeacherExperienceDetails: React.FC = () => {
   const navigate = useNavigate();
-  const [years, setYears] = useState(5);
-  const [months, setMonths] = useState(8);
-  const [mode, setMode] = useState("online");
-  const [type, setType] = useState("school");
+  const [years, setYears] = useState(0);
+  const [months, setMonths] = useState(0);
+  const [mode, setMode] = useState("");
+  const [type, setType] = useState("");
   const [summary, setSummary] = useState("");
+  const [resumeFileName, setResumeFileName] = useState("");
+  const [resumeUrl, setResumeUrl] = useState("");
+  const [isUploadingResume, setIsUploadingResume] = useState(false);
 
   const { data: profile } = useQuery({
     queryKey: ["teacherProfile"],
@@ -30,23 +33,54 @@ const TeacherExperienceDetails: React.FC = () => {
   });
 
   useEffect(() => {
-    if (profile && profile.experience) {
-      const exp = profile.experience;
-      if (exp.totalYears !== undefined) {
-        setYears(Math.floor(exp.totalYears));
-        setMonths(Math.round((exp.totalYears - Math.floor(exp.totalYears)) * 12));
+    if (profile) {
+      if (profile.experience) {
+        const exp = profile.experience;
+        if (exp.totalYears !== undefined) {
+          setYears(Math.floor(exp.totalYears));
+          setMonths(Math.round((exp.totalYears - Math.floor(exp.totalYears)) * 12));
+        }
+        if (exp.teachingModes && exp.teachingModes.length > 0) {
+          setMode(exp.teachingModes[0]);
+        }
+        if (exp.experienceTypes && exp.experienceTypes.length > 0) {
+          setType(exp.experienceTypes[0]);
+        }
+        if (exp.summary) {
+          setSummary(exp.summary);
+        }
+        if (exp.resumeUrl) {
+          setResumeUrl(exp.resumeUrl);
+          const parts = exp.resumeUrl.split("/");
+          setResumeFileName(parts[parts.length - 1] || "Resume");
+        }
       }
-      if (exp.teachingModes && exp.teachingModes.length > 0) {
-        setMode(exp.teachingModes[0]);
-      }
-      if (exp.experienceTypes && exp.experienceTypes.length > 0) {
-        setType(exp.experienceTypes[0]);
-      }
-      if (exp.summary) {
-        setSummary(exp.summary);
+      if (profile.uploadedDocuments) {
+        const resumeDoc = profile.uploadedDocuments.find((d: any) => d.type === "resume");
+        if (resumeDoc) {
+          setResumeUrl(resumeDoc.url);
+          setResumeFileName(resumeDoc.name);
+        }
       }
     }
   }, [profile]);
+
+  const handleUploadResume = async (file: File) => {
+    setIsUploadingResume(true);
+    try {
+      const response = await teacherApi.uploadDocument(file, "resume", file.name);
+      if (response && response.url) {
+        setResumeUrl(response.url);
+        setResumeFileName(file.name);
+        toast.success("Resume uploaded successfully!");
+      }
+    } catch (err: any) {
+      console.error(err);
+      toast.error("Failed to upload resume");
+    } finally {
+      setIsUploadingResume(false);
+    }
+  };
 
   const saveMutation = useMutation({
     mutationFn: async (payload: any) => {
@@ -62,13 +96,27 @@ const TeacherExperienceDetails: React.FC = () => {
   });
 
   const handleContinue = () => {
+    if (!mode) {
+      toast.error("Please select a teaching mode");
+      return;
+    }
+    if (!type) {
+      toast.error("Please select a type of experience");
+      return;
+    }
+    if (!resumeUrl) {
+      toast.error("Please upload your resume");
+      return;
+    }
+
     const totalYears = years + (months / 12);
     saveMutation.mutate({
       totalYears: parseFloat(totalYears.toFixed(2)),
       isFresher: totalYears === 0,
       teachingModes: [mode],
       experienceTypes: [type],
-      summary: summary
+      summary: summary,
+      resumeUrl: resumeUrl
     });
   };
 
@@ -102,7 +150,9 @@ const TeacherExperienceDetails: React.FC = () => {
       >
         {/* Total Experience */}
         <motion.div variants={itemVariants} className="p-6 rounded-[32px] border border-white/10 bg-[#151515]/80 backdrop-blur-xl">
-          <label className="block text-zinc-100 font-bold text-base mb-5">Total Experience</label>
+          <label className="block text-zinc-100 font-bold text-base mb-5 flex items-center">
+            Total Experience <span className="text-red-500 font-bold ml-1">*</span>
+          </label>
           <div className="flex gap-4">
             <ExperienceCounter 
               value={years} label="Years" 
@@ -119,7 +169,9 @@ const TeacherExperienceDetails: React.FC = () => {
 
         {/* Teaching Mode */}
         <motion.div variants={itemVariants} className="p-6 rounded-[32px] border border-white/10 bg-[#151515]/80 backdrop-blur-xl">
-          <label className="block text-zinc-100 font-bold text-base mb-5">Teaching Mode</label>
+          <label className="block text-zinc-100 font-bold text-base mb-5 flex items-center">
+            Teaching Mode <span className="text-red-500 font-bold ml-1">*</span>
+          </label>
           <div className="flex flex-wrap gap-3">
             <SelectionChip 
               label="Online" icon={<Monitor size={18} />} 
@@ -138,7 +190,9 @@ const TeacherExperienceDetails: React.FC = () => {
 
         {/* Type of Experience */}
         <motion.div variants={itemVariants} className="p-6 rounded-[32px] border border-white/10 bg-[#151515]/80 backdrop-blur-xl">
-          <label className="block text-zinc-100 font-bold text-base mb-5">Type of Experience</label>
+          <label className="block text-zinc-100 font-bold text-base mb-5 flex items-center">
+            Type of Experience <span className="text-red-500 font-bold ml-1">*</span>
+          </label>
           <div className="flex flex-wrap gap-3">
             <SelectionChip 
               label="School" variant="gold" 
@@ -157,8 +211,14 @@ const TeacherExperienceDetails: React.FC = () => {
 
         {/* Resume Upload */}
         <motion.div variants={itemVariants} className="p-6 rounded-[32px] border border-white/10 bg-[#151515]/80 backdrop-blur-xl">
-          <label className="block text-zinc-100 font-bold text-base mb-5">Resume Upload</label>
-          <ResumeUploadZone />
+          <label className="block text-zinc-100 font-bold text-base mb-5 flex items-center">
+            Resume Upload <span className="text-red-500 font-bold ml-1">*</span>
+          </label>
+          <ResumeUploadZone 
+            fileName={resumeFileName} 
+            onUpload={handleUploadResume} 
+            isUploading={isUploadingResume} 
+          />
         </motion.div>
 
         {/* Experience Summary */}

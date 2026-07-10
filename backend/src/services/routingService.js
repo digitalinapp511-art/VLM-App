@@ -1,4 +1,5 @@
 import Teacher from '../models/Teacher.js';
+import TeacherMetrics from '../models/TeacherMetrics.js';
 import Student from '../models/Student.js';
 import AdminSettings from '../models/AdminSettings.js';
 import { getRedisClient } from './redisService.js';
@@ -111,6 +112,16 @@ export const findMatchingTeachers = async ({
   // Filter only active users
   teachers = teachers.filter((t) => t.userId?.status === 'active');
 
+  // Bulk-attach metrics (single query, no N+1)
+  const teacherIds = teachers.map(t => t._id);
+  const metricsDocs = await TeacherMetrics.find({ teacherId: { $in: teacherIds } });
+  const metricsMap = new Map(metricsDocs.map(m => [m.teacherId.toString(), m]));
+  teachers = teachers.map(t => {
+    const obj = t.toObject ? t.toObject() : t;
+    obj.metrics = metricsMap.get(t._id.toString()) || {};
+    return obj;
+  });
+
   // Load weights config
   const settings = await AdminSettings.findOne({ key: 'matching_weights' });
   const weights = settings?.value || DEFAULT_WEIGHTS;
@@ -144,6 +155,7 @@ export const findMatchingTeachers = async ({
 
 const calculateScore = (teacher, weights, preferredId) => {
   let score = 0;
+  // teacher.metrics is pre-attached from the bulk metrics fetch in findMatchingTeachers
   score += (teacher.metrics?.rating || 0) * (weights.rating / 5);
   score += (teacher.metrics?.responseSpeed || 0) * (weights.responseSpeed / 100);
   score += (teacher.metrics?.completionRate || 0) * (weights.completionRate / 100);

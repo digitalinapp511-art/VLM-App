@@ -39,3 +39,6 @@ const parentSchema = new mongoose.Schema(
 );
 
 export default mongoose.model('Parent', parentSchema);
+
+
+

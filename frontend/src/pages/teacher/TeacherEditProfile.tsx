@@ -30,8 +30,6 @@ export default function TeacherEditProfile() {
     city: "",
     state: "",
     pincode: "",
-    email: "",
-    mobile: "",
     subjects: [] as string[],
     classes: [] as string[],
     boards: [] as string[],
@@ -46,12 +44,6 @@ export default function TeacherEditProfile() {
 
   useEffect(() => {
     if (profile) {
-      const loginIdentifier = (sessionStorage.getItem("vlm_email") || "").trim();
-      const isEmailLogin = loginIdentifier.includes("@");
-      
-      const defaultEmail = isEmailLogin ? (profile.user?.email || loginIdentifier) : "";
-      const defaultMobile = !isEmailLogin ? (profile.user?.mobile || loginIdentifier) : "";
-
       const dbFirstName = (profile.firstName || "").trim();
       const isDefaultFirstName = !dbFirstName || dbFirstName.toLowerCase() === "teacher";
 
@@ -65,8 +57,6 @@ export default function TeacherEditProfile() {
         city: profile.city || "",
         state: profile.state || "",
         pincode: profile.pincode || "",
-        email: defaultEmail,
-        mobile: defaultMobile,
         subjects: profile.subjects || [],
         classes: profile.classes || [],
         boards: profile.boards || [],
@@ -105,13 +95,7 @@ export default function TeacherEditProfile() {
     },
     onError: (err: any) => {
       const errMsg = err?.response?.data?.message || err?.response?.data?.error || "";
-      if (errMsg.toLowerCase().includes("mobile number")) {
-        setErrors(prev => ({ ...prev, mobile: errMsg }));
-      } else if (errMsg.toLowerCase().includes("email address")) {
-        setErrors(prev => ({ ...prev, email: errMsg }));
-      } else {
-        toast.error(errMsg || "Failed to update profile");
-      }
+      toast.error(errMsg || "Failed to update profile");
     }
   });
 
@@ -125,8 +109,6 @@ export default function TeacherEditProfile() {
     if (!form.city.trim()) newErrors.city = "City is required";
     if (!form.state.trim()) newErrors.state = "State is required";
     if (!form.pincode.trim()) newErrors.pincode = "Pincode is required";
-    if (!form.email.trim()) newErrors.email = "Email is required";
-    if (!form.mobile.trim()) newErrors.mobile = "Mobile is required";
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
@@ -284,42 +266,6 @@ export default function TeacherEditProfile() {
               </div>
             </div>
 
-            {/* Email & Mobile Row */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div className="flex flex-col gap-1">
-                <label className="text-xs font-semibold text-zinc-400 uppercase ml-1">Email</label>
-                <div className={cn(
-                  "flex items-center gap-3 p-3.5 rounded-2xl border bg-black/40 transition-all",
-                  errors.email ? "border-red-500/50 bg-red-500/[0.01]" : "border-white/5"
-                )}>
-                  <Mail size={16} className="text-zinc-500" />
-                  <input
-                    type="email"
-                    value={form.email}
-                    onChange={(e) => setForm(f => ({ ...f, email: e.target.value }))}
-                    className="bg-transparent border-none outline-none text-sm text-zinc-200 w-full"
-                    placeholder="Email Address"
-                  />
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-1">
-                <label className="text-xs font-semibold text-zinc-400 uppercase ml-1">Mobile</label>
-                <div className={cn(
-                  "flex items-center gap-3 p-3.5 rounded-2xl border bg-black/40 transition-all",
-                  errors.mobile ? "border-red-500/50 bg-red-500/[0.01]" : "border-white/5"
-                )}>
-                  <Phone size={16} className="text-zinc-500" />
-                  <input
-                    type="tel"
-                    value={form.mobile}
-                    onChange={(e) => setForm(f => ({ ...f, mobile: e.target.value }))}
-                    className="bg-transparent border-none outline-none text-sm text-zinc-200 w-full"
-                    placeholder="Mobile Number"
-                  />
-                </div>
-              </div>
-            </div>
           </div>
         </div>
 

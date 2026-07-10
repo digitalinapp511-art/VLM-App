@@ -43,7 +43,10 @@ const fetchSessionHistory = async () => {
         day: 'numeric', month: 'short', year: 'numeric',
         hour: '2-digit', minute: '2-digit',
       }),
-      type: s.type === 'video' ? 'Video Call' : s.type === 'audio' ? 'Audio Call' : 'Chat Session',
+      type: s.type === 'video' ? 'Human Video Call' : 
+            s.type === 'audio' ? 'Human Audio Call' : 
+            s.type === 'chat' ? 'Human Chat' : 
+            s.type === 'ai' ? 'AI Chat' : 'Chat Session',
       rating: s.studentBehaviourRating ? String(s.studentBehaviourRating) + '.0' : 'N/A',
       avatar: s.teacherId?.profilePhoto || `https://api.dicebear.com/7.x/avataaars/svg?seed=${s.teacherId?.fullName ?? 'ai'}`,
       icon: Layers,

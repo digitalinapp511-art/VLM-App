@@ -7,6 +7,7 @@ import { useCreateProfile } from "@/hooks/use-student";
 import { useQuery } from "@tanstack/react-query";
 import { authApi } from "@/lib/auth-api";
 import { studentApi } from "@/lib/student-api";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,12 +19,27 @@ interface DropdownProps {
   value: string;
   options: string[] | { label: string; value: string }[];
   onChange: (val: string) => void;
+  hasError?: boolean;
 }
 
-function CustomDropdown({ placeholder, value, options, onChange }: DropdownProps) {
+function CustomDropdown({ placeholder, value, options, onChange, hasError }: DropdownProps) {
   const [open, setOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const ref = useRef<HTMLDivElement>(null);
+
+  const getSelectedLabel = () => {
+    if (!value) return "";
+    const found = options.find(opt => {
+      if (typeof opt === "object") {
+        return opt.value === value;
+      }
+      return opt === value;
+    });
+    if (found) {
+      return typeof found === "object" ? found.label : found;
+    }
+    return value;
+  };
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -35,54 +51,65 @@ function CustomDropdown({ placeholder, value, options, onChange }: DropdownProps
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Clear query on close
+  // Sync searchQuery with selection when dropdown opens or value changes
   useEffect(() => {
     if (!open) {
       setSearchQuery("");
+    } else {
+      setSearchQuery(getSelectedLabel());
     }
-  }, [open]);
+  }, [open, value]);
 
-  const displayLabel = typeof options[0] === "object"
-    ? (options as { label: string; value: string }[]).find(o => o.value === value)?.label || placeholder
-    : value || placeholder;
-
-  const isPlaceholder = !value;
+  const displayValue = open ? searchQuery : getSelectedLabel();
 
   const filteredOptions = options.filter((opt) => {
     const label = typeof opt === "object" ? opt.label : opt;
-    return label.toLowerCase().includes(searchQuery.toLowerCase());
+    const val = typeof opt === "object" ? opt.value : opt;
+    const search = searchQuery.toLowerCase();
+    return label.toLowerCase().includes(search) || val.toLowerCase().includes(search);
   });
 
   return (
     <div className={cn("relative w-full", open ? "z-50" : "z-0")} ref={ref}>
-      <button
-        type="button"
-        onClick={() => setOpen(!open)}
-        className={cn(
-          "w-full h-12 px-4 rounded-xl flex items-center justify-between text-left transition-all border outline-none cursor-pointer box-border",
-          "bg-slate-50 dark:bg-black/60 border-slate-200 dark:border-white/10 text-slate-800 dark:text-white"
-        )}
-      >
-        <span className={cn("text-sm truncate", isPlaceholder ? "text-slate-400 dark:text-white/25" : "text-slate-850 dark:text-white font-medium")}>
-          {displayLabel}
-        </span>
-        <ChevronDown className={cn("h-4 w-4 text-slate-400 dark:text-white/40 transition-transform shrink-0 ml-2", open && "rotate-180")} />
-      </button>
+      <div className="relative">
+        <input
+          type="text"
+          placeholder={placeholder}
+          value={displayValue}
+          onFocus={() => setOpen(true)}
+          onChange={(e) => {
+            setSearchQuery(e.target.value);
+            setOpen(true);
+            // Check if current typed string exactly matches an option label or value
+            const matchedOpt = options.find(opt => {
+              const label = typeof opt === "object" ? opt.label : opt;
+              const val = typeof opt === "object" ? opt.value : opt;
+              return label.toLowerCase() === e.target.value.toLowerCase() || val.toLowerCase() === e.target.value.toLowerCase();
+            });
+            if (matchedOpt) {
+              onChange(typeof matchedOpt === "object" ? matchedOpt.value : matchedOpt);
+            } else if (!e.target.value) {
+              onChange("");
+            }
+          }}
+          className={cn(
+            "w-full h-12 px-4 pr-10 rounded-xl text-sm transition-all border outline-none cursor-text box-border",
+            hasError
+              ? "bg-red-50/50 dark:bg-red-950/20 border-red-500 text-slate-800 dark:text-white placeholder:text-red-300 dark:placeholder:text-red-400/55"
+              : "bg-slate-50 dark:bg-black/60 border-slate-200 dark:border-white/10 text-slate-800 dark:text-white placeholder:text-slate-400 dark:placeholder:text-white/25",
+            "focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/50"
+          )}
+        />
+        <ChevronDown 
+          className={cn(
+            "absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 dark:text-white/45 transition-transform shrink-0 pointer-events-none",
+            open && "rotate-180"
+          )} 
+        />
+      </div>
 
       {open && (
         <div className="absolute left-0 right-0 mt-1.5 z-[999] rounded-2xl bg-white dark:bg-[#161233] border border-slate-200 dark:border-violet-950 shadow-xl py-1 overflow-hidden flex flex-col">
-          {/* Search Input Box */}
-          <div className="px-2 py-1.5 border-b border-slate-100 dark:border-white/5">
-            <input
-              type="text"
-              placeholder="Search..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full h-8 px-2.5 text-xs bg-slate-50 dark:bg-black/40 border border-slate-200 dark:border-white/5 rounded-lg outline-none text-slate-800 dark:text-white placeholder:text-slate-400 dark:placeholder:text-white/20 focus:border-violet-500/50"
-            />
-          </div>
-
-          {/* List Options limited to ~4 items height (4 * 40px = 160px) */}
           <div className="max-h-[160px] overflow-y-auto">
             {filteredOptions.length === 0 ? (
               <p className="px-4 py-3 text-xs text-slate-400 dark:text-white/30 text-center">No matches found</p>
@@ -95,6 +122,10 @@ function CustomDropdown({ placeholder, value, options, onChange }: DropdownProps
                   <button
                     key={optVal}
                     type="button"
+                    onMouseDown={(e) => {
+                      // Prevent input blur before click processes
+                      e.preventDefault();
+                    }}
                     onClick={() => {
                       onChange(optVal);
                       setOpen(false);
@@ -142,7 +173,7 @@ export default function CreateProfileShadcn() {
   const navigate = useNavigate();
   const createProfile = useCreateProfile();
 
-  const [medium, setMedium] = useState("English");
+  const [medium, setMedium] = useState("");
   const [firstName, setFirstName] = useState("");
   const [middleName, setMiddleName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -151,13 +182,15 @@ export default function CreateProfileShadcn() {
   const [profilePhoto, setProfilePhoto] = useState("");
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const [nickname, setNickname] = useState("");
-  const [className, setClassName] = useState("10");
-  const [board, setBoard] = useState("CBSE");
+  const [className, setClassName] = useState("");
+  const [board, setBoard] = useState("");
   const [city, setCity] = useState("");
   const [state, setState] = useState("");
   const [mobile, setMobile] = useState("");
   const [email, setEmail] = useState("");
   const [parentMobile, setParentMobile] = useState("");
+
+  const [errors, setErrors] = useState<{ [key: string]: boolean }>({});
 
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -197,8 +230,35 @@ export default function CreateProfileShadcn() {
     "History", "English", "Geography", "Social Studies",
   ];
 
+  const validate = () => {
+    const newErrors: { [key: string]: boolean } = {};
+    if (!firstName.trim()) newErrors.firstName = true;
+    if (!lastName.trim()) newErrors.lastName = true;
+    if (!gender) newErrors.gender = true;
+    if (!dateOfBirth) newErrors.dateOfBirth = true;
+    if (!className) newErrors.className = true;
+    if (!board) newErrors.board = true;
+    if (!medium) newErrors.medium = true;
+    if (!city.trim()) newErrors.city = true;
+    if (!state) newErrors.state = true;
+    if (!mobile.trim() || mobile.trim().length !== 10) newErrors.mobile = true;
+    if (!email.trim()) newErrors.email = true;
+    if (!parentMobile.trim() || parentMobile.trim().length !== 10) newErrors.parentMobile = true;
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
   const handleContinue = () => {
-    if (!firstName.trim()) return;
+    if (!validate()) {
+      setTimeout(() => {
+        const firstErrorEl = document.querySelector(".border-red-500");
+        if (firstErrorEl) {
+          firstErrorEl.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+      }, 50);
+      return;
+    }
     createProfile.mutate(
       {
         firstName,
@@ -220,7 +280,13 @@ export default function CreateProfileShadcn() {
         preferredSubjects,
         weakSubjects,
       } as any,
-      { onSuccess: () => navigate(PATHS.ONBOARDING_SLIDES) }
+      {
+        onSuccess: () => navigate(PATHS.ONBOARDING_SLIDES),
+        onError: (err: any) => {
+          const errMsg = err?.response?.data?.message || err?.message || "Failed to save profile";
+          toast.error(errMsg);
+        }
+      }
     );
   };
 
@@ -294,9 +360,13 @@ export default function CreateProfileShadcn() {
               <Input
                 placeholder="First Name"
                 value={firstName}
-                onChange={(e) => setFirstName(e.target.value)}
-                className={cn(inputCls)}
+                onChange={(e) => {
+                  setFirstName(e.target.value);
+                  if (errors.firstName) setErrors(prev => ({ ...prev, firstName: false }));
+                }}
+                className={cn(inputCls, errors.firstName && "border-red-500 bg-red-50/50 dark:bg-red-950/20 focus-visible:ring-red-500/50")}
               />
+              {errors.firstName && <span className="text-[10px] text-red-500 font-bold mt-0.5 block">First name is required</span>}
             </Field>
 
             <Field label="Middle Name">
@@ -308,13 +378,17 @@ export default function CreateProfileShadcn() {
               />
             </Field>
 
-            <Field label="Last Name">
+            <Field label="Last Name *">
               <Input
                 placeholder="Last Name"
                 value={lastName}
-                onChange={(e) => setLastName(e.target.value)}
-                className={cn(inputCls)}
+                onChange={(e) => {
+                  setLastName(e.target.value);
+                  if (errors.lastName) setErrors(prev => ({ ...prev, lastName: false }));
+                }}
+                className={cn(inputCls, errors.lastName && "border-red-500 bg-red-50/50 dark:bg-red-950/20 focus-visible:ring-red-500/50")}
               />
+              {errors.lastName && <span className="text-[10px] text-red-500 font-bold mt-0.5 block">Last name is required</span>}
             </Field>
           </div>
 
@@ -328,23 +402,32 @@ export default function CreateProfileShadcn() {
                   { label: "Female", value: "female" },
                   { label: "Other", value: "other" }
                 ]}
-                onChange={(val) => setGender(val)}
+                onChange={(val) => {
+                  setGender(val);
+                  if (errors.gender) setErrors(prev => ({ ...prev, gender: false }));
+                }}
+                hasError={errors.gender}
               />
+              {errors.gender && <span className="text-[10px] text-red-500 font-bold mt-0.5 block">Gender is required</span>}
             </Field>
 
             <Field label="Date of Birth *">
               <Input
                 type="date"
                 value={dateOfBirth}
-                onChange={(e) => setDateOfBirth(e.target.value)}
-                className={cn(inputCls, "text-slate-800 dark:text-white [color-scheme:light] dark:[color-scheme:dark]")}
+                onChange={(e) => {
+                  setDateOfBirth(e.target.value);
+                  if (errors.dateOfBirth) setErrors(prev => ({ ...prev, dateOfBirth: false }));
+                }}
+                className={cn(inputCls, "text-slate-800 dark:text-white [color-scheme:light] dark:[color-scheme:dark]", errors.dateOfBirth && "border-red-500 bg-red-50/50 dark:bg-red-950/20 focus-visible:ring-red-500/50")}
               />
+              {errors.dateOfBirth && <span className="text-[10px] text-red-500 font-bold mt-0.5 block">Date of birth is required</span>}
             </Field>
           </div>
 
           <Field label="Nickname">
             <Input
-              placeholder="What should we call you?"
+              placeholder="What should we call you? (Optional)"
               value={nickname}
               onChange={(e) => setNickname(e.target.value)}
               className={cn(inputCls)}
@@ -355,34 +438,45 @@ export default function CreateProfileShadcn() {
         {/* 2 · Education */}
         <SectionCard title="Education" className="z-20">
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Class">
+            <Field label="Class *">
               <CustomDropdown
-                placeholder="Class 10th"
+                placeholder="Select Class"
                 value={className}
-                options={["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"].map(c => ({
-                  label: c === "1" ? "Class 1st" : c === "2" ? "Class 2nd" : c === "3" ? "Class 3rd" : `Class ${c}th`,
-                  value: c
-                }))}
-                onChange={(val) => setClassName(val)}
+                options={["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"]}
+                onChange={(val) => {
+                  setClassName(val);
+                  if (errors.className) setErrors(prev => ({ ...prev, className: false }));
+                }}
+                hasError={errors.className}
               />
+              {errors.className && <span className="text-[10px] text-red-500 font-bold mt-0.5 block">Class is required</span>}
             </Field>
 
-            <Field label="Board">
+            <Field label="Board *">
               <CustomDropdown
-                placeholder="CBSE"
+                placeholder="Select Board"
                 value={board}
                 options={["CBSE", "ICSE", "State Board", "IB"]}
-                onChange={(val) => setBoard(val)}
+                onChange={(val) => {
+                  setBoard(val);
+                  if (errors.board) setErrors(prev => ({ ...prev, board: false }));
+                }}
+                hasError={errors.board}
               />
+              {errors.board && <span className="text-[10px] text-red-500 font-bold mt-0.5 block">Board is required</span>}
             </Field>
           </div>
 
-          <Field label="Medium">
-            <div className="flex gap-2">
+          <Field label="Medium *">
+            <div className={cn("flex gap-2 p-1 rounded-2xl", errors.medium && "border border-red-500 bg-red-50/50 dark:bg-red-950/20")}>
               {["English", "Hindi"].map((m) => (
                 <button
                   key={m}
-                  onClick={() => setMedium(m)}
+                  type="button"
+                  onClick={() => {
+                    setMedium(m);
+                    if (errors.medium) setErrors(prev => ({ ...prev, medium: false }));
+                  }}
                   className={cn(
                     "h-9 px-6 rounded-full text-sm font-semibold transition-all border cursor-pointer",
                     medium === m
@@ -394,25 +488,30 @@ export default function CreateProfileShadcn() {
                 </button>
               ))}
             </div>
+            {errors.medium && <span className="text-[10px] text-red-500 font-bold mt-0.5 block">Medium is required</span>}
           </Field>
         </SectionCard>
 
         {/* 3 · Location & Contact */}
         <SectionCard title="Location & Contact" className="z-10">
           <div className="grid grid-cols-[1.4fr_1fr] gap-3">
-            <Field label="City">
+            <Field label="City *">
               <div className="relative">
                 <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 dark:text-white/25 pointer-events-none" />
                 <Input
                   placeholder="City"
                   value={city}
-                  onChange={(e) => setCity(e.target.value)}
-                  className={cn(inputCls, "pl-10")}
+                  onChange={(e) => {
+                    setCity(e.target.value);
+                    if (errors.city) setErrors(prev => ({ ...prev, city: false }));
+                  }}
+                  className={cn(inputCls, "pl-10", errors.city && "border-red-500 bg-red-50/50 dark:bg-red-950/20 focus-visible:ring-red-500/50")}
                 />
               </div>
+              {errors.city && <span className="text-[10px] text-red-500 font-bold mt-0.5 block">City is required</span>}
             </Field>
 
-            <Field label="State">
+            <Field label="State *">
               <CustomDropdown
                 placeholder="Select State"
                 value={state}
@@ -425,51 +524,78 @@ export default function CreateProfileShadcn() {
                   "Andaman and Nicobar Islands", "Chandigarh", "Dadra and Nagar Haveli and Daman and Diu", 
                   "Delhi", "Jammu and Kashmir", "Ladakh", "Lakshadweep", "Puducherry"
                 ]}
-                onChange={(val) => setState(val)}
+                onChange={(val) => {
+                  setState(val);
+                  if (errors.state) setErrors(prev => ({ ...prev, state: false }));
+                }}
+                hasError={errors.state}
               />
+              {errors.state && <span className="text-[10px] text-red-500 font-bold mt-0.5 block">State is required</span>}
             </Field>
           </div>
 
           <div className="space-y-4 pt-2">
-            <Field label="Student Mobile Number">
+            <Field label="Student Mobile Number *">
               <div className="relative">
                 <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 dark:text-white/25 pointer-events-none" />
                 <Input
                   type="tel"
                   placeholder="Enter student mobile number"
                   value={mobile}
-                  onChange={(e) => setMobile(e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, "").slice(0, 10);
+                    setMobile(val);
+                    if (errors.mobile) setErrors(prev => ({ ...prev, mobile: false }));
+                  }}
                   disabled={!!user?.mobile}
-                  className={cn(inputCls, "pl-10", !!user?.mobile && "opacity-60 bg-slate-100 dark:bg-zinc-900 cursor-not-allowed text-slate-500")}
+                  className={cn(inputCls, "pl-10", !!user?.mobile && "opacity-60 bg-slate-100 dark:bg-zinc-900 cursor-not-allowed text-slate-500", errors.mobile && "border-red-500 bg-red-50/50 dark:bg-red-950/20 focus-visible:ring-red-500/50")}
                 />
               </div>
+              {errors.mobile && (
+                <span className="text-[10px] text-red-500 font-bold mt-0.5 block">
+                  {!mobile.trim() ? "Mobile number is required" : "Mobile number must be 10 digits"}
+                </span>
+              )}
             </Field>
 
-            <Field label="Student Email">
+            <Field label="Student Email *">
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 dark:text-white/25 pointer-events-none" />
                 <Input
                   type="email"
                   placeholder="Enter student email address"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    if (errors.email) setErrors(prev => ({ ...prev, email: false }));
+                  }}
                   disabled={!!user?.email}
-                  className={cn(inputCls, "pl-10", !!user?.email && "opacity-60 bg-slate-100 dark:bg-zinc-900 cursor-not-allowed text-slate-500")}
+                  className={cn(inputCls, "pl-10", !!user?.email && "opacity-60 bg-slate-100 dark:bg-zinc-900 cursor-not-allowed text-slate-500", errors.email && "border-red-500 bg-red-50/50 dark:bg-red-950/20 focus-visible:ring-red-500/50")}
                 />
               </div>
+              {errors.email && <span className="text-[10px] text-red-500 font-bold mt-0.5 block">Email address is required</span>}
             </Field>
 
-            <Field label="Parent Mobile Number">
+            <Field label="Parent Mobile Number *">
               <div className="relative">
                 <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 dark:text-white/25 pointer-events-none" />
                 <Input
                   type="tel"
                   placeholder="Enter parent mobile number"
                   value={parentMobile}
-                  onChange={(e) => setParentMobile(e.target.value)}
-                  className={cn(inputCls, "pl-10")}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, "").slice(0, 10);
+                    setParentMobile(val);
+                    if (errors.parentMobile) setErrors(prev => ({ ...prev, parentMobile: false }));
+                  }}
+                  className={cn(inputCls, "pl-10", errors.parentMobile && "border-red-500 bg-red-50/50 dark:bg-red-950/20 focus-visible:ring-red-500/50")}
                 />
               </div>
+              {errors.parentMobile && (
+                <span className="text-[10px] text-red-500 font-bold mt-0.5 block">
+                  {!parentMobile.trim() ? "Parent mobile number is required" : "Parent mobile number must be 10 digits"}
+                </span>
+              )}
             </Field>
           </div>
         </SectionCard>
@@ -537,7 +663,7 @@ export default function CreateProfileShadcn() {
         <div className="w-full max-w-xl">
           <Button
             onClick={handleContinue}
-            disabled={createProfile.isPending || !firstName.trim()}
+            disabled={createProfile.isPending}
             className={cn(
               "w-full h-14 rounded-full text-white text-base font-black tracking-wide transition-all duration-300 border-none cursor-pointer",
               "bg-gradient-to-r from-violet-600 to-indigo-700 hover:from-violet-500 hover:to-indigo-600",

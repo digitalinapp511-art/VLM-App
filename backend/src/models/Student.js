@@ -19,6 +19,7 @@ const studentSchema = new mongoose.Schema(
     school: String,
     city: String,
     state: String,
+    pincode: String,
     parentName: String,
     parentMobile: String,
     subjects: [String],

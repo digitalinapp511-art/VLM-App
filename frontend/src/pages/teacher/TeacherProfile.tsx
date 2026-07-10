@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronLeft, Camera, User, BookOpen, Star, Mail, Phone, ShieldCheck, Home, Wallet, Library, LogOut, X } from "lucide-react";
+import { ChevronLeft, Camera, User, BookOpen, Star, Mail, Phone, ShieldCheck, Home, Wallet, Library, LogOut, X, MapPin, Briefcase, GraduationCap, Calendar, Shield } from "lucide-react";
 import { bgCss } from "@/helper/CssHelper";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -173,7 +173,7 @@ export default function TeacherProfile() {
           </div>
         </div>
 
-        {/* Info Form */}
+        {/* Basic Information */}
         <div className="p-6 rounded-[32px] border border-white/5 bg-white/[0.02] backdrop-blur-md space-y-6">
           <div className="flex items-center justify-between border-b border-white/5 pb-4">
             <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-widest flex items-center gap-2">
@@ -197,7 +197,66 @@ export default function TeacherProfile() {
               </div>
             </div>
 
-            {/* Phone Number with verification status */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs font-medium text-zinc-500 uppercase ml-2">Date of Birth</label>
+                <div className="mt-1 flex items-center p-4 rounded-2xl bg-black/40 border border-white/5 text-white">
+                  <Calendar size={18} className="text-zinc-600 mr-3" />
+                  <span className="flex-1">
+                    {profile?.dob && !isNaN(new Date(profile.dob).getTime())
+                      ? new Date(profile.dob).toLocaleDateString("en-US", { year: 'numeric', month: 'long', day: 'numeric' })
+                      : "N/A"}
+                  </span>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-medium text-zinc-500 uppercase ml-2">Gender</label>
+                <div className="mt-1 flex items-center p-4 rounded-2xl bg-black/40 border border-white/5 text-white">
+                  <User size={18} className="text-zinc-600 mr-3" />
+                  <span className="flex-1 capitalize">{profile?.gender || "N/A"}</span>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <label className="text-xs font-medium text-zinc-500 uppercase ml-2">Address</label>
+              <div className="mt-1 flex items-start p-4 rounded-2xl bg-black/40 border border-white/5 text-white">
+                <MapPin size={18} className="text-zinc-600 mr-3 mt-0.5" />
+                <span className="flex-1 leading-relaxed">
+                  {profile?.address 
+                    ? `${profile.address}, ${profile.city || ""}, ${profile.state || ""} - ${profile.pincode || ""}` 
+                    : "N/A"}
+                </span>
+              </div>
+            </div>
+
+            <div>
+              <label className="text-xs font-medium text-zinc-500 uppercase ml-2">Bio</label>
+              <div className="mt-1 p-4 rounded-2xl bg-black/40 border border-white/5 text-zinc-300 text-sm leading-relaxed whitespace-pre-wrap">
+                {profile?.bio || "No bio added yet."}
+              </div>
+            </div>
+
+            <div>
+              <label className="text-xs font-medium text-zinc-500 uppercase ml-2">Teaching Style</label>
+              <div className="mt-1 p-4 rounded-2xl bg-black/40 border border-white/5 text-zinc-300 text-sm leading-relaxed whitespace-pre-wrap">
+                {profile?.teachingStyle || "No teaching style described yet."}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Account Credentials */}
+        <div className="p-6 rounded-[32px] border border-white/5 bg-white/[0.02] backdrop-blur-md space-y-6">
+          <div className="flex items-center justify-between border-b border-white/5 pb-4">
+            <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-widest flex items-center gap-2">
+              <Shield size={16} className="text-violet-500" /> Account Credentials
+            </h3>
+          </div>
+
+          <div className="space-y-5">
+            {/* Phone Number */}
             <div>
               <label className="text-xs font-medium text-zinc-500 uppercase ml-2">Phone Number</label>
               <div className="mt-1 flex items-center justify-between p-4 rounded-2xl bg-black/40 border border-white/5 text-white">
@@ -228,7 +287,7 @@ export default function TeacherProfile() {
               </div>
             </div>
 
-            {/* Email Address with verification status */}
+            {/* Email Address */}
             <div>
               <label className="text-xs font-medium text-zinc-500 uppercase ml-2">Email Address</label>
               <div className="mt-1 flex items-center justify-between p-4 rounded-2xl bg-black/40 border border-white/5 text-white">
@@ -321,6 +380,128 @@ export default function TeacherProfile() {
                 )}
               </div>
             </div>
+
+            {profile?.languages?.length > 0 && (
+              <div>
+                <label className="text-xs font-medium text-zinc-500 uppercase ml-2">Languages</label>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {profile.languages.map((l: string, idx: number) => (
+                    <span key={idx} className="bg-yellow-500/10 text-yellow-400 border border-yellow-500/20 text-xs font-bold px-3 py-1.5 rounded-xl">
+                      {l}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Academic Qualifications */}
+        <div className="p-6 rounded-[32px] border border-white/5 bg-white/[0.02] backdrop-blur-md space-y-6">
+          <div className="flex items-center justify-between border-b border-white/5 pb-4">
+            <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-widest flex items-center gap-2">
+              <GraduationCap size={18} className="text-yellow-500" /> Qualifications
+            </h3>
+          </div>
+
+          <div className="space-y-5">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs font-medium text-zinc-500 uppercase ml-2">Highest Qualification</label>
+                <div className="mt-1 flex items-center p-4 rounded-2xl bg-black/40 border border-white/5 text-white">
+                  <span className="font-bold">{profile?.qualification?.highestQualification || "N/A"}</span>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-medium text-zinc-500 uppercase ml-2">Passing Year</label>
+                <div className="mt-1 flex items-center p-4 rounded-2xl bg-black/40 border border-white/5 text-white">
+                  <span className="font-bold">{profile?.qualification?.passingYear || "N/A"}</span>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <label className="text-xs font-medium text-zinc-500 uppercase ml-2">Institute / University Name</label>
+              <div className="mt-1 flex items-center p-4 rounded-2xl bg-black/40 border border-white/5 text-white">
+                <span className="flex-1">{profile?.qualification?.instituteName || "N/A"}</span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs font-medium text-zinc-500 uppercase ml-2">Has B.Ed?</label>
+                <div className="mt-1 flex items-center p-4 rounded-2xl bg-black/40 border border-white/5 text-white">
+                  <span className="font-bold">{profile?.qualification?.hasBEd ? "Yes" : "No"}</span>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-medium text-zinc-500 uppercase ml-2">Teaching Certification</label>
+                <div className="mt-1 flex items-center p-4 rounded-2xl bg-black/40 border border-white/5 text-white">
+                  <span className="font-bold">{profile?.qualification?.teachingCertification || "N/A"}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Experience Details */}
+        <div className="p-6 rounded-[32px] border border-white/5 bg-white/[0.02] backdrop-blur-md space-y-6">
+          <div className="flex items-center justify-between border-b border-white/5 pb-4">
+            <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-widest flex items-center gap-2">
+              <Briefcase size={16} className="text-purple-500" /> Teaching Experience
+            </h3>
+          </div>
+
+          <div className="space-y-5">
+            <div>
+              <label className="text-xs font-medium text-zinc-500 uppercase ml-2">Total Experience</label>
+              <div className="mt-1 flex items-center p-4 rounded-2xl bg-black/40 border border-white/5 text-white">
+                <span className="font-bold">
+                  {profile?.experience?.totalYears !== undefined ? `${profile.experience.totalYears} Years` : "0 Years"}
+                </span>
+              </div>
+            </div>
+
+            <div>
+              <label className="text-xs font-medium text-zinc-500 uppercase ml-2">Teaching Modes</label>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {profile?.experience?.teachingModes?.length > 0 ? (
+                  profile.experience.teachingModes.map((m: string, idx: number) => (
+                    <span key={idx} className="bg-blue-500/10 text-blue-400 border border-blue-500/20 text-xs font-bold px-3 py-1.5 rounded-xl capitalize">
+                      {m}
+                    </span>
+                  ))
+                ) : (
+                  <span className="text-xs text-zinc-600 ml-2">No modes specified</span>
+                )}
+              </div>
+            </div>
+
+            <div>
+              <label className="text-xs font-medium text-zinc-500 uppercase ml-2">Type of Experience</label>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {profile?.experience?.experienceTypes?.length > 0 ? (
+                  profile.experience.experienceTypes.map((t: string, idx: number) => (
+                    <span key={idx} className="bg-gold-500/10 text-amber-400 border border-amber-500/20 text-xs font-bold px-3 py-1.5 rounded-xl capitalize">
+                      {t}
+                    </span>
+                  ))
+                ) : (
+                  <span className="text-xs text-zinc-600 ml-2">No experience type specified</span>
+                )}
+              </div>
+            </div>
+
+            {profile?.experience?.summary && (
+              <div>
+                <label className="text-xs font-medium text-zinc-500 uppercase ml-2">Experience Summary</label>
+                <div className="mt-1 p-4 rounded-2xl bg-black/40 border border-white/5 text-zinc-300 text-sm leading-relaxed">
+                  {profile.experience.summary}
+                </div>
+              </div>
+            )}
           </div>
         </div>
 

@@ -60,6 +60,8 @@ export interface StudentProfile {
   schoolName?: string | null;
   city?: string | null;
   state?: string | null;
+  pincode?: string | null;
+  preferredLanguage?: string | null;
 }
 
 export interface Subscription {

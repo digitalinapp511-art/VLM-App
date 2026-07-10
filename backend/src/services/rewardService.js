@@ -1,5 +1,6 @@
 import WalletTransaction from '../models/WalletTransaction.js';
 import Teacher from '../models/Teacher.js';
+import TeacherMetrics from '../models/TeacherMetrics.js';
 import Student from '../models/Student.js';
 import AdminSettings from '../models/AdminSettings.js';
 import { pointsToInr } from '../utils/helpers.js';
@@ -26,19 +27,24 @@ export const creditTeacher = async (teacherId, earningType, points, description,
   const teacher = await Teacher.findById(teacherId);
   if (!teacher) throw new Error('Teacher not found');
 
+  // Ensure metrics doc exists
+  let metrics = await TeacherMetrics.findOne({ teacherId });
+  if (!metrics) metrics = await TeacherMetrics.create({ teacherId });
+
   const todayStr = new Date().toISOString().split('T')[0];
-  if (teacher.metrics.todayEarningsDate !== todayStr) {
-    teacher.metrics.todayEarnings = 0;
-    teacher.metrics.todayEarningsDate = todayStr;
+  if (metrics.todayEarningsDate !== todayStr) {
+    metrics.todayEarnings = 0;
+    metrics.todayEarningsDate = todayStr;
   }
 
   const isSessionEarning = ['session', 'chat', 'audio', 'video', 'doubt'].includes(earningType);
 
   if (isSessionEarning) {
-    const inrAmount = points; // points parameter is direct INR amount for sessions
+    const inrAmount = points;
     teacher.wallet.withdrawableBalance += inrAmount;
-    teacher.metrics.todayEarnings += inrAmount;
+    metrics.todayEarnings += inrAmount;
     await teacher.save();
+    await metrics.save();
 
     return WalletTransaction.create({
       userId: teacher.userId,
@@ -54,8 +60,9 @@ export const creditTeacher = async (teacherId, earningType, points, description,
   } else {
     teacher.wallet.totalPoints += points;
     teacher.wallet.withdrawableBalance += pointsToInr(points);
-    teacher.metrics.todayEarnings += pointsToInr(points);
+    metrics.todayEarnings += pointsToInr(points);
     await teacher.save();
+    await metrics.save();
 
     return WalletTransaction.create({
       userId: teacher.userId,
@@ -110,19 +117,32 @@ export const creditStudent = async (studentId, points, description, earningType 
   });
 };
 
-export const calculateSessionEarning = async (sessionType, durationMinutes, rating = 0) => {
+export const calculateSessionEarning = async (session, durationMinutes, rating = 0) => {
+  const type = typeof session === 'string' ? session : session?.type;
+  const cls = typeof session === 'object' ? session?.class : null;
+
   const rates = await getRates();
   let points = 0;
 
-  switch (sessionType) {
+  // Determine rate per minute based on student class
+  let classRate = 4; // default (Class 9-10)
+  if (cls) {
+    const classNum = parseInt(cls.replace(/\D/g, ''), 10);
+    if (classNum >= 1 && classNum <= 8) {
+      classRate = 3;
+    } else if (classNum >= 9 && classNum <= 10) {
+      classRate = 4;
+    } else if (classNum >= 11 && classNum <= 12) {
+      classRate = 5;
+    }
+  }
+
+  switch (type) {
     case 'audio':
-      points = rates.perMinuteAudio * durationMinutes;
-      break;
     case 'video':
-      points = rates.perMinuteVideo * durationMinutes;
-      break;
     case 'chat':
-      points = rates.perChat;
+    case 'ai':
+      points = classRate * durationMinutes;
       break;
     case 'doubt':
       points = rates.perDoubt;
@@ -131,7 +151,6 @@ export const calculateSessionEarning = async (sessionType, durationMinutes, rati
       points = 0;
   }
 
-  if (rating >= 4) points += rates.ratingBonus;
   return points;
 };
 

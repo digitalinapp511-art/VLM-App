@@ -168,12 +168,23 @@ export default function ChatSession() {
   const queryClient = useQueryClient();
   const [deductions, setDeductions] = useState<{ id: number; text: string }[]>([]);
 
-  // Trigger floating "-10" visual deduction badge every 60 seconds
+  // Trigger floating visual deduction badge every 60 seconds
   useEffect(() => {
     if (duration > 0 && duration % 60 === 0 && sessionId && !sessionId.startsWith("mock-")) {
       const id = Date.now();
-      setDeductions((prev) => [...prev, { id, text: "-10" }]);
-      // Call backend API to actually deduct 10 credits from student wallet
+      const studentClassStr = student?.class || '10';
+      const classNum = parseInt(studentClassStr.replace(/\D/g, ''), 10) || 10;
+      let deductAmount = 4;
+      if (classNum >= 1 && classNum <= 8) {
+        deductAmount = 3;
+      } else if (classNum >= 9 && classNum <= 10) {
+        deductAmount = 4;
+      } else if (classNum >= 11 && classNum <= 12) {
+        deductAmount = 5;
+      }
+
+      setDeductions((prev) => [...prev, { id, text: `-${deductAmount}` }]);
+      // Call backend API to actually deduct credits from student wallet
       studentApi.deductSessionCredits(sessionId)
         .then(() => {
           queryClient.invalidateQueries({ queryKey: ["studentProfile"] });
@@ -184,7 +195,7 @@ export default function ChatSession() {
         setDeductions((prev) => prev.filter((d) => d.id !== id));
       }, 2000);
     }
-  }, [duration, sessionId, queryClient]);
+  }, [duration, sessionId, queryClient, student]);
   
   const chatEndRef = useRef<HTMLDivElement>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);

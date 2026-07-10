@@ -13,6 +13,8 @@ interface DocumentUploadCardProps {
   status: UploadStatus;
   onUpload: (id: string) => void;
   topRightIcon?: React.ReactNode;
+  required?: boolean;
+  fileName?: string;
 }
 
 const DocumentUploadCard: React.FC<DocumentUploadCardProps> = ({
@@ -23,6 +25,8 @@ const DocumentUploadCard: React.FC<DocumentUploadCardProps> = ({
   status,
   onUpload,
   topRightIcon,
+  required = false,
+  fileName,
 }) => {
   return (
     <motion.div
@@ -66,23 +70,30 @@ const DocumentUploadCard: React.FC<DocumentUploadCardProps> = ({
       </div>
 
       <div className="flex items-end justify-between gap-4 mt-6">
-        <div className="space-y-1">
-          <h3 className="text-lg font-bold text-zinc-100 tracking-tight">
+        <div className="space-y-1 min-w-0 flex-1">
+          <h3 className="text-lg font-bold text-zinc-100 tracking-tight flex items-center">
             {title}
+            {required && <span className="text-red-500 font-bold ml-1">*</span>}
           </h3>
-          <p className="text-[13px] text-zinc-500 font-medium">
-            {description}
-          </p>
+          {fileName ? (
+            <p className="text-[13px] text-green-400 font-bold truncate max-w-[280px]">
+              {fileName}
+            </p>
+          ) : (
+            <p className="text-[13px] text-zinc-500 font-medium">
+              {description}
+            </p>
+          )}
         </div>
 
         <Button
           onClick={() => onUpload(id)}
           className={cn(
-            "h-10 px-6 rounded-2xl text-xs font-bold tracking-widest uppercase transition-all",
+            "h-10 px-6 rounded-2xl text-xs font-bold tracking-widest uppercase transition-all shrink-0",
             "bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/40 text-blue-400"
           )}
         >
-          UPLOAD
+          {fileName ? "REPLACE" : "UPLOAD"}
         </Button>
       </div>
     </motion.div>

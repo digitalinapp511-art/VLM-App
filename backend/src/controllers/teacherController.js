@@ -1,4 +1,6 @@
 import Teacher from '../models/Teacher.js';
+import TeacherMetrics from '../models/TeacherMetrics.js';
+import TeacherAvailability from '../models/TeacherAvailability.js';
 import Interview from '../models/Interview.js';
 import User from '../models/User.js';
 import Notification from '../models/Notification.js';
@@ -17,17 +19,30 @@ export const getTeacherProfile = asyncHandler(async (req, res) => {
       userId: req.user._id,
       vlmTeacherId,
       firstName: 'Teacher',
+      lastName: 'Profile',
       applicationStatus: 'draft',
     });
     teacher = await Teacher.findOne({ userId: req.user._id }).populate('userId', 'email mobile fullName isEmailVerified isMobileVerified');
   }
   
   const teacherObj = teacher.toObject();
-  teacherObj.user = teacherObj.userId; // Map populated User document to p.user
+  teacherObj.user = teacherObj.userId;
   if (teacherObj.dateOfBirth) {
     teacherObj.dob = teacherObj.dateOfBirth;
   }
-  
+
+  // Attach metrics (upsert ensures a row always exists)
+  const metrics = await TeacherMetrics.findOneAndUpdate(
+    { teacherId: teacher._id },
+    { $setOnInsert: { teacherId: teacher._id } },
+    { upsert: true, new: true }
+  );
+  teacherObj.metrics = metrics;
+
+  const Document = (await import('../models/Document.js')).default;
+  const docs = await Document.find({ teacherId: teacher._id });
+  teacherObj.uploadedDocuments = docs;
+
   res.json({ success: true, data: teacherObj });
 });
 
@@ -74,6 +89,7 @@ export const updateOnboarding = asyncHandler(async (req, res) => {
       userId: req.user._id,
       vlmTeacherId,
       firstName: data.firstName || 'Teacher',
+      lastName: data.lastName || 'Profile',
       onboardingStep: step || 1,
       ...data,
     });
@@ -137,46 +153,52 @@ export const updateAvailability = asyncHandler(async (req, res) => {
 
   if (rawStatus) {
     teacher.availabilityStatus = rawStatus;
+    teacher.manuallySetOffline = rawStatus === 'offline';
 
-    // Track whether teacher explicitly set themselves offline
-    if (rawStatus === 'offline') {
-      teacher.manuallySetOffline = true;
-    } else {
-      teacher.manuallySetOffline = false;
-    }
-
-    // Sync to PresenceService (Redis dispatch pool)
     try {
       const { setTeacherState, TEACHER_PRESENCE } = await import('../services/presenceService.js');
-      let presenceStatus;
-      if (rawStatus === 'online') {
-        presenceStatus = TEACHER_PRESENCE.ONLINE;
-      } else if (rawStatus === 'busy') {
-        presenceStatus = TEACHER_PRESENCE.BUSY;
-      } else {
-        presenceStatus = TEACHER_PRESENCE.OFFLINE;
-      }
+      const presenceStatus = rawStatus === 'online'
+        ? TEACHER_PRESENCE.ONLINE
+        : rawStatus === 'busy'
+          ? TEACHER_PRESENCE.BUSY
+          : TEACHER_PRESENCE.OFFLINE;
       await setTeacherState(teacher._id, presenceStatus);
     } catch (e) {
       console.error('[updateAvailability presenceService error]', e.message);
     }
   }
-  if (availabilitySlots) teacher.availabilitySlots = availabilitySlots;
   await teacher.save();
 
-  res.json({ success: true, data: teacher });
+  // Replace availability slots in TeacherAvailability collection
+  if (availabilitySlots && Array.isArray(availabilitySlots)) {
+    await TeacherAvailability.deleteMany({ teacherId: teacher._id });
+    if (availabilitySlots.length > 0) {
+      await TeacherAvailability.insertMany(
+        availabilitySlots.map(slot => ({ ...slot, teacherId: teacher._id }))
+      );
+    }
+  }
+
+  const slots = await TeacherAvailability.find({ teacherId: teacher._id });
+  res.json({ success: true, data: { ...teacher.toObject(), availabilitySlots: slots } });
 });
 
 export const getDashboard = asyncHandler(async (req, res) => {
   const teacher = await Teacher.findOne({ userId: req.user._id });
   if (!teacher) return res.status(404).json({ success: false, message: 'Not found' });
 
+  // Fetch or create metrics row
+  let metrics = await TeacherMetrics.findOne({ teacherId: teacher._id });
+  if (!metrics) {
+    metrics = await TeacherMetrics.create({ teacherId: teacher._id });
+  }
+
   // Self-heal daily reset for today's earnings
   const todayStr = new Date().toISOString().split('T')[0];
-  if (teacher.metrics.todayEarningsDate !== todayStr) {
-    teacher.metrics.todayEarnings = 0;
-    teacher.metrics.todayEarningsDate = todayStr;
-    await teacher.save();
+  if (metrics.todayEarningsDate !== todayStr) {
+    metrics.todayEarnings = 0;
+    metrics.todayEarningsDate = todayStr;
+    await metrics.save();
   }
 
   const unreadNotifications = await Notification.countDocuments({ userId: req.user._id, isRead: false });
@@ -210,16 +232,16 @@ export const getDashboard = asyncHandler(async (req, res) => {
         isApproved: teacher.isApproved,
       },
       stats: {
-        todayEarnings: teacher.metrics.todayEarnings,
+        todayEarnings: metrics.todayEarnings,
         totalPoints: teacher.wallet.totalPoints,
         walletBalance: teacher.wallet.withdrawableBalance,
-        rating: teacher.metrics.rating,
-        totalSessions: teacher.metrics.totalSessions,
-        missedRequests: teacher.metrics.missedRequests || 0,
-        performanceScore: teacher.metrics.performanceScore,
-        responseSpeed: teacher.metrics.responseSpeed || 85,
-        weeklyLiveTarget: teacher.metrics.weeklyLiveTarget || 10,
-        weeklyLiveCompleted: teacher.metrics.weeklyLiveCompleted || 0,
+        rating: metrics.rating,
+        totalSessions: metrics.totalSessions,
+        missedRequests: metrics.missedRequests || 0,
+        performanceScore: metrics.performanceScore,
+        responseSpeed: metrics.responseSpeed || 85,
+        weeklyLiveTarget: metrics.weeklyLiveTarget || 10,
+        weeklyLiveCompleted: metrics.weeklyLiveCompleted || 0,
       },
       unreadNotifications,
       notifications,
@@ -235,6 +257,7 @@ export const updateProfile = asyncHandler(async (req, res) => {
     teacher = await Teacher.create({
       userId: req.user._id,
       firstName: req.body.firstName || 'Teacher',
+      lastName: req.body.lastName || 'Profile',
       applicationStatus: 'draft',
     });
   }

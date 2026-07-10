@@ -10,6 +10,8 @@ import { getSocket, connectSocket, disconnectSocket } from "@/lib/socket";
 import type { Socket } from "socket.io-client";
 import { apiClient } from "@/lib/api-client";
 
+const isDev = import.meta.env.DEV;
+
 // ── Types ─────────────────────────────────────────────────────────────────
 
 export interface IncomingRequest {
@@ -137,12 +139,12 @@ export function useSocket(options: UseSocketOptions = {}) {
 
     // ── Teacher: incoming request popup ──────────────────────────────────
     const onNewRequest = (data: IncomingRequest) => {
-      console.log('Received new_request on frontend!', data);
+      if (isDev) console.log('Received new_request on frontend!', data);
       setIncomingRequest(data);
     };
 
     const onRequestExpired = (data: { requestId: string }) => {
-      console.log('Received request_expired on frontend!', data);
+      if (isDev) console.log('Received request_expired on frontend!', data);
       setIncomingRequest((prev) => {
         if (prev && prev.requestId === data.requestId) {
           return null;
@@ -153,25 +155,25 @@ export function useSocket(options: UseSocketOptions = {}) {
 
     // ── Student: teacher accepted ─────────────────────────────────────────
     const onSessionAccepted = (data: SessionAcceptedPayload) => {
-      console.log("[Socket] Received session_accepted on frontend!", data);
+      if (isDev) console.log("[Socket] Received session_accepted on frontend!", data);
       setSessionAccepted(data);
     };
 
     // ── Student: nobody accepted (timer expired) ──────────────────────────
     const onRequestMissed = (data: SessionMissedPayload) => {
-      console.log("[Socket] Received request_missed on frontend!", data);
+      if (isDev) console.log("[Socket] Received request_missed on frontend!", data);
       setSessionMissed(data);
     };
 
     // ── Student: all teachers declined ───────────────────────────────────
     const onSessionDeclined = (data: SessionMissedPayload) => {
-      console.log("[Socket] Received session_declined on frontend!", data);
+      if (isDev) console.log("[Socket] Received session_declined on frontend!", data);
       setSessionDeclined(data);
     };
 
     // ── Chat messages ─────────────────────────────────────────────────────
     const onNewMessage = (msg: any) => {
-      console.log("[Socket] Received new_message on frontend!", msg);
+      if (isDev) console.log("[Socket] Received new_message on frontend!", msg);
       setLastMessage(msg);
     };
     const onTyping = (data: { userId: string }) => setTypingUserId(data.userId);
@@ -225,7 +227,7 @@ export function useSocket(options: UseSocketOptions = {}) {
     
     const joinRoom = () => {
       s.emit("join_session", sessionId);
-      console.log(`[Socket] Joined session room: session:${sessionId}`);
+      if (isDev) console.log(`[Socket] Joined session room: session:${sessionId}`);
     };
 
     if (s.connected) {

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { PATHS } from "@/routes/paths";
 import {
@@ -8,7 +8,9 @@ import {
   ChevronLeft,
   Pencil,
   RefreshCw,
-  Settings
+  Settings,
+  Languages,
+  MapPin
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -28,12 +30,7 @@ import LoadingSkeleton from "@/components/basic/student/LoadingSkeleton";
 import { studentApi } from "@/lib/student-api";
 import { toast } from "sonner";
 
-const CLASSES = [
-  "Class 9th",
-  "Class 10th",
-  "Class 11th",
-  "Class 12th",
-];
+const CLASSES = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"];
 
 const CITIES = [
   "Mumbai",
@@ -42,6 +39,16 @@ const CITIES = [
   "Pune",
   "Kolkata",
   "Hyderabad",
+];
+
+const STATES = [
+  "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh", 
+  "Goa", "Gujarat", "Haryana", "Himachal Pradesh", "Jharkhand", "Karnataka", 
+  "Kerala", "Madhya Pradesh", "Maharashtra", "Manipur", "Meghalaya", "Mizoram", 
+  "Nagaland", "Odisha", "Punjab", "Rajasthan", "Sikkim", "Tamil Nadu", 
+  "Telangana", "Tripura", "Uttar Pradesh", "Uttarakhand", "West Bengal",
+  "Andaman and Nicobar Islands", "Chandigarh", "Dadra and Nagar Haveli and Daman and Diu", 
+  "Delhi", "Jammu and Kashmir", "Ladakh", "Lakshadweep", "Puducherry"
 ];
 
 export default function EditProfile() {
@@ -57,17 +64,22 @@ export default function EditProfile() {
     gender: "male",
     dateOfBirth: "",
     nickname: "",
-    class: "Class 10th",
+    class: "",
     city: "",
+    state: "",
+    pincode: "",
     subjects: [] as string[],
     weakSubjects: [] as string[],
     profilePhoto: "",
+    preferredLanguage: "english",
   });
 
   const [showSaveSuccess, setShowSaveSuccess] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
 
-
+  const profileDetails = (profile as any)?.data ?? profile;
+  const hasGenderOriginal = !!profileDetails?.gender;
+  const hasDobOriginal = !!profileDetails?.dateOfBirth;
 
   const resetForm = () => {
     if (profile) {
@@ -79,11 +91,14 @@ export default function EditProfile() {
         gender: p.gender ?? "male",
         dateOfBirth: p.dateOfBirth ? new Date(p.dateOfBirth).toISOString().split('T')[0] : "",
         nickname: p.nickname ?? "",
-        class: (p.class || p.className) ? `Class ${p.class || p.className}th` : "Class 10th",
+        class: p.class || p.className || "",
         city: p.city ?? "",
+        state: p.state ?? "",
+        pincode: p.pincode ?? "",
         subjects: p.subjects ?? [],
         weakSubjects: p.weakSubjects ?? [],
         profilePhoto: p.profilePhoto ?? "",
+        preferredLanguage: p.preferredLanguage ?? "english",
       });
     }
   };
@@ -244,6 +259,7 @@ export default function EditProfile() {
             >
               <Select
                 value={formData.gender}
+                disabled={hasGenderOriginal}
                 onValueChange={(val) =>
                   setFormData({
                     ...formData,
@@ -251,7 +267,7 @@ export default function EditProfile() {
                   })
                 }
               >
-                <SelectTrigger className="border-none bg-transparent h-auto p-0 text-xs text-slate-700 font-bold focus-visible:ring-0 shadow-none focus:ring-0">
+                <SelectTrigger className={cn("border-none bg-transparent h-auto p-0 text-xs text-slate-700 font-bold focus-visible:ring-0 shadow-none focus:ring-0 flex items-center justify-between w-full mt-0.5", hasGenderOriginal && "opacity-60 cursor-not-allowed pointer-events-none")}>
                   <SelectValue placeholder="Gender" />
                 </SelectTrigger>
                 <SelectContent className="bg-white border-slate-100">
@@ -271,13 +287,14 @@ export default function EditProfile() {
               <Input
                 type="date"
                 value={formData.dateOfBirth}
+                disabled={hasDobOriginal}
                 onChange={(e) =>
                   setFormData({
                     ...formData,
                     dateOfBirth: e.target.value,
                   })
                 }
-                className="border-none bg-transparent h-auto p-0 text-xs text-slate-700 font-bold focus-visible:ring-0 placeholder:text-slate-300 mt-0.5"
+                className={cn("border-none bg-transparent h-auto p-0 text-xs text-slate-700 font-bold focus-visible:ring-0 placeholder:text-slate-300 mt-0.5", hasDobOriginal && "opacity-60 cursor-not-allowed")}
               />
             </EditFieldWrapper>
 
@@ -306,56 +323,112 @@ export default function EditProfile() {
               value={formData.class}
               isEditing={isEditing}
             >
-              <Select
+              <AutocompleteDropdown
+                placeholder="Select Class"
                 value={formData.class}
-                onValueChange={(value) =>
+                options={CLASSES}
+                onChange={(value) =>
                   setFormData({
                     ...formData,
-                    class: value ?? "Class 10th",
+                    class: value,
+                  })
+                }
+              />
+            </EditFieldWrapper>
+
+            <EditFieldWrapper
+              icon={<Languages size={16} className="text-violet-600 mr-2.5" />}
+              label="Preferred Language"
+              value={formData.preferredLanguage}
+              isEditing={isEditing}
+            >
+              <Select
+                value={formData.preferredLanguage}
+                onValueChange={(val) =>
+                  setFormData({
+                    ...formData,
+                    preferredLanguage: val ?? "english",
                   })
                 }
               >
                 <SelectTrigger className="border-none bg-transparent h-auto p-0 text-xs text-slate-700 font-bold focus:ring-0 flex justify-between w-full mt-0.5 select-none">
-                  <SelectValue placeholder="Select current class" />
+                  <SelectValue placeholder="Preferred Language" />
                 </SelectTrigger>
 
                 <SelectContent className="bg-white border-slate-100 text-slate-700 rounded-2xl shadow-lg">
-                  {CLASSES.map((item) => (
-                    <SelectItem key={item} value={item} className="focus:bg-violet-50 focus:text-violet-600 rounded-lg">
-                      {item}
-                    </SelectItem>
-                  ))}
+                  <SelectItem value="english" className="focus:bg-violet-50 focus:text-violet-600 rounded-lg">English</SelectItem>
+                  <SelectItem value="hindi" className="focus:bg-violet-50 focus:text-violet-600 rounded-lg">Hindi</SelectItem>
                 </SelectContent>
               </Select>
             </EditFieldWrapper>
+          </main>
+        </div>
 
+        {/* ── ADDRESS SECTION CARD ── */}
+        <div className="p-5 rounded-3xl border border-slate-100 bg-white shadow-sm space-y-5 w-full">
+          <div className="flex items-center border-b border-slate-100 pb-3 px-0.5">
+            <h3 className="text-xs font-black text-slate-400 uppercase tracking-wide flex items-center gap-2">
+              <MapPin size={15} className="text-violet-600" /> Address Details
+            </h3>
+          </div>
+          <main className="w-full space-y-4">
             <EditFieldWrapper
               icon={<Globe size={16} className="text-violet-600 mr-2.5" />}
               label="City"
               value={formData.city}
               isEditing={isEditing}
             >
-              <Select
+              <AutocompleteDropdown
+                placeholder="Select City"
                 value={formData.city}
-                onValueChange={(value) =>
+                options={CITIES}
+                allowCustomVal={true}
+                onChange={(value) =>
                   setFormData({
                     ...formData,
-                    city: value ?? "",
+                    city: value,
                   })
                 }
-              >
-                <SelectTrigger className="border-none bg-transparent h-auto p-0 text-xs text-slate-700 font-bold focus:ring-0 flex justify-between w-full mt-0.5 select-none">
-                  <SelectValue placeholder="Select City" />
-                </SelectTrigger>
+              />
+            </EditFieldWrapper>
 
-                <SelectContent className="bg-white border-slate-100 text-slate-700 rounded-2xl shadow-lg">
-                  {CITIES.map((item) => (
-                    <SelectItem key={item} value={item} className="focus:bg-violet-50 focus:text-violet-600 rounded-lg">
-                      {item}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <EditFieldWrapper
+              icon={<Globe size={16} className="text-violet-600 mr-2.5" />}
+              label="State"
+              value={formData.state}
+              isEditing={isEditing}
+            >
+              <AutocompleteDropdown
+                placeholder="Select State"
+                value={formData.state}
+                options={STATES}
+                onChange={(value) =>
+                  setFormData({
+                    ...formData,
+                    state: value,
+                  })
+                }
+              />
+            </EditFieldWrapper>
+
+            <EditFieldWrapper
+              icon={<MapPin size={16} className="text-violet-600 mr-2.5" />}
+              label="Pincode"
+              value={formData.pincode}
+              isEditing={isEditing}
+            >
+              <Input
+                value={formData.pincode}
+                maxLength={6}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    pincode: e.target.value.replace(/\D/g, ""),
+                  })
+                }
+                className="border-none bg-transparent h-auto p-0 text-xs text-slate-700 font-bold focus-visible:ring-0 placeholder:text-slate-300 mt-0.5"
+                placeholder="Pincode"
+              />
             </EditFieldWrapper>
           </main>
         </div>
@@ -419,9 +492,12 @@ export default function EditProfile() {
               nickname: formData.nickname,
               class: formData.class.replace("Class ", "").replace("th", ""),
               city: formData.city,
+              state: formData.state,
+              pincode: formData.pincode,
               subjects: formData.subjects,
               weakSubjects: formData.weakSubjects,
               profilePhoto: formData.profilePhoto,
+              preferredLanguage: formData.preferredLanguage,
             }, {
               onSuccess: () => {
                 setShowSaveSuccess(true);
@@ -468,6 +544,101 @@ function EditFieldWrapper({
         {icon}
         <div className="flex-1 min-w-0 ml-1">{children}</div>
       </div>
+    </div>
+  );
+}
+
+interface AutocompleteDropdownProps {
+  placeholder: string;
+  value: string;
+  options: string[];
+  onChange: (val: string) => void;
+  allowCustomVal?: boolean;
+}
+
+function AutocompleteDropdown({ placeholder, value, options, onChange, allowCustomVal }: AutocompleteDropdownProps) {
+  const [open, setOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    if (!open) {
+      setSearchQuery("");
+    } else {
+      setSearchQuery(value);
+    }
+  }, [open, value]);
+
+  const displayValue = open ? searchQuery : value;
+
+  const filteredOptions = options.filter((opt) =>
+    opt.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  return (
+    <div className="relative w-full" ref={ref}>
+      <input
+        type="text"
+        placeholder={placeholder}
+        value={displayValue}
+        onFocus={() => setOpen(true)}
+        onChange={(e) => {
+          setSearchQuery(e.target.value);
+          setOpen(true);
+          if (allowCustomVal) {
+            onChange(e.target.value);
+          } else {
+            const matched = options.find(opt => opt.toLowerCase() === e.target.value.toLowerCase());
+            if (matched) {
+              onChange(matched);
+            } else if (!e.target.value) {
+              onChange("");
+            }
+          }
+        }}
+        className="border-none bg-transparent h-auto p-0 text-xs text-slate-700 font-bold focus-visible:ring-0 placeholder:text-slate-300 mt-0.5 w-full outline-none"
+      />
+
+      {open && (
+        <div className="absolute left-0 right-0 mt-3 z-[999] rounded-2xl bg-white border border-slate-100 shadow-xl py-1 overflow-hidden flex flex-col">
+          <div className="max-h-[128px] overflow-y-auto">
+            {filteredOptions.length === 0 ? (
+              <p className="px-4 py-3 text-xs text-slate-400 text-center">No matches found</p>
+            ) : (
+              filteredOptions.map((opt) => {
+                const isSel = opt === value;
+                return (
+                  <button
+                    key={opt}
+                    type="button"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => {
+                      onChange(opt);
+                      setOpen(false);
+                    }}
+                    className={cn(
+                      "w-full px-4 py-2 text-left text-xs transition-colors hover:bg-slate-50 cursor-pointer block",
+                      isSel ? "text-violet-600 font-extrabold bg-slate-50" : "text-slate-700"
+                    )}
+                  >
+                    {opt}
+                  </button>
+                );
+              })
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

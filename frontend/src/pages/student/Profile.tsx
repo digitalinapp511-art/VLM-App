@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useStudentProfile, useStudentWalletHistory } from "@/hooks/use-student";
 import { PATHS } from "@/routes/paths";
 import {
-  CreditCard, Smartphone, Users, History, ArrowRight, Award, ChevronLeft, X, Check
+  CreditCard, Smartphone, Users, History, ArrowRight, Award, ChevronLeft, X, Check, ShieldCheck
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -198,8 +198,8 @@ export default function Profile() {
         {/* ── ACCOUNT STATUS & VERIFICATION CARD ── */}
         <Card className="border border-slate-200/80 dark:border-white/8 bg-white/80 dark:bg-white/4 backdrop-blur-sm rounded-[1.5rem] overflow-hidden shadow-sm dark:shadow-md">
           <CardContent className="p-5 space-y-4">
-            <h3 className="text-xs font-black tracking-wider text-slate-450 dark:text-slate-500 uppercase text-left">
-              Account Credentials
+            <h3 className="text-xs font-black tracking-wider text-slate-400 dark:text-slate-500 uppercase text-left flex items-center gap-2">
+              <ShieldCheck size={15} className="text-violet-600 dark:text-violet-400" /> Account Credentials
             </h3>
             
             {/* Email Field */}

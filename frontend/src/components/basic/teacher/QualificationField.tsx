@@ -46,8 +46,12 @@ const QualificationField: React.FC<QualificationFieldProps> = ({
             <select
               value={value}
               onChange={(e) => onChange?.(e.target.value)}
-              className="w-full bg-transparent border-none outline-none text-[15px] text-zinc-100 appearance-none cursor-pointer pr-6 relative z-10"
+              className={cn(
+                "w-full bg-transparent border-none outline-none text-[15px] appearance-none cursor-pointer pr-6 relative z-10",
+                value ? "text-zinc-100" : "text-zinc-500"
+              )}
             >
+              <option value="" className="bg-zinc-950 text-zinc-500">Select {label}</option>
               {options.map((opt) => (
                 <option key={opt} value={opt} className="bg-zinc-950 text-white">
                   {opt}

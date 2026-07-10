@@ -7,6 +7,7 @@ const { RtcTokenBuilder } = pkg;
 import Session from '../models/Session.js';
 import DoubtRequest from '../models/DoubtRequest.js';
 import Teacher from '../models/Teacher.js';
+import TeacherMetrics from '../models/TeacherMetrics.js';
 import Student from '../models/Student.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
 import { emitSessionAccepted, emitSessionDeclined } from '../socket/index.js';
@@ -189,7 +190,11 @@ export const declineDoubtRequest = asyncHandler(async (req, res) => {
 
   request.routedTeachers[rtIndex].status = 'rejected';
   request.routedTeachers[rtIndex].respondedAt = new Date();
-  teacher.metrics.missedRequests = (teacher.metrics.missedRequests || 0) + 1;
+  await TeacherMetrics.findOneAndUpdate(
+    { teacherId: teacher._id },
+    { $inc: { missedRequests: 1 } },
+    { upsert: true }
+  );
 
   await request.save();
   await teacher.save();
@@ -272,9 +277,12 @@ export const endSession = asyncHandler(async (req, res) => {
   const teacher = await Teacher.findById(session.teacherId);
   if (teacher) {
     teacher.availabilityStatus = 'online';
-    teacher.metrics.totalSessions = (teacher.metrics.totalSessions || 0) + 1;
     await teacher.save();
-    // Set teacher back to ONLINE in Redis presence
+    await TeacherMetrics.findOneAndUpdate(
+      { teacherId: teacher._id },
+      { $inc: { totalSessions: 1 } },
+      { upsert: true }
+    );
     try {
       const { setTeacherState, TEACHER_PRESENCE } = await import('../services/presenceService.js');
       await setTeacherState(teacher._id, TEACHER_PRESENCE.ONLINE);

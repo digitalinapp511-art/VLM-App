@@ -5,7 +5,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import {
-  User, VenusAndMars, Calendar, MapPin, Mail, Smartphone, Camera, ChevronRight
+  User, VenusAndMars, Calendar, MapPin, Mail, Smartphone, Camera, ChevronRight, Globe, ChevronDown
 } from "lucide-react";
 import { bgCss } from "@/helper/CssHelper";
 import { cn } from "@/lib/utils";
@@ -46,21 +46,24 @@ const BasicProfileDetails: React.FC = () => {
     mobile: "",
   });
 
+  const loginIdentifier = (sessionStorage.getItem("vlm_email") || "").trim();
+  const isEmailLogin = loginIdentifier.includes("@");
+
   useEffect(() => {
     if (profile) {
-      const loginIdentifier = (sessionStorage.getItem("vlm_email") || "").trim();
-      const isEmailLogin = loginIdentifier.includes("@");
-      
       const defaultEmail = profile.user?.email || (isEmailLogin ? loginIdentifier : "");
       const defaultMobile = profile.user?.mobile || (!isEmailLogin ? loginIdentifier : "");
 
       const dbFirstName = (profile.firstName || "").trim();
       const isDefaultFirstName = !dbFirstName || dbFirstName.toLowerCase() === "teacher";
 
+      const dbLastName = (profile.lastName || "").trim();
+      const isDefaultLastName = !dbLastName || dbLastName.toLowerCase() === "profile";
+
       setForm({
         firstName: isDefaultFirstName ? "" : dbFirstName,
         middleName: profile.middleName || "",
-        lastName: profile.lastName || "",
+        lastName: isDefaultLastName ? "" : dbLastName,
         gender: profile.gender || "",
         dob:
           profile.dob && !isNaN(new Date(profile.dob).getTime())
@@ -82,6 +85,12 @@ const BasicProfileDetails: React.FC = () => {
 
   const updateField = (key: keyof typeof form, val: string) => {
     setForm(prev => ({ ...prev, [key]: val }));
+    if (errors[key]) {
+      setErrors(prev => ({ ...prev, [key]: "" }));
+    }
+    if (key === "city" || key === "state") {
+      setErrors(prev => ({ ...prev, city: "", state: "" }));
+    }
   };
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -97,18 +106,29 @@ const BasicProfileDetails: React.FC = () => {
   const handleContinue = async () => {
     const newErrors: Record<string, string> = {};
     if (!form.firstName.trim()) newErrors.firstName = "First Name is required";
+    if (!form.lastName.trim()) newErrors.lastName = "Last Name is required";
     if (!form.gender) newErrors.gender = "Gender is required";
     if (!form.dob) newErrors.dob = "Date of birth is required";
     if (!form.address.trim()) newErrors.address = "Address is required";
     if (!form.city.trim()) newErrors.city = "City is required";
     if (!form.state.trim()) newErrors.state = "State is required";
-    if (!form.pincode.trim()) newErrors.pincode = "Pincode is required";
+    if (!form.pincode.trim()) {
+      newErrors.pincode = "Pincode is required";
+    } else if (form.pincode.trim().length !== 6) {
+      newErrors.pincode = "Pincode must be 6 digits";
+    }
     if (!form.email.trim()) newErrors.email = "Email is required";
     if (!form.mobile.trim()) newErrors.mobile = "Mobile number is required";
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
       toast.error("Please fill in all required fields");
+      setTimeout(() => {
+        const firstErrorEl = document.querySelector(".border-red-500, .border-red-500\\/50");
+        if (firstErrorEl) {
+          firstErrorEl.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+      }, 50);
       return;
     }
 
@@ -186,129 +206,164 @@ const BasicProfileDetails: React.FC = () => {
             onChange={handlePhotoChange}
           />
 
-          {/* Centered Profile Photo Uploader */}
-          <div className="flex flex-col items-center justify-center p-6 rounded-3xl border border-white/10 bg-white/[0.02] w-full max-w-sm mx-auto mb-6">
-            <div className="mb-4 relative">
-              <Avatar className="w-28 h-28 border-2 border-white/5 bg-zinc-800">
-                <AvatarImage src={photoPreview || profile?.profilePhoto || ""} />
-                <AvatarFallback className="bg-zinc-800">
-                  <div className="flex flex-col items-center">
-                    <div className="w-8 h-8 rounded-full bg-[#8b5e52]" />
-                    <div className="w-14 h-9 rounded-t-full bg-[#2d3a4d] -mt-1" />
-                  </div>
-                </AvatarFallback>
-              </Avatar>
+          {/* Card 1: Personal Details */}
+          <div className="p-5 rounded-[28px] border border-white/5 bg-white/[0.01] space-y-4 shadow-sm relative">
+            <h3 className="text-[11px] font-black text-zinc-400 uppercase tracking-widest ml-1 mb-1">Personal Details</h3>
+            
+            {/* Centered Profile Photo Uploader */}
+            <div className="flex flex-col items-center justify-center p-4 rounded-2xl border border-white/5 bg-white/[0.01] w-full max-w-sm mx-auto mb-4">
+              <div className="mb-3 relative">
+                <Avatar className="w-20 h-20 border border-white/5 bg-zinc-800">
+                  <AvatarImage src={photoPreview || profile?.profilePhoto || ""} />
+                  <AvatarFallback className="bg-zinc-800">
+                    <div className="flex flex-col items-center">
+                      <div className="w-6 h-6 rounded-full bg-[#8b5e52]" />
+                      <div className="w-10 h-7 rounded-t-full bg-[#2d3a4d] -mt-1" />
+                    </div>
+                  </AvatarFallback>
+                </Avatar>
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => fileInputRef.current?.click()}
+                className="bg-blue-600 hover:bg-blue-700 h-8 px-4 rounded-lg flex gap-2"
+              >
+                <Camera size={12} />
+                <span className="text-[11px] font-semibold">Upload Photo</span>
+              </Button>
             </div>
-            <Button
-              type="button"
-              size="sm"
-              onClick={() => fileInputRef.current?.click()}
-              className="bg-blue-600 hover:bg-blue-700 h-9 px-6 rounded-xl flex gap-2"
-            >
-              <Camera size={14} />
-              <span className="text-xs font-semibold">Upload Photo</span>
-            </Button>
+
+            <div className="space-y-4">
+              <RegistrationField
+                icon={<User />}
+                label="First Name"
+                placeholder="First Name"
+                value={form.firstName}
+                required
+                error={errors.firstName}
+                onChange={(e: any) => updateField("firstName", e.target.value)}
+              />
+              <div className="grid grid-cols-2 gap-3">
+                <RegistrationField
+                  icon={<User />}
+                  label="Middle Name"
+                  placeholder="Middle Name"
+                  value={form.middleName}
+                  onChange={(e: any) => updateField("middleName", e.target.value)}
+                />
+                <RegistrationField
+                  icon={<User />}
+                  label="Last Name"
+                  placeholder="Last Name"
+                  value={form.lastName}
+                  required
+                  error={errors.lastName}
+                  onChange={(e: any) => updateField("lastName", e.target.value)}
+                />
+              </div>
+              <RegistrationField
+                icon={<User />}
+                label="Gender"
+                isSelect
+                value={form.gender}
+                required
+                error={errors.gender}
+                options={[
+                  { label: "Male", value: "male" },
+                  { label: "Female", value: "female" },
+                  { label: "Other", value: "other" },
+                ]}
+                onChange={(e: any) => updateField("gender", e.target.value)}
+              />
+              <RegistrationField
+                icon={<Calendar />}
+                label="DOB"
+                type="date"
+                value={form.dob}
+                required
+                error={errors.dob}
+                onChange={(e: any) => updateField("dob", e.target.value)}
+              />
+            </div>
           </div>
 
-          {/* Clean Vertical Form Fields */}
-          <div className="space-y-4">
+          {/* Card 2: Address Details */}
+          <div className="p-5 rounded-[28px] border border-white/5 bg-white/[0.01] space-y-4 shadow-sm relative">
+            <h3 className="text-[11px] font-black text-zinc-400 uppercase tracking-widest ml-1 mb-1">Address Details</h3>
+            
             <RegistrationField
-              icon={<User />}
-              label="First Name"
-              placeholder="First Name"
-              value={form.firstName}
+              icon={<MapPin />}
+              label="Address"
+              placeholder="Enter Street Address"
+              value={form.address}
               required
-              error={errors.firstName}
-              onChange={(e: any) => updateField("firstName", e.target.value)}
+              error={errors.address}
+              onChange={(e: any) => updateField("address", e.target.value)}
             />
+
             <div className="grid grid-cols-2 gap-3">
-              <RegistrationField
-                icon={<User />}
-                label="Middle Name"
-                placeholder="Middle Name"
-                value={form.middleName}
-                onChange={(e: any) => updateField("middleName", e.target.value)}
-              />
-              <RegistrationField
-                icon={<User />}
-                label="Last Name"
-                placeholder="Last Name"
-                value={form.lastName}
-                onChange={(e: any) => updateField("lastName", e.target.value)}
-              />
-            </div>
-            <RegistrationField
-              icon={<User />}
-              label="Gender"
-              isSelect
-              value={form.gender}
-              required
-              error={errors.gender}
-              options={[
-                { label: "Male", value: "male" },
-                { label: "Female", value: "female" },
-                { label: "Other", value: "other" },
-              ]}
-              onChange={(e: any) => updateField("gender", e.target.value)}
-            />
-            <RegistrationField
-              icon={<Calendar />}
-              label="DOB"
-              type="date"
-              value={form.dob}
-              required
-              error={errors.dob}
-              onChange={(e: any) => updateField("dob", e.target.value)}
-            />
-          </div>
-
-          <RegistrationField
-            icon={<MapPin />}
-            label="Address"
-            placeholder="Enter Street Address"
-            value={form.address}
-            required
-            error={errors.address}
-            onChange={(e: any) => updateField("address", e.target.value)}
-          />
-
-          <div className="grid grid-cols-12 gap-3 items-start">
-            <div className={cn(
-              "col-span-7 flex flex-col p-3.5 rounded-2xl border bg-white/[0.03] transition-all hover:bg-white/[0.05]",
-              (errors.city || errors.state) ? "border-red-500/50 bg-red-500/[0.02]" : "border-white/10"
-            )}>
-              <div className="flex items-start gap-3">
-                <MapPin size={18} className="text-blue-400/80 mt-1 shrink-0" />
-                <div className="flex-1 space-y-2">
-                  <div className="flex flex-col border-b border-white/5 pb-2">
+              {/* City Custom Field */}
+              <div className={cn(
+                "flex flex-col gap-1 w-full p-3.5 rounded-2xl border transition-all bg-white/[0.03] hover:bg-white/[0.05]",
+                errors.city ? "border-red-500/50 bg-red-500/[0.02]" : "border-white/10"
+              )}>
+                <div className="flex items-center gap-3">
+                  <MapPin size={18} className="text-blue-400/80 shrink-0 stroke-[1.5]" />
+                  <div className="flex flex-1 flex-col overflow-hidden leading-tight">
                     <span className="text-[11px] font-bold text-zinc-100 uppercase tracking-tight flex items-center gap-0.5">
-                      City / State
+                      City
                       <span className="text-red-500 font-black text-xs inline-block ml-0.5">*</span>
                     </span>
-                    <input
-                      placeholder="City"
-                      value={form.city}
-                      onChange={e => updateField("city", e.target.value)}
-                      className="bg-transparent text-sm text-zinc-300 outline-none mt-1 placeholder:text-zinc-600 w-full"
-                    />
+                    <div className="mt-0.5">
+                      <AutocompleteDropdown
+                        placeholder="Select City"
+                        value={form.city}
+                        options={CITIES}
+                        allowCustomVal={true}
+                        onChange={(val) => updateField("city", val)}
+                      />
+                    </div>
                   </div>
-                  <input
-                    placeholder="State"
-                    value={form.state}
-                    onChange={e => updateField("state", e.target.value)}
-                    className="bg-transparent text-sm text-zinc-300 outline-none pt-1 placeholder:text-zinc-600 w-full"
-                  />
                 </div>
+                {errors.city && (
+                  <span className="text-[9px] font-bold text-red-400/90 ml-2 uppercase tracking-wide">
+                    {errors.city}
+                  </span>
+                )}
               </div>
-              {(errors.city || errors.state) && (
-                <span className="text-[9px] font-bold text-red-400/90 mt-2 uppercase tracking-wide">
-                  {errors.city || errors.state}
-                </span>
-              )}
+
+              {/* State Custom Field */}
+              <div className={cn(
+                "flex flex-col gap-1 w-full p-3.5 rounded-2xl border transition-all bg-white/[0.03] hover:bg-white/[0.05]",
+                errors.state ? "border-red-500/50 bg-red-500/[0.02]" : "border-white/10"
+              )}>
+                <div className="flex items-center gap-3">
+                  <Globe size={18} className="text-blue-400/80 shrink-0 stroke-[1.5]" />
+                  <div className="flex flex-1 flex-col overflow-hidden leading-tight">
+                    <span className="text-[11px] font-bold text-zinc-100 uppercase tracking-tight flex items-center gap-0.5">
+                      State
+                      <span className="text-red-500 font-black text-xs inline-block ml-0.5">*</span>
+                    </span>
+                    <div className="mt-0.5">
+                      <AutocompleteDropdown
+                        placeholder="Select State"
+                        value={form.state}
+                        options={STATES}
+                        onChange={(val) => updateField("state", val)}
+                      />
+                    </div>
+                  </div>
+                </div>
+                {errors.state && (
+                  <span className="text-[9px] font-bold text-red-400/90 ml-2 uppercase tracking-wide">
+                    {errors.state}
+                  </span>
+                )}
+              </div>
             </div>
 
             <RegistrationField
-              className="col-span-5"
               icon={<MapPin />}
               label="Pincode"
               placeholder="XXXXXX"
@@ -322,29 +377,38 @@ const BasicProfileDetails: React.FC = () => {
             />
           </div>
 
-          {/* Editable contact fields */}
-          <RegistrationField 
-            icon={<Mail />} 
-            label="Email" 
-            placeholder="Enter Email Address"
-            value={form.email} 
-            required
-            error={errors.email}
-            onChange={(e: any) => updateField("email", e.target.value)} 
-          />
-          <RegistrationField
-            icon={<Smartphone />}
-            label="Mobile"
-            placeholder="Enter Mobile Number"
-            value={form.mobile}
-            iconColor="text-blue-300"
-            required
-            error={errors.mobile}
-            onChange={(e: any) => updateField("mobile", e.target.value)}
-          />
+          {/* Card 3: Contact Details */}
+          <div className="p-5 rounded-[28px] border border-white/5 bg-white/[0.01] space-y-4 shadow-sm relative">
+            <h3 className="text-[11px] font-black text-zinc-400 uppercase tracking-widest ml-1 mb-1">Contact Details</h3>
+
+            <RegistrationField 
+              icon={<Mail />} 
+              label="Email" 
+              placeholder="Enter Email Address"
+              value={form.email} 
+              required
+              error={errors.email}
+              readOnly={isEmailLogin}
+              onChange={(e: any) => updateField("email", e.target.value)} 
+            />
+             <RegistrationField
+              icon={<Smartphone />}
+              label="Mobile"
+              placeholder="Enter Mobile Number"
+              value={form.mobile}
+              iconColor="text-blue-300"
+              required
+              error={errors.mobile}
+              readOnly={!isEmailLogin}
+              onChange={(e: any) => {
+                const val = e.target.value.replace(/\D/g, "").slice(0, 10);
+                updateField("mobile", val);
+              }}
+            />
+          </div>
         </div>
 
-        <div className="mt-10">
+        <div className="mt-8">
           <Button
             onClick={handleContinue}
             disabled={isSaving}
@@ -365,5 +429,119 @@ const BasicProfileDetails: React.FC = () => {
     </div>
   );
 };
+
+const CITIES = [
+  "Mumbai",
+  "Delhi",
+  "Bengaluru",
+  "Pune",
+  "Kolkata",
+  "Hyderabad",
+];
+
+const STATES = [
+  "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh", 
+  "Goa", "Gujarat", "Haryana", "Himachal Pradesh", "Jharkhand", "Karnataka", 
+  "Kerala", "Madhya Pradesh", "Maharashtra", "Manipur", "Meghalaya", "Mizoram", 
+  "Nagaland", "Odisha", "Punjab", "Rajasthan", "Sikkim", "Tamil Nadu", 
+  "Telangana", "Tripura", "Uttar Pradesh", "Uttarakhand", "West Bengal",
+  "Andaman and Nicobar Islands", "Chandigarh", "Dadra and Nagar Haveli and Daman and Diu", 
+  "Delhi", "Jammu and Kashmir", "Ladakh", "Lakshadweep", "Puducherry"
+];
+
+interface AutocompleteDropdownProps {
+  placeholder: string;
+  value: string;
+  options: string[];
+  onChange: (val: string) => void;
+  allowCustomVal?: boolean;
+}
+
+function AutocompleteDropdown({ placeholder, value, options, onChange, allowCustomVal }: AutocompleteDropdownProps) {
+  const [open, setOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    if (!open) {
+      setSearchQuery("");
+    } else {
+      setSearchQuery(value);
+    }
+  }, [open, value]);
+
+  const displayValue = open ? searchQuery : value;
+
+  const filteredOptions = options.filter((opt) =>
+    opt.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  return (
+    <div className="relative w-full" ref={ref}>
+      <input
+        type="text"
+        placeholder={placeholder}
+        value={displayValue}
+        onFocus={() => setOpen(true)}
+        onChange={(e) => {
+          setSearchQuery(e.target.value);
+          setOpen(true);
+          if (allowCustomVal) {
+            onChange(e.target.value);
+          } else {
+            const matched = options.find(opt => opt.toLowerCase() === e.target.value.toLowerCase());
+            if (matched) {
+              onChange(matched);
+            } else if (!e.target.value) {
+              onChange("");
+            }
+          }
+        }}
+        className="bg-transparent border-none outline-none p-0 m-0 text-[14px] w-full text-zinc-350 focus-visible:ring-0 placeholder:text-zinc-650"
+      />
+
+      {open && (
+        <div className="absolute left-0 right-0 mt-3 z-[999] rounded-2xl bg-zinc-900 border border-zinc-800 shadow-xl py-1 overflow-hidden flex flex-col">
+          <div className="max-h-[128px] overflow-y-auto">
+            {filteredOptions.length === 0 ? (
+              <p className="px-4 py-3 text-xs text-zinc-500 text-center">No matches found</p>
+            ) : (
+              filteredOptions.map((opt) => {
+                const isSel = opt === value;
+                return (
+                  <button
+                    key={opt}
+                    type="button"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => {
+                      onChange(opt);
+                      setOpen(false);
+                    }}
+                    className={cn(
+                      "w-full px-4 py-2 text-left text-xs transition-colors hover:bg-zinc-850 cursor-pointer block",
+                      isSel ? "text-blue-400 font-extrabold bg-zinc-800" : "text-zinc-400"
+                    )}
+                  >
+                    {opt}
+                  </button>
+                );
+              })
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default BasicProfileDetails;
