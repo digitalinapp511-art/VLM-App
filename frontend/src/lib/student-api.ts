@@ -145,7 +145,7 @@ export const studentApi = {
         interaction: feedbackData.rating >= 4,
       }
     };
-    const { data } = await apiClient.post("/student/sessions/resolve", payload);
+    const { data } = await apiClient.post(`/student/sessions/${feedbackData.sessionId}/resolve`, payload);
     return data;
   },
 
@@ -269,7 +269,7 @@ export const studentApi = {
   },
 
   resolveSession: async (sessionId: string) => {
-    const { data } = await apiClient.post(`/student/sessions/resolve`, { sessionId });
+    const { data } = await apiClient.post(`/student/sessions/${sessionId}/resolve`);
     return data;
   },
 
