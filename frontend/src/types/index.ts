@@ -18,7 +18,7 @@ export interface LoginPayload {
 
 export interface VerifyOtpResponse {
   message: string;
-  token: string;
+  accessToken: string;
   isNewUser: boolean;
   user: {
     id: string;
