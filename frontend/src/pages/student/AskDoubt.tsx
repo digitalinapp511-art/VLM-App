@@ -95,6 +95,29 @@ export default function AskDoubt() {
       return "ai"; // AI Tutor
     };
 
+    const typeStr = getSessionTypeString(sessionType);
+    const studentProfile = (profile as any)?.data || profile;
+    const studentCredits = studentProfile?.wallet?.humanChatCredits ?? 0;
+    const studentClass = studentProfile?.class || studentProfile?.className || "10";
+    const classNum = parseInt(studentClass.replace(/\D/g, ""), 10) || 10;
+    
+    let requiredRate = 4;
+    if (classNum >= 1 && classNum <= 8) requiredRate = 3;
+    else if (classNum >= 9 && classNum <= 10) requiredRate = 4;
+    else if (classNum >= 11 && classNum <= 12) requiredRate = 5;
+
+    if (typeStr !== "ai") {
+      if (studentCredits < requiredRate) {
+        toast.error(`Insufficient doubt credits. You need at least ${requiredRate} credits to start a session. Your current balance is ${studentCredits} credits. Please recharge your wallet.`);
+        navigate(PATHS.WALLET);
+        return;
+      }
+      
+      if (studentCredits < 15) {
+        toast.warning(`Low credit balance: Your current balance is ${studentCredits} credits. We suggest recharging to prevent your call from being disconnected midway.`);
+      }
+    }
+
     setUploading(true);
     try {
       let doubt;

@@ -131,7 +131,9 @@ const WalletDashboard: React.FC = () => {
                   key={tx._id}
                   title={tx.description || (tx.type === "credit" ? "Points Credited" : "Withdrawal Completed")}
                   date={new Date(tx.createdAt).toLocaleDateString("en-IN", { month: "short", day: "numeric", year: "numeric" })}
-                  amount={tx.points ? tx.points.toLocaleString("en-IN") : `₹${(tx.amount || 0).toLocaleString("en-IN")}`}
+                  amount={tx.earningType === "audio" || tx.earningType === "video" || tx.earningType === "chat" || tx.earningType === "doubt" || tx.inrAmount > 0
+                    ? `₹${(tx.inrAmount || tx.amount || 0).toLocaleString("en-IN")}`
+                    : `${(tx.points || 0).toLocaleString("en-IN")} pts`}
                   type={tx.type} 
                 />
               ))

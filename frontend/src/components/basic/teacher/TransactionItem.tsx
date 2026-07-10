@@ -29,7 +29,7 @@ const TransactionItem: React.FC<TransactionProps> = ({ title, date, amount, type
       <div className="flex items-center gap-3">
         <div className="text-right">
           <p className={cn("text-[14px] font-black tracking-tight", isCredit ? "text-cyan-400" : "text-rose-500")}>
-            {isCredit ? "+" : "-"} {amount} {isCredit ? "pts" : ""}
+            {isCredit ? "+" : "-"} {amount}
           </p>
           {!isCredit && <p className="text-[9px] font-bold text-zinc-600 uppercase">withdrawn</p>}
         </div>

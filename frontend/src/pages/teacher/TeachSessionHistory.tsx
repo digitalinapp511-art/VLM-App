@@ -28,8 +28,8 @@ const TeachSessionHistory: React.FC = () => {
       ? (seconds > 0 ? `${minutes} mins ${seconds} secs` : `${minutes} mins`)
       : `${seconds} secs`;
 
-    // 10 credits/min earnings format
-    const earningsValue = ((durationSeconds / 60) * 10).toFixed(2);
+    // Use actual points/INR earned from the database
+    const earningsValue = (s.earnings?.points || 0).toFixed(2);
 
     return {
       studentName: s.studentId?.nickname || s.studentId?.fullName || "Student",

@@ -215,6 +215,24 @@ export const submitDoubt = asyncHandler(async (req, res) => {
   const finalBoard = board || student.board;
   const finalLanguage = language || student.preferredLanguage || 'English';
 
+  const typeStr = sessionType || 'chat';
+  if (typeStr !== 'ai') {
+    const studentClassStr = finalClass || '10';
+    const classNum = parseInt(studentClassStr.replace(/\D/g, ''), 10) || 10;
+    let rate = 4;
+    if (classNum >= 1 && classNum <= 8) rate = 3;
+    else if (classNum >= 9 && classNum <= 10) rate = 4;
+    else if (classNum >= 11 && classNum <= 12) rate = 5;
+
+    const currentCredits = student.wallet?.humanChatCredits || 0;
+    if (currentCredits < rate) {
+      return res.status(400).json({
+        success: false,
+        message: `Insufficient doubt credits. You need at least ${rate} credits to start a session. Current balance: ${currentCredits} credits.`
+      });
+    }
+  }
+
   // Step 1: Create Session document
   const session = await Session.create({
     studentId: student._id,
@@ -281,6 +299,23 @@ export const submitDoubtWithImages = asyncHandler(async (req, res) => {
   const sessionType = req.body.sessionType || 'chat';
   const topic = req.body.topic || '';
   const preferredTeacherId = req.body.preferredTeacherId;
+
+  if (sessionType !== 'ai') {
+    const studentClassStr = cls || '10';
+    const classNum = parseInt(studentClassStr.replace(/\D/g, ''), 10) || 10;
+    let rate = 4;
+    if (classNum >= 1 && classNum <= 8) rate = 3;
+    else if (classNum >= 9 && classNum <= 10) rate = 4;
+    else if (classNum >= 11 && classNum <= 12) rate = 5;
+
+    const currentCredits = student.wallet?.humanChatCredits || 0;
+    if (currentCredits < rate) {
+      return res.status(400).json({
+        success: false,
+        message: `Insufficient doubt credits. You need at least ${rate} credits to start a session. Current balance: ${currentCredits} credits.`
+      });
+    }
+  }
 
   // Step 1: Create Session
   const session = await Session.create({
