@@ -46,7 +46,9 @@ const WalletDashboard: React.FC = () => {
   const pendingVal = wallet.pendingConversion || 0;
 
   const bankName = profile?.bankDetails?.bankName || "No Bank Added";
-  const accNo = profile?.bankDetails?.accountNumber ? `Account No : **** ${profile.bankDetails.accountNumber.slice(-4)}` : "Verify Bank Details in Onboarding";
+  const accNo = profile?.bankDetails?.accountNumber 
+    ? `Account No : **** ${String(profile.bankDetails.accountNumber).slice(-4)}` 
+    : "Verify Bank Details in Onboarding";
   const firstName = profile?.fullName?.split(" ")[0] ?? "Teacher";
 
   return (
@@ -54,28 +56,21 @@ const WalletDashboard: React.FC = () => {
       
       {/* Header */}
       <header className="flex items-center justify-between py-4 mb-6">
-        <div className="flex items-center gap-4">
-          <div className="w-10 h-10 rounded-full bg-zinc-900 border border-white/10 flex items-center justify-center text-zinc-500">
-             <div className="w-4 h-4 bg-zinc-800 rounded-sm" />
-          </div>
-          <h1 className="text-base font-black text-white tracking-tight">Wallet Dashboard</h1>
-        </div>
+        <h1 className="text-base font-black text-white tracking-tight">Wallet Dashboard</h1>
         <Avatar className="w-10 h-10 border-2 border-white/10">
           <AvatarImage src={profile?.profilePhoto || `https://api.dicebear.com/7.x/avataaars/svg?seed=${firstName}`} />
-          <AvatarFallback>{firstName[0]}</AvatarFallback>
+          <AvatarFallback>{firstName?.[0] || 'T'}</AvatarFallback>
         </Avatar>
       </header>
 
       <div className="w-full max-w-xl mx-auto space-y-6">
-        {/* Stats Grid */}
-        <div className="flex flex-col md:flex-row gap-4">
-          <div className="w-full md:w-auto md:flex-1">
-            <PointsCard 
-              points={isLoading ? "..." : pointsVal.toLocaleString("en-IN")} 
-              inr={isLoading ? "..." : inrVal.toLocaleString("en-IN")} 
-            />
-          </div>
-          <div className="flex-1 flex flex-col gap-4">
+        {/* Stats Layout */}
+        <div className="flex flex-col gap-4">
+          <PointsCard 
+            points={isLoading ? "..." : pointsVal.toLocaleString("en-IN")} 
+            inr={isLoading ? "..." : inrVal.toLocaleString("en-IN")} 
+          />
+          <div className="grid grid-cols-2 gap-4">
             <BalanceCard 
               title="Withdrawable Balance" 
               value={isLoading ? "..." : withdrawableVal.toLocaleString("en-IN")} 
@@ -136,7 +131,7 @@ const WalletDashboard: React.FC = () => {
                   key={tx._id}
                   title={tx.description || (tx.type === "credit" ? "Points Credited" : "Withdrawal Completed")}
                   date={new Date(tx.createdAt).toLocaleDateString("en-IN", { month: "short", day: "numeric", year: "numeric" })}
-                  amount={tx.points ? tx.points.toLocaleString("en-IN") : `₹${tx.amount.toLocaleString("en-IN")}`}
+                  amount={tx.points ? tx.points.toLocaleString("en-IN") : `₹${(tx.amount || 0).toLocaleString("en-IN")}`}
                   type={tx.type} 
                 />
               ))

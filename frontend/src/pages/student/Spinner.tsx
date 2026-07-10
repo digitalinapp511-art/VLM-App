@@ -41,7 +41,7 @@ export default function SpinnerPage() {
       const calculateSecondsRemaining = () => {
         const lastSpin = new Date(lastSpinDateStr).getTime();
         const diffMs = Date.now() - lastSpin;
-        const remSeconds = Math.max(0, Math.ceil((24 * 3600 * 1000 - diffMs) / 1000));
+        const remSeconds = Math.max(0, Math.ceil((2 * 3600 * 1000 - diffMs) / 1000));
         setSecondsLeft(remSeconds);
       };
 

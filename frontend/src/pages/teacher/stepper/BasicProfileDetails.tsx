@@ -51,8 +51,8 @@ const BasicProfileDetails: React.FC = () => {
       const loginIdentifier = (sessionStorage.getItem("vlm_email") || "").trim();
       const isEmailLogin = loginIdentifier.includes("@");
       
-      const defaultEmail = isEmailLogin ? (profile.user?.email || loginIdentifier) : "";
-      const defaultMobile = !isEmailLogin ? (profile.user?.mobile || loginIdentifier) : "";
+      const defaultEmail = profile.user?.email || (isEmailLogin ? loginIdentifier : "");
+      const defaultMobile = profile.user?.mobile || (!isEmailLogin ? loginIdentifier : "");
 
       const dbFirstName = (profile.firstName || "").trim();
       const isDefaultFirstName = !dbFirstName || dbFirstName.toLowerCase() === "teacher";
@@ -176,7 +176,7 @@ const BasicProfileDetails: React.FC = () => {
           <p className="text-zinc-500 text-sm mt-1">Complete your personal details.</p>
         </header>
 
-        <div className="space-y-4">
+        <div className="space-y-5">
           {/* Hidden file input */}
           <input
             ref={fileInputRef}
@@ -186,84 +186,80 @@ const BasicProfileDetails: React.FC = () => {
             onChange={handlePhotoChange}
           />
 
-          {/* Profile Photo & Initial Fields Row */}
-          <div className="flex gap-4">
-            <div className="w-[140px] flex flex-col items-center justify-center p-4 rounded-3xl border border-white/10 bg-white/[0.02]">
-              <div className="mb-4">
-                <Avatar className="w-24 h-24 border-2 border-white/5 bg-zinc-800">
-                  <AvatarImage src={photoPreview || profile?.profilePhoto || ""} />
-                  <AvatarFallback className="bg-zinc-800">
-                    <div className="flex flex-col items-center">
-                      <div className="w-7 h-7 rounded-full bg-[#8b5e52]" />
-                      <div className="w-12 h-8 rounded-t-full bg-[#2d3a4d] -mt-1" />
-                    </div>
-                  </AvatarFallback>
-                </Avatar>
-              </div>
-              <Button
-                type="button"
-                size="sm"
-                onClick={() => fileInputRef.current?.click()}
-                className="bg-blue-600 hover:bg-blue-700 h-8 px-4 rounded-xl flex gap-2"
-              >
-                <Camera size={14} />
-                <span className="text-xs font-semibold">Upload</span>
-              </Button>
-              <span className="text-[10px] text-zinc-500 text-center font-medium mt-3 leading-tight">
-                Add Profile<br />Photo
-              </span>
+          {/* Centered Profile Photo Uploader */}
+          <div className="flex flex-col items-center justify-center p-6 rounded-3xl border border-white/10 bg-white/[0.02] w-full max-w-sm mx-auto mb-6">
+            <div className="mb-4 relative">
+              <Avatar className="w-28 h-28 border-2 border-white/5 bg-zinc-800">
+                <AvatarImage src={photoPreview || profile?.profilePhoto || ""} />
+                <AvatarFallback className="bg-zinc-800">
+                  <div className="flex flex-col items-center">
+                    <div className="w-8 h-8 rounded-full bg-[#8b5e52]" />
+                    <div className="w-14 h-9 rounded-t-full bg-[#2d3a4d] -mt-1" />
+                  </div>
+                </AvatarFallback>
+              </Avatar>
             </div>
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => fileInputRef.current?.click()}
+              className="bg-blue-600 hover:bg-blue-700 h-9 px-6 rounded-xl flex gap-2"
+            >
+              <Camera size={14} />
+              <span className="text-xs font-semibold">Upload Photo</span>
+            </Button>
+          </div>
 
-            <div className="flex-grow flex flex-col gap-3 min-w-[200px]">
+          {/* Clean Vertical Form Fields */}
+          <div className="space-y-4">
+            <RegistrationField
+              icon={<User />}
+              label="First Name"
+              placeholder="First Name"
+              value={form.firstName}
+              required
+              error={errors.firstName}
+              onChange={(e: any) => updateField("firstName", e.target.value)}
+            />
+            <div className="grid grid-cols-2 gap-3">
               <RegistrationField
                 icon={<User />}
-                label="First Name"
-                placeholder="First Name"
-                value={form.firstName}
-                required
-                error={errors.firstName}
-                onChange={(e: any) => updateField("firstName", e.target.value)}
+                label="Middle Name"
+                placeholder="Middle Name"
+                value={form.middleName}
+                onChange={(e: any) => updateField("middleName", e.target.value)}
               />
-              <div className="grid grid-cols-2 gap-2">
-                <RegistrationField
-                  icon={<User />}
-                  label="Middle Name"
-                  placeholder="Middle Name"
-                  value={form.middleName}
-                  onChange={(e: any) => updateField("middleName", e.target.value)}
-                />
-                <RegistrationField
-                  icon={<User />}
-                  label="Last Name"
-                  placeholder="Last Name"
-                  value={form.lastName}
-                  onChange={(e: any) => updateField("lastName", e.target.value)}
-                />
-              </div>
               <RegistrationField
                 icon={<User />}
-                label="Gender"
-                isSelect
-                value={form.gender}
-                required
-                error={errors.gender}
-                options={[
-                  { label: "Male", value: "male" },
-                  { label: "Female", value: "female" },
-                  { label: "Other", value: "other" },
-                ]}
-                onChange={(e: any) => updateField("gender", e.target.value)}
-              />
-              <RegistrationField
-                icon={<Calendar />}
-                label="DOB"
-                type="date"
-                value={form.dob}
-                required
-                error={errors.dob}
-                onChange={(e: any) => updateField("dob", e.target.value)}
+                label="Last Name"
+                placeholder="Last Name"
+                value={form.lastName}
+                onChange={(e: any) => updateField("lastName", e.target.value)}
               />
             </div>
+            <RegistrationField
+              icon={<User />}
+              label="Gender"
+              isSelect
+              value={form.gender}
+              required
+              error={errors.gender}
+              options={[
+                { label: "Male", value: "male" },
+                { label: "Female", value: "female" },
+                { label: "Other", value: "other" },
+              ]}
+              onChange={(e: any) => updateField("gender", e.target.value)}
+            />
+            <RegistrationField
+              icon={<Calendar />}
+              label="DOB"
+              type="date"
+              value={form.dob}
+              required
+              error={errors.dob}
+              onChange={(e: any) => updateField("dob", e.target.value)}
+            />
           </div>
 
           <RegistrationField

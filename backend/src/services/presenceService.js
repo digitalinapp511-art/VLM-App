@@ -13,6 +13,7 @@
  */
 
 import { getRedisClient } from './redisService.js';
+import Teacher from '../models/Teacher.js';
 
 const AVAILABLE_SET = 'teachers:available';
 const TEACHER_STATE_PREFIX = 'teacher:state:';
@@ -89,8 +90,17 @@ export const getAvailableTeacherIds = async () => {
 export const getOnlineTeacherCount = async () => {
   try {
     const redis = getRedisClient();
-    return await redis.sCard(AVAILABLE_SET);
+    const onlineIds = await redis.sMembers(AVAILABLE_SET);
+    if (!onlineIds.length) return 0;
+    
+    // Count how many of these IDs actually exist in MongoDB and are marked online
+    const count = await Teacher.countDocuments({
+      _id: { $in: onlineIds },
+      availabilityStatus: 'online',
+    });
+    return count;
   } catch (err) {
+    console.error('[PresenceService] getOnlineTeacherCount error:', err.message);
     return 0;
   }
 };

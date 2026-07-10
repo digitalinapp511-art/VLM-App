@@ -24,9 +24,45 @@ interface ChatMessage {
   timestamp: Date;
 }
 
+const WAVEFORM_HEIGHTS = [35, 60, 45, 90, 70, 40, 60, 85, 50, 75, 50, 80, 55, 65, 40];
+
 const AudioPlayer = ({ url, theme = "dark" }: { url: string; theme?: "dark" | "light" }) => {
   const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [audioDuration, setAudioDuration] = useState(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    const handleTimeUpdate = () => {
+      setCurrentTime(audio.currentTime);
+    };
+
+    const handleLoadedMetadata = () => {
+      setAudioDuration(audio.duration);
+    };
+
+    const handleEnded = () => {
+      setIsPlaying(false);
+      setCurrentTime(0);
+    };
+
+    audio.addEventListener("timeupdate", handleTimeUpdate);
+    audio.addEventListener("loadedmetadata", handleLoadedMetadata);
+    audio.addEventListener("ended", handleEnded);
+
+    if (audio.duration) {
+      setAudioDuration(audio.duration);
+    }
+
+    return () => {
+      audio.removeEventListener("timeupdate", handleTimeUpdate);
+      audio.removeEventListener("loadedmetadata", handleLoadedMetadata);
+      audio.removeEventListener("ended", handleEnded);
+    };
+  }, [url]);
 
   const togglePlay = () => {
     if (audioRef.current) {
@@ -40,10 +76,18 @@ const AudioPlayer = ({ url, theme = "dark" }: { url: string; theme?: "dark" | "l
   };
 
   const isLight = theme === "light";
+  const progress = audioDuration ? (currentTime / audioDuration) : 0;
+
+  const formatAudioTime = (secs: number) => {
+    if (isNaN(secs) || !isFinite(secs)) return "0:00";
+    const m = Math.floor(secs / 60);
+    const s = Math.floor(secs % 60);
+    return `${m}:${s < 10 ? "0" : ""}${s}`;
+  };
 
   return (
     <div className="flex items-center gap-3 p-2">
-      <audio ref={audioRef} src={url} onEnded={() => setIsPlaying(false)} />
+      <audio ref={audioRef} src={url} />
       <button 
         onClick={togglePlay} 
         className={cn(
@@ -59,23 +103,30 @@ const AudioPlayer = ({ url, theme = "dark" }: { url: string; theme?: "dark" | "l
           <Play size={18} className={cn("ml-1", isLight ? "text-slate-700 dark:text-white" : "text-white")} />
         )}
       </button>
-      <div className="flex-1">
-        <div className="flex gap-1 items-center h-6">
-          {/* Fake Waveform Bars */}
-          {[...Array(15)].map((_, i) => (
-            <div 
-              key={i} 
-              className={cn(
-                "w-1 rounded-full", 
-                isLight ? "bg-slate-350 dark:bg-white/45" : "bg-white/40", 
-                isPlaying && "animate-pulse"
-              )} 
-              style={{ height: `${Math.max(20, Math.random() * 100)}%` }} 
-            />
-          ))}
+      <div className="flex-1 min-w-0">
+        <div className="flex gap-1 items-center h-6 overflow-hidden">
+          {/* Waveform Bars colored progressively */}
+          {WAVEFORM_HEIGHTS.map((h, i) => {
+            const threshold = i / WAVEFORM_HEIGHTS.length;
+            const isActive = progress >= threshold;
+            return (
+              <div 
+                key={i} 
+                className={cn(
+                  "w-1 rounded-full transition-all duration-150", 
+                  isLight 
+                    ? (isActive ? "bg-violet-600 dark:bg-violet-400" : "bg-slate-200 dark:bg-white/10") 
+                    : (isActive ? "bg-white" : "bg-white/30")
+                )} 
+                style={{ height: `${h}%` }} 
+              />
+            );
+          })}
         </div>
-        <p className={cn("text-[10px] mt-1", isLight ? "text-slate-400 dark:text-white/50" : "text-white/50")}>
-          Audio doubt explanation
+        <p className={cn("text-[10px] mt-1 font-bold", isLight ? "text-slate-400 dark:text-white/50" : "text-white/50")}>
+          {audioDuration > 0 
+            ? `${formatAudioTime(currentTime)} / ${formatAudioTime(audioDuration)}` 
+            : "Audio doubt explanation"}
         </p>
       </div>
     </div>
@@ -184,20 +235,42 @@ export default function ChatSession() {
   } = useSocket({ autoConnect: true, sessionId });
 
   useEffect(() => {
-    setMessages([
-      {
-        id: "1",
-        sender: "teacher",
-        text: `Hello ${studentName}! I am connecting to resolve your doubt. How can I help you?`,
-        type: "text",
-        timestamp: new Date()
-      }
-    ]);
+    if (!sessionId) return;
+    
+    // Load historical messages
+    apiClient.get(`/sessions/${sessionId}/messages`)
+      .then(res => {
+        if (res.data?.success && res.data.data) {
+          const mapped = res.data.data.map((m: any) => ({
+            id: m._id,
+            sender: m.senderRole,
+            text: m.content,
+            type: m.type,
+            mediaUrl: m.mediaUrl,
+            timestamp: new Date(m.createdAt)
+          }));
+          if (mapped.length > 0) {
+            setMessages(mapped);
+          } else {
+            setMessages([
+              {
+                id: "1",
+                sender: "teacher",
+                text: `Hello ${studentName}! I am connecting to resolve your doubt. How can I help you?`,
+                type: "text",
+                timestamp: new Date()
+              }
+            ]);
+          }
+        }
+      })
+      .catch(err => console.error("Error loading chat history:", err));
+
     timerRef.current = setInterval(() => setDuration((d) => d + 1), 1000);
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [studentName]);
+  }, [sessionId, studentName]);
 
   // Automatically send initial doubt question and image when socket is connected
   useEffect(() => {
@@ -407,20 +480,20 @@ export default function ChatSession() {
         )}
       </AnimatePresence>
 
-      <div className="w-full max-w-xl lg:max-w-3xl mx-auto flex-1 flex flex-col relative z-10 px-4 h-full overflow-hidden">
+      <div className="w-full max-w-xl lg:max-w-3xl mx-auto flex-1 flex flex-col relative z-10 px-4 overflow-hidden">
         
         {/* Header Title & End Button */}
-        <div className="pt-6 pb-2 shrink-0 flex items-center justify-between">
+        <div className="pt-6 pb-2 shrink-0 flex items-center justify-between gap-3">
           <Button
             variant="outline"
             size="icon"
             onClick={handleEndSession}
-            className="h-9 w-9 rounded-xl border-rose-200 dark:border-rose-950/20 bg-rose-50 dark:bg-rose-950/10 text-rose-500 hover:bg-rose-500 hover:text-white transition-all active:scale-95 shadow-sm"
+            className="h-9 w-9 rounded-xl border-rose-200 dark:border-rose-950/20 bg-rose-50 dark:bg-rose-950/10 text-rose-500 hover:bg-rose-500 hover:text-white transition-all active:scale-95 shadow-sm shrink-0"
           >
             <PhoneOff size={16} />
           </Button>
-          <h2 className="text-xs font-black text-rose-500 uppercase tracking-widest">
-            Session Duration: {formatTimer(duration)}
+          <h2 className="text-[10px] md:text-xs font-black text-rose-500 uppercase tracking-widest text-center flex-1 truncate px-1">
+            Duration: {formatTimer(duration)}
           </h2>
           <div className="relative">
             <AnimatePresence>
@@ -505,7 +578,7 @@ export default function ChatSession() {
                   {msg.type === "audio" && msg.mediaUrl && (
                     <AudioPlayer url={msg.mediaUrl} theme={isMe ? "dark" : "light"} />
                   )}
-                  {msg.text && msg.text !== "Image sent" && msg.text !== "File sent" && msg.text !== "Voice note" && (
+                  {msg.text && msg.text !== "Image sent" && msg.text !== "File sent" && msg.text !== "Voice note" && msg.text !== "Voice message" && (
                     <p className={cn("text-[13px] leading-relaxed font-bold tracking-wide break-words whitespace-pre-wrap break-all", (msg.type === "image" || msg.type === "audio") && "px-1.5 pt-1 pb-0.5")}>
                       {msg.text}
                     </p>
@@ -521,8 +594,7 @@ export default function ChatSession() {
           )}
           <div ref={chatEndRef} />
         </main>
- 
-        <div className="shrink-0 w-full py-4 bg-transparent flex gap-3 relative z-20 items-end">
+        <div className="shrink-0 w-full pb-6 pt-2 bg-transparent flex gap-3 relative z-20 items-end">
           <div className="flex-1 bg-white dark:bg-[#161233] border border-slate-200 dark:border-[#221c4e] rounded-[24px] flex flex-col p-3 shadow-sm transition-all duration-300 relative">
             
             {/* Staging Area */}
@@ -537,8 +609,8 @@ export default function ChatSession() {
                   </div>
                 ))}
                 {stagedAudio && audioPreviewUrl && (
-                  <div className="flex items-center gap-2 bg-violet-50 dark:bg-violet-950/20 p-1 pr-2 rounded-lg border border-violet-100 dark:border-violet-900/40 flex-1 min-w-[150px] relative">
-                    <div className="scale-75 origin-left -ml-2 -mr-8">
+                  <div className="flex items-center gap-2 bg-violet-50 dark:bg-violet-950/20 p-2 rounded-lg border border-violet-100 dark:border-violet-900/40 flex-1 min-w-0 w-full relative">
+                    <div className="flex-1 min-w-0">
                       <AudioPlayer url={audioPreviewUrl} theme="light" />
                     </div>
                     <button onClick={() => {

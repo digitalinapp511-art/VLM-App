@@ -22,9 +22,45 @@ interface ChatMessage {
   timestamp: Date;
 }
 
+const WAVEFORM_HEIGHTS = [35, 60, 45, 90, 70, 40, 60, 85, 50, 75, 50, 80, 55, 65, 40];
+
 const AudioPlayer = ({ url }: { url: string }) => {
   const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [audioDuration, setAudioDuration] = useState(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    const handleTimeUpdate = () => {
+      setCurrentTime(audio.currentTime);
+    };
+
+    const handleLoadedMetadata = () => {
+      setAudioDuration(audio.duration);
+    };
+
+    const handleEnded = () => {
+      setIsPlaying(false);
+      setCurrentTime(0);
+    };
+
+    audio.addEventListener("timeupdate", handleTimeUpdate);
+    audio.addEventListener("loadedmetadata", handleLoadedMetadata);
+    audio.addEventListener("ended", handleEnded);
+
+    if (audio.duration) {
+      setAudioDuration(audio.duration);
+    }
+
+    return () => {
+      audio.removeEventListener("timeupdate", handleTimeUpdate);
+      audio.removeEventListener("loadedmetadata", handleLoadedMetadata);
+      audio.removeEventListener("ended", handleEnded);
+    };
+  }, [url]);
 
   const togglePlay = () => {
     if (audioRef.current) {
@@ -37,9 +73,18 @@ const AudioPlayer = ({ url }: { url: string }) => {
     }
   };
 
+  const progress = audioDuration ? (currentTime / audioDuration) : 0;
+
+  const formatAudioTime = (secs: number) => {
+    if (isNaN(secs) || !isFinite(secs)) return "0:00";
+    const m = Math.floor(secs / 60);
+    const s = Math.floor(secs % 60);
+    return `${m}:${s < 10 ? "0" : ""}${s}`;
+  };
+
   return (
     <div className="flex items-center gap-3 p-2">
-      <audio ref={audioRef} src={url} onEnded={() => setIsPlaying(false)} />
+      <audio ref={audioRef} src={url} />
       <button 
         onClick={togglePlay} 
         className="w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center shrink-0"
@@ -48,16 +93,27 @@ const AudioPlayer = ({ url }: { url: string }) => {
       </button>
       <div className="flex-1">
         <div className="flex gap-1 items-center h-6">
-          {/* Fake Waveform Bars */}
-          {[...Array(15)].map((_, i) => (
-            <div 
-              key={i} 
-              className={cn("w-1 rounded-full bg-white/40", isPlaying && "animate-pulse")} 
-              style={{ height: `${Math.max(20, Math.random() * 100)}%` }} 
-            />
-          ))}
+          {/* Waveform Bars colored progressively */}
+          {WAVEFORM_HEIGHTS.map((h, i) => {
+            const threshold = i / WAVEFORM_HEIGHTS.length;
+            const isActive = progress >= threshold;
+            return (
+              <div 
+                key={i} 
+                className={cn(
+                  "w-1 rounded-full transition-all duration-150", 
+                  isActive ? "bg-white" : "bg-white/30"
+                )} 
+                style={{ height: `${h}%` }} 
+              />
+            );
+          })}
         </div>
-        <p className="text-[10px] text-white/50 mt-1">Audio doubt explanation</p>
+        <p className="text-[10px] text-white/50 mt-1 font-medium">
+          {audioDuration > 0 
+            ? `${formatAudioTime(currentTime)} / ${formatAudioTime(audioDuration)}` 
+            : "Audio doubt explanation"}
+        </p>
       </div>
     </div>
   );
@@ -127,20 +183,42 @@ export default function ChatSession() {
   } = useSocket({ autoConnect: true, sessionId });
 
   useEffect(() => {
-    setMessages([
-      {
-        id: "1",
-        sender: "teacher",
-        text: `Hello! I'm here to help you. What's your question today?`,
-        type: "text",
-        timestamp: new Date()
-      }
-    ]);
+    if (!sessionId) return;
+
+    // Load historical messages
+    apiClient.get(`/sessions/${sessionId}/messages`)
+      .then(res => {
+        if (res.data?.success && res.data.data) {
+          const mapped = res.data.data.map((m: any) => ({
+            id: m._id,
+            sender: m.senderRole,
+            text: m.content,
+            type: m.type,
+            mediaUrl: m.mediaUrl,
+            timestamp: new Date(m.createdAt)
+          }));
+          if (mapped.length > 0) {
+            setMessages(mapped);
+          } else {
+            setMessages([
+              {
+                id: "1",
+                sender: "teacher",
+                text: `Hello! I'm here to help you. What's your question today?`,
+                type: "text",
+                timestamp: new Date()
+              }
+            ]);
+          }
+        }
+      })
+      .catch(err => console.error("Error loading chat history:", err));
+
     timerRef.current = setInterval(() => setDuration((d) => d + 1), 1000);
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, []);
+  }, [sessionId]);
 
   useEffect(() => {
     if (!lastMessage) return;
@@ -416,7 +494,7 @@ export default function ChatSession() {
                   {msg.type === "audio" && msg.mediaUrl && (
                     <AudioPlayer url={msg.mediaUrl} />
                   )}
-                  {msg.text && msg.text !== "Image sent" && msg.text !== "File sent" && msg.text !== "Voice note" && (
+                  {msg.text && msg.text !== "Image sent" && msg.text !== "File sent" && msg.text !== "Voice note" && msg.text !== "Voice message" && (
                     <p className={cn("text-[13px] leading-relaxed font-medium tracking-wide break-words whitespace-pre-wrap break-all", (msg.type === "image" || msg.type === "audio") && "px-1.5 pt-1 pb-0.5")}>
                       {msg.text}
                     </p>

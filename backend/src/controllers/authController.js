@@ -1,10 +1,11 @@
+import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
 import Teacher from '../models/Teacher.js';
 import Student from '../models/Student.js';
 import Parent from '../models/Parent.js';
 import Otp from '../models/Otp.js';
 import AdminSettings from '../models/AdminSettings.js';
-import { generateToken } from '../middleware/auth.js';
+import { generateAccessToken, generateRefreshToken, setRefreshCookie, clearRefreshCookie } from '../middleware/auth.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
 import { generateOtp, generateReferralCode } from '../utils/helpers.js';
 import { ROLES } from '../config/constants.js';
@@ -197,10 +198,12 @@ export const verifyOtp = asyncHandler(async (req, res) => {
           if (email)  linkedUser.isEmailVerified  = true;
           linkedUser.lastLogin = new Date();
           await linkedUser.save();
-          const token = generateToken(linkedUser._id);
+          const accessToken = generateAccessToken(linkedUser._id);
+          const refreshToken = generateRefreshToken(linkedUser._id);
+          setRefreshCookie(res, refreshToken);
           const profile = await getProfileForRole(linkedUser);
           return res.json({
-            success: true, message: 'OTP verified', token,
+            success: true, message: 'OTP verified', accessToken,
             isNewUser: !profile,
             user: buildUserPayload(linkedUser), profile,
           });
@@ -247,14 +250,16 @@ export const verifyOtp = asyncHandler(async (req, res) => {
     await user.save();
   }
 
-  const token   = generateToken(user._id);
+  const accessToken  = generateAccessToken(user._id);
+  const refreshToken = generateRefreshToken(user._id);
+  setRefreshCookie(res, refreshToken);
   const profile = await getProfileForRole(user);
   if (!profile) isNewUser = true;
 
   res.json({
     success: true,
     message: 'OTP verified',
-    token,
+    accessToken,
     isNewUser,
     user: buildUserPayload(user),
     profile,
@@ -297,11 +302,13 @@ export const loginWithEmail = asyncHandler(async (req, res) => {
   user.lastLogin = new Date();
   await user.save();
 
-  const token   = generateToken(user._id);
+  const accessToken  = generateAccessToken(user._id);
+  const refreshToken = generateRefreshToken(user._id);
+  setRefreshCookie(res, refreshToken);
   const profile = await getProfileForRole(user);
 
   res.json({
-    success: true, token,
+    success: true, accessToken,
     user: buildUserPayload(user),
     profile,
   });
@@ -331,9 +338,11 @@ export const registerWithEmail = asyncHandler(async (req, res) => {
     referralCode: generateReferralCode(),
   });
 
-  const token = generateToken(user._id);
+  const accessToken  = generateAccessToken(user._id);
+  const refreshToken = generateRefreshToken(user._id);
+  setRefreshCookie(res, refreshToken);
   res.status(201).json({
-    success: true, token,
+    success: true, accessToken,
     user: { id: user._id, email, roles: user.roles, activeRole: role },
     needsMobileVerification: !mobile,
   });
@@ -425,7 +434,32 @@ export const switchRole = asyncHandler(async (req, res) => {
 });
 
 export const logout = asyncHandler(async (req, res) => {
+  clearRefreshCookie(res);
   res.json({ success: true, message: 'Logged out successfully' });
+});
+
+/* ─────────────────────────────────────────────────────────────────────
+ * REFRESH TOKEN — issue new access token from httpOnly cookie
+ * ─────────────────────────────────────────────────────────────────────*/
+export const refreshTokens = asyncHandler(async (req, res) => {
+  const token = req.cookies?.vlm_refresh;
+  if (!token) {
+    return res.status(401).json({ success: false, message: 'No refresh token' });
+  }
+  let decoded;
+  try {
+    decoded = jwt.verify(token, process.env.JWT_REFRESH_SECRET);
+  } catch {
+    clearRefreshCookie(res);
+    return res.status(401).json({ success: false, message: 'Refresh token expired or invalid' });
+  }
+  const user = await User.findById(decoded.id);
+  if (!user || user.status === 'blocked' || user.status === 'suspended') {
+    clearRefreshCookie(res);
+    return res.status(401).json({ success: false, message: 'User not found or account disabled' });
+  }
+  const accessToken = generateAccessToken(user._id);
+  res.json({ success: true, accessToken });
 });
 
 export const checkAppStatus = asyncHandler(async (req, res) => {

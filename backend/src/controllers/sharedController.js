@@ -144,6 +144,20 @@ export const completeSession = asyncHandler(async (req, res) => {
   session.teacherSummary = summary;
   session.keyNotes = keyNotes;
   session.studentBehaviourRating = studentBehaviourRating;
+
+  // Calculate and credit base earnings immediately when session is completed
+  if (!session.earnings) {
+    session.earnings = { points: 0, status: 'pending' };
+  }
+
+  if (session.earnings.status !== 'credited') {
+    const durationMinutes = Math.max(1, Math.round(session.duration / 60));
+    const points = await calculateSessionEarning(session.type, durationMinutes, 0); // 0 rating initially
+    await creditTeacher(session.teacherId, session.type, points, `Session ${session.type} completed`, sessionId);
+    session.earnings.points = points;
+    session.earnings.status = 'credited';
+  }
+
   await session.save();
 
   const teacher = await Teacher.findById(session.teacherId);
@@ -167,10 +181,10 @@ export const completeSession = asyncHandler(async (req, res) => {
 export const resolveSession = asyncHandler(async (req, res) => {
   const { sessionId, rating, feedback, categories } = req.body;
   const session = await Session.findById(sessionId);
+  if (!session) return res.status(404).json({ success: false, message: 'Session not found' });
+
   session.isResolved = true;
   session.resolvedAt = new Date();
-  session.earnings.status = 'eligible';
-  await session.save();
 
   const review = await Review.create({
     sessionId,
@@ -183,27 +197,47 @@ export const resolveSession = asyncHandler(async (req, res) => {
   });
 
   const durationMinutes = Math.max(1, Math.round(session.duration / 60));
-  const points = await calculateSessionEarning(session.type, durationMinutes, rating);
-  await creditTeacher(session.teacherId, session.type, points, `Session ${session.type} completed`, sessionId);
+  const newPoints = await calculateSessionEarning(session.type, durationMinutes, rating);
 
-  const teacher = await Teacher.findById(session.teacherId);
-  const newCount = teacher.metrics.ratingCount + 1;
-  teacher.metrics.rating = ((teacher.metrics.rating * teacher.metrics.ratingCount) + rating) / newCount;
-  teacher.metrics.ratingCount = newCount;
-  // Auto-restore teacher to online after doubt resolved so they can take next session
-  teacher.availabilityStatus = 'online';
-  teacher.metrics.totalSessions = (teacher.metrics.totalSessions || 0) + 1;
-  await teacher.save();
-
-  try {
-    const { setTeacherState, TEACHER_PRESENCE } = await import('../services/presenceService.js');
-    await setTeacherState(teacher._id, TEACHER_PRESENCE.ONLINE);
-    console.log(`[resolveSession] Teacher ${teacher._id} restored to ONLINE after session.`);
-  } catch (e) {
-    console.error('[resolveSession] presenceService error:', e.message);
+  if (!session.earnings) {
+    session.earnings = { points: 0, status: 'pending' };
   }
 
-  res.json({ success: true, data: { session, review, pointsCredited: points } });
+  if (session.earnings.status === 'credited') {
+    // If already credited (from completeSession), credit the rating bonus if any
+    const bonus = newPoints - (session.earnings.points || 0);
+    if (bonus > 0) {
+      await creditTeacher(session.teacherId, session.type, bonus, `Rating bonus for Session ${session.type}`, sessionId);
+      session.earnings.points = (session.earnings.points || 0) + bonus;
+    }
+  } else {
+    // If not credited yet (fallback), credit the full amount
+    await creditTeacher(session.teacherId, session.type, newPoints, `Session ${session.type} completed`, sessionId);
+    session.earnings.points = newPoints;
+    session.earnings.status = 'credited';
+  }
+
+  await session.save();
+
+  const teacher = await Teacher.findById(session.teacherId);
+  if (teacher) {
+    const newCount = teacher.metrics.ratingCount + 1;
+    teacher.metrics.rating = ((teacher.metrics.rating * teacher.metrics.ratingCount) + rating) / newCount;
+    teacher.metrics.ratingCount = newCount;
+    teacher.availabilityStatus = 'online';
+    teacher.metrics.totalSessions = (teacher.metrics.totalSessions || 0) + 1;
+    await teacher.save();
+
+    try {
+      const { setTeacherState, TEACHER_PRESENCE } = await import('../services/presenceService.js');
+      await setTeacherState(teacher._id, TEACHER_PRESENCE.ONLINE);
+      console.log(`[resolveSession] Teacher ${teacher._id} restored to ONLINE after session.`);
+    } catch (e) {
+      console.error('[resolveSession] presenceService error:', e.message);
+    }
+  }
+
+  res.json({ success: true, data: { session, review, pointsCredited: newPoints } });
 });
 
 export const getSessionHistory = asyncHandler(async (req, res) => {

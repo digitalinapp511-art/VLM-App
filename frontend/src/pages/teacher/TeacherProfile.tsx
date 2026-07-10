@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronLeft, Camera, User, BookOpen, Star, Mail, Phone, ShieldCheck, Home, Wallet, Library, LogOut } from "lucide-react";
+import { ChevronLeft, Camera, User, BookOpen, Star, Mail, Phone, ShieldCheck, Home, Wallet, Library, LogOut, X } from "lucide-react";
 import { bgCss } from "@/helper/CssHelper";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -10,13 +10,24 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { teacherApi } from "@/lib/teacher-api";
 import { PATHS } from "@/routes/paths";
 import { authApi } from "@/lib/auth-api";
+import { apiClient } from "@/lib/api-client";
+import { toast } from "sonner";
 
 export default function TeacherProfile() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [showConfirmLogout, setShowConfirmLogout] = useState(false);
   const [copied, setCopied] = useState(false);
-  const { data: profile, isLoading } = useQuery({
+
+  const [verifyingType, setVerifyingType] = useState<"email" | "mobile" | null>(null);
+  const [verifyingVal, setVerifyingVal] = useState("");
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpCode, setOtpCode] = useState("");
+  const [otpError, setOtpError] = useState("");
+  const [isSendingOtp, setIsSendingOtp] = useState(false);
+  const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
+
+  const { data: profile, isLoading, refetch } = useQuery({
     queryKey: ["teacherProfile"],
     queryFn: teacherApi.getProfile,
   });
@@ -31,6 +42,59 @@ export default function TeacherProfile() {
     }
     queryClient.clear();
     navigate(PATHS.SPLASH, { replace: true });
+  };
+
+  const startVerification = async (type: "email" | "mobile", value: string) => {
+    if (!value) return;
+    setVerifyingType(type);
+    setVerifyingVal(value);
+    setOtpSent(false);
+    setOtpCode("");
+    setOtpError("");
+    setIsSendingOtp(true);
+
+    try {
+      await authApi.sendOtp(value, "verification");
+      setOtpSent(true);
+      toast.success("Verification code sent successfully!");
+    } catch (err: any) {
+      console.error(err);
+      const errMsg = err?.response?.data?.message || err?.message || "Failed to send verification code";
+      setOtpError(errMsg);
+      toast.error(errMsg);
+    } finally {
+      setIsSendingOtp(false);
+    }
+  };
+
+  const handleVerifyOtp = async () => {
+    if (!otpCode || otpCode.length !== 6) {
+      setOtpError("Please enter a valid 6-digit verification code");
+      return;
+    }
+    setIsVerifyingOtp(true);
+    setOtpError("");
+
+    try {
+      const payload = verifyingType === "email" 
+        ? { email: verifyingVal, otp: otpCode } 
+        : { mobile: verifyingVal, otp: otpCode };
+      
+      const { data } = await apiClient.post("/auth/verify-profile-contact", payload);
+      if (data.success) {
+        toast.success(data.message || "Contact details verified successfully!");
+        setVerifyingType(null);
+        refetch();
+      } else {
+        setOtpError(data.message || "Invalid OTP code");
+      }
+    } catch (err: any) {
+      console.error(err);
+      const errMsg = err?.response?.data?.message || err?.message || "OTP verification failed";
+      setOtpError(errMsg);
+    } finally {
+      setIsVerifyingOtp(false);
+    }
   };
 
   return (
@@ -124,7 +188,7 @@ export default function TeacherProfile() {
             </Button>
           </div>
 
-          <div className="space-y-4">
+          <div className="space-y-5">
             <div>
               <label className="text-xs font-medium text-zinc-500 uppercase ml-2">Full Name</label>
               <div className="mt-1 flex items-center p-4 rounded-2xl bg-black/40 border border-white/5 text-white">
@@ -133,19 +197,128 @@ export default function TeacherProfile() {
               </div>
             </div>
 
+            {/* Phone Number with verification status */}
             <div>
               <label className="text-xs font-medium text-zinc-500 uppercase ml-2">Phone Number</label>
-              <div className="mt-1 flex items-center p-4 rounded-2xl bg-black/40 border border-white/5 text-white">
-                <Phone size={18} className="text-zinc-600 mr-3" />
-                <span className="flex-1">{profile?.user?.mobile || "N/A"}</span>
+              <div className="mt-1 flex items-center justify-between p-4 rounded-2xl bg-black/40 border border-white/5 text-white">
+                <div className="flex items-center flex-1 min-w-0">
+                  <Phone size={18} className="text-zinc-600 mr-3 shrink-0" />
+                  <span className="truncate">{p.mobile ? `+91 ${p.mobile}` : "N/A"}</span>
+                </div>
+                <div className="shrink-0 pl-2">
+                  {p.isMobileVerified ? (
+                    <span className="inline-flex items-center text-[9px] font-black text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-full uppercase tracking-wider">
+                      Verified
+                    </span>
+                  ) : (
+                    p.mobile ? (
+                      <button
+                        onClick={() => startVerification("mobile", p.mobile)}
+                        className="text-[9px] font-black text-cyan-400 hover:text-cyan-300 bg-cyan-400/10 hover:bg-cyan-400/20 px-3 py-1 rounded-full uppercase tracking-wider cursor-pointer transition-all"
+                      >
+                        Verify
+                      </button>
+                    ) : (
+                      <span className="text-[9px] font-black text-zinc-500 bg-zinc-800 px-2.5 py-1 rounded-full uppercase tracking-wider">
+                        Not Added
+                      </span>
+                    )
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Email Address with verification status */}
+            <div>
+              <label className="text-xs font-medium text-zinc-500 uppercase ml-2">Email Address</label>
+              <div className="mt-1 flex items-center justify-between p-4 rounded-2xl bg-black/40 border border-white/5 text-white">
+                <div className="flex items-center flex-1 min-w-0">
+                  <Mail size={18} className="text-zinc-600 mr-3 shrink-0" />
+                  <span className="truncate">{p.email || "Not Provided"}</span>
+                </div>
+                <div className="shrink-0 pl-2">
+                  {p.isEmailVerified ? (
+                    <span className="inline-flex items-center text-[9px] font-black text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-full uppercase tracking-wider">
+                      Verified
+                    </span>
+                  ) : (
+                    p.email ? (
+                      <button
+                        onClick={() => startVerification("email", p.email)}
+                        className="text-[9px] font-black text-cyan-400 hover:text-cyan-300 bg-cyan-400/10 hover:bg-cyan-400/20 px-3 py-1 rounded-full uppercase tracking-wider cursor-pointer transition-all"
+                      >
+                        Verify
+                      </button>
+                    ) : (
+                      <span className="text-[9px] font-black text-zinc-500 bg-zinc-800 px-2.5 py-1 rounded-full uppercase tracking-wider">
+                        Not Provided
+                      </span>
+                    )
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Teaching Specializations */}
+        <div className="p-6 rounded-[32px] border border-white/5 bg-white/[0.02] backdrop-blur-md space-y-6">
+          <div className="flex items-center justify-between border-b border-white/5 pb-4">
+            <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-widest flex items-center gap-2">
+              <BookOpen size={16} /> Teaching Specializations
+            </h3>
+            <Button
+              onClick={() => navigate(PATHS.TEACHER_EDIT_PROFILE)}
+              size="sm"
+              className="h-8 px-4 rounded-full text-xs font-bold border border-cyan-400/20 bg-cyan-400/10 hover:bg-cyan-400/20 text-cyan-400 transition-all"
+            >
+              Update
+            </Button>
+          </div>
+
+          <div className="space-y-5">
+            <div>
+              <label className="text-xs font-medium text-zinc-500 uppercase ml-2">Subjects</label>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {profile?.subjects?.length > 0 ? (
+                  profile.subjects.map((s: string, idx: number) => (
+                    <span key={idx} className="bg-purple-500/10 text-purple-400 border border-purple-500/20 text-xs font-bold px-3 py-1.5 rounded-xl">
+                      {s}
+                    </span>
+                  ))
+                ) : (
+                  <span className="text-xs text-zinc-600 ml-2">No subjects added</span>
+                )}
               </div>
             </div>
 
             <div>
-              <label className="text-xs font-medium text-zinc-500 uppercase ml-2">Email Address</label>
-              <div className="mt-1 flex items-center p-4 rounded-2xl bg-black/40 border border-white/5 text-white">
-                <Mail size={18} className="text-zinc-600 mr-3" />
-                <span className="flex-1">{profile?.user?.email || "Not Provided"}</span>
+              <label className="text-xs font-medium text-zinc-500 uppercase ml-2">Classes</label>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {profile?.classes?.length > 0 ? (
+                  profile.classes.map((c: string, idx: number) => (
+                    <span key={idx} className="bg-blue-500/10 text-blue-400 border border-blue-500/20 text-xs font-bold px-3 py-1.5 rounded-xl">
+                      {c}
+                    </span>
+                  ))
+                ) : (
+                  <span className="text-xs text-zinc-600 ml-2">No classes added</span>
+                )}
+              </div>
+            </div>
+
+            <div>
+              <label className="text-xs font-medium text-zinc-500 uppercase ml-2">Boards</label>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {profile?.boards?.length > 0 ? (
+                  profile.boards.map((b: string, idx: number) => (
+                    <span key={idx} className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-bold px-3 py-1.5 rounded-xl">
+                      {b}
+                    </span>
+                  ))
+                ) : (
+                  <span className="text-xs text-zinc-600 ml-2">No boards added</span>
+                )}
               </div>
             </div>
           </div>
@@ -191,6 +364,83 @@ export default function TeacherProfile() {
         <NavItem icon={<Library />} label="Library" onClick={() => navigate(PATHS.TEACHER_LIBRARY)} />
         <NavItem icon={<User />} label="Profile" active onClick={() => navigate(PATHS.TEACHER_PROFILE)} />
       </nav>
+
+      {/* Verification Modal Overlay */}
+      {verifyingType && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="w-full max-w-sm rounded-[2rem] border border-white/10 bg-[#0f0b26] p-6 shadow-2xl relative text-white space-y-4">
+            
+            {/* Close Button */}
+            <button 
+              onClick={() => setVerifyingType(null)} 
+              className="absolute top-4 right-4 text-white/40 hover:text-white cursor-pointer"
+            >
+              <X size={20} />
+            </button>
+
+            <div className="text-center space-y-1">
+              <h3 className="text-base font-black tracking-tight">
+                Verify {verifyingType === "email" ? "Email Address" : "Phone Number"}
+              </h3>
+              <p className="text-xs text-slate-500 font-bold">
+                {verifyingVal}
+              </p>
+            </div>
+
+            {otpError && (
+              <p className="text-rose-500 text-xs font-semibold text-center bg-rose-500/10 py-2 px-3 rounded-xl">
+                {otpError}
+              </p>
+            )}
+
+            {!otpSent ? (
+              <div className="space-y-4 pt-2">
+                <p className="text-xs text-white/60 text-center leading-relaxed font-semibold">
+                  We need to verify this {verifyingType} before updating your account status. We will send a 6-digit OTP verification code.
+                </p>
+                <Button
+                  onClick={() => startVerification(verifyingType, verifyingVal)}
+                  disabled={isSendingOtp}
+                  className="w-full h-12 rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-700 hover:from-violet-500 hover:to-indigo-600 text-white font-black text-xs uppercase tracking-widest shadow-md shadow-violet-500/10 cursor-pointer border-none"
+                >
+                  {isSendingOtp ? "Sending OTP..." : "Send Verification Code"}
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-4 pt-2">
+                <div className="space-y-1 text-left">
+                  <label className="text-[9px] uppercase tracking-widest text-slate-500 font-black">Enter Verification Code</label>
+                  <input
+                    type="text"
+                    maxLength={6}
+                    placeholder="Enter 6-digit OTP"
+                    value={otpCode}
+                    onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ""))}
+                    className="bg-[#070417] border border-violet-950 rounded-2xl h-12 w-full text-center text-sm font-bold tracking-widest text-white outline-none focus-within:border-violet-500/50"
+                  />
+                </div>
+                <div className="flex gap-2.5">
+                  <Button
+                    onClick={() => startVerification(verifyingType, verifyingVal)}
+                    disabled={isSendingOtp || isVerifyingOtp}
+                    variant="outline"
+                    className="flex-1 h-12 rounded-2xl text-xs font-black uppercase border-white/10 text-white/80 cursor-pointer"
+                  >
+                    Resend
+                  </Button>
+                  <Button
+                    onClick={handleVerifyOtp}
+                    disabled={otpCode.length !== 6 || isVerifyingOtp}
+                    className="flex-1 h-12 rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-700 hover:from-violet-500 hover:to-indigo-600 text-white font-black text-xs uppercase tracking-widest shadow-md shadow-violet-500/10 cursor-pointer border-none"
+                  >
+                    {isVerifyingOtp ? "Verifying..." : "Verify"}
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Confirmation Modal */}
       <AnimatePresence>

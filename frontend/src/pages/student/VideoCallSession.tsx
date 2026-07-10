@@ -19,6 +19,9 @@ import AgoraRTC, {
   type ICameraVideoTrack,
   type IMicrophoneAudioTrack,
 } from "agora-rtc-sdk-ng";
+
+// Suppress Agora verbose DEBUG logs in production (0=DEBUG 1=INFO 2=WARNING 3=ERROR 4=NONE)
+AgoraRTC.setLogLevel(import.meta.env.DEV ? 2 : 4);
 import { useSocket } from "@/hooks/use-socket";
 import { studentApi } from "@/lib/student-api";
 import { apiClient } from "@/lib/api-client";

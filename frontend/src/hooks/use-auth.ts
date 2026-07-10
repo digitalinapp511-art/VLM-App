@@ -13,9 +13,7 @@ export function useVerifyOtp() {
   return useMutation({
     mutationFn: ({ email, otp, role }: { email: string; otp: string; role: Role }) =>
       authApi.verifyOtp(email, otp, role),
-    onSuccess: (data) => {
-      localStorage.setItem("vlm_token", data.token);
-    },
+    // Token is stored inside authApi.verifyOtp — no need to do it again here
   });
 }
 

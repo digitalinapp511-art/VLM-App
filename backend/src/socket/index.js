@@ -66,7 +66,7 @@ export const initSocket = (server) => {
       return next(new Error('Auth required'));
     }
     try {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      const decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET);
       socket.user = decoded;
       
       // Fetch user role from database
@@ -98,12 +98,15 @@ export const initSocket = (server) => {
           const teacher = await Teacher.findOne({ userId: socket.user.id });
           if (teacher) {
             const { setTeacherState, TEACHER_PRESENCE } = await import('../services/presenceService.js');
-            if (teacher.availabilityStatus === 'online') {
+            // Auto-restore presence based on DB status, but respect explicit offline choice
+            if (teacher.availabilityStatus === 'online' && !teacher.manuallySetOffline) {
               await setTeacherState(teacher._id, TEACHER_PRESENCE.ONLINE, socket.id);
               console.log(`[Socket] Auto-restored ONLINE presence for teacher ${teacher._id} (${teacher.firstName})`);
             } else if (teacher.availabilityStatus === 'busy') {
               await setTeacherState(teacher._id, TEACHER_PRESENCE.BUSY, socket.id);
               console.log(`[Socket] Auto-restored BUSY presence for teacher ${teacher._id} (${teacher.firstName})`);
+            } else if (teacher.manuallySetOffline) {
+              console.log(`[Socket] Teacher ${teacher._id} manually set offline — skipping auto-restore`);
             }
           }
         } catch (e) {
@@ -122,14 +125,28 @@ export const initSocket = (server) => {
     });
 
     // ── Real-time Chat Messages ────────────────────────────────────
-    socket.on('send_message', (data) => {
-      io.to(`session:${data.sessionId}`).emit('new_message', {
-        ...data,
-        id: crypto.randomUUID(),
-        senderId: socket.user.id,
-        senderRole: socket.user.role,
-        timestamp: new Date(),
-      });
+    socket.on('send_message', async (data) => {
+      try {
+        const Message = (await import('../models/Message.js')).default;
+        const msg = await Message.create({
+          sessionId: data.sessionId,
+          senderId: socket.user.id,
+          senderRole: socket.user.role,
+          type: data.type || 'text',
+          content: data.content,
+          mediaUrl: data.mediaUrl,
+        });
+
+        io.to(`session:${data.sessionId}`).emit('new_message', {
+          ...data,
+          id: msg._id,
+          senderId: socket.user.id,
+          senderRole: socket.user.role,
+          timestamp: msg.createdAt,
+        });
+      } catch (err) {
+        console.error('[Socket] Error saving/sending message:', err.message);
+      }
     });
 
     socket.on('typing', (data) => {
@@ -180,15 +197,14 @@ export const initSocket = (server) => {
       try {
         const teacher = await Teacher.findOne({ userId: socket.user.id });
         if (teacher) {
-          if (teacher.availabilityStatus === 'offline') {
-            console.log(`[Socket] teacher_online received but teacher ${teacher._id} is explicitly OFFLINE. Ignoring.`);
+          if (teacher.manuallySetOffline) {
+            console.log(`[Socket] teacher_online received but teacher ${teacher._id} manually set OFFLINE. Ignoring.`);
             return;
           }
           teacher.availabilityStatus = 'online';
+          teacher.manuallySetOffline = false;
           await teacher.save();
           const { setTeacherState, TEACHER_PRESENCE } = await import('../services/presenceService.js');
-          // Add ALL online teachers to the available pool.
-          // applicationStatus check happens in matchingService if needed.
           await setTeacherState(teacher._id, TEACHER_PRESENCE.ONLINE, socket.id);
           socket.emit('presence_confirmed', { status: 'ONLINE' });
           console.log(`[Socket] Teacher ${teacher._id} (${teacher.firstName}) → ONLINE in Redis. applicationStatus=${teacher.applicationStatus}`);
@@ -203,6 +219,7 @@ export const initSocket = (server) => {
         const teacher = await Teacher.findOne({ userId: socket.user.id });
         if (teacher) {
           teacher.availabilityStatus = 'offline';
+          teacher.manuallySetOffline = true; // Mark as explicitly offline
           await teacher.save();
           const { setTeacherState, TEACHER_PRESENCE } = await import('../services/presenceService.js');
           await setTeacherState(teacher._id, TEACHER_PRESENCE.OFFLINE);

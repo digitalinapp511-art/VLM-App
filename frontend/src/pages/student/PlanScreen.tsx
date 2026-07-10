@@ -1,192 +1,217 @@
-import { useState } from "react";
+import React from "react";
 import { useNavigate } from "react-router-dom";
 import { PATHS } from "@/routes/paths";
-import { ChevronLeft, Lightbulb, MessageCircle, Headphones, Video, CheckCircle2, Star } from "lucide-react";
+import { 
+  ChevronLeft, 
+  BookOpen, 
+  Video, 
+  MessageSquare, 
+  PhoneCall, 
+  PlayCircle, 
+  ClipboardList, 
+  Trophy, 
+  Users, 
+  Video as VideoIcon
+} from "lucide-react";
 import { cn } from "@/lib/utils";
-import { usePlans, useActivateTrial, useStudentProfile } from "@/hooks/use-student";
+import { useActivateTrial, useStudentProfile } from "@/hooks/use-student";
 import DashboardLoading from "@/components/basic/DashboardLoading";
-
-// Shadcn Components
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-
-// ── Plan colour config ─────────────────────────────────────
-const PLAN_STYLES: Record<string, { color: string; glow: string; ring: string; bg: string }> = {
-  "Premium Plan": {
-    color: "text-yellow-300",
-    glow: "shadow-[0_0_28px_rgba(245,166,35,0.35)]",
-    ring: "ring-yellow-400/60",
-    bg: "bg-yellow-300/8",
-  },
-  "Pro Plan": {
-    color: "text-blue-400",
-    glow: "shadow-[0_0_28px_rgba(59,130,246,0.25)]",
-    ring: "ring-blue-400/50",
-    bg: "bg-blue-400/8",
-  },
-  "Basic Plan": {
-    color: "text-cyan-400",
-    glow: "shadow-[0_0_28px_rgba(34,211,238,0.25)]",
-    ring: "ring-cyan-400/50",
-    bg: "bg-cyan-400/8",
-  },
-};
-const DEFAULT_STYLE = PLAN_STYLES["Basic Plan"];
-
-function mapFeatures(plan: any) {
-  return [
-    { icon: Lightbulb, text: `${plan.credits ?? "100"} AI Credits` },
-    { icon: MessageCircle, text: `${plan.humanChatCredits ?? "5"} Human Chat Credits` },
-    { icon: Headphones, text: `${plan.audioVideoMinutes ?? "60"} Audio/Video Minutes` },
-    { icon: Video, text: `${plan.liveClassAcess ?? "1"} Live Class Access` },
-  ];
-}
 
 export default function PlanScreen() {
   const navigate = useNavigate();
-  const { data: profile } = useStudentProfile();
-  const studentClass = (profile as any)?.class || (profile as any)?.className || "10";
-  const { data: apiPlans, isLoading } = usePlans(studentClass);
+  const { data: profile, isLoading } = useStudentProfile();
   const activateTrial = useActivateTrial();
-  const [selectedPlanId, setSelectedPlanId] = useState<string>("");
 
-  const plans = (apiPlans ?? []).map((p: any, i: number) => {
-    const style = PLAN_STYLES[p.name] ?? DEFAULT_STYLE;
-    return {
-      id: p.id,
-      name: p.name,
-      recommended: i === 0,
-      oldPrice: `₹${Math.round(p.price * 2)}`,
-      price: `₹${Math.round(p.price)}`,
-      ...style,
-      features: mapFeatures(p),
-    };
-  });
+  if (isLoading) return <DashboardLoading />;
 
-  const activePlanId = selectedPlanId || plans[0]?.id;
+  // Parse student class range
+  const profileData = (profile as any)?.data ?? profile;
+  const studentClassStr = profileData?.class || profileData?.className || "10";
+  const classNum = parseInt(String(studentClassStr).replace(/\D/g, ""), 10) || 10;
+
+  let classRangeText = "Classes 9–10";
+  let priceVal = 79;
+  let aiCreditsText = "2000 AI CHAT CREDITS";
+  let extraPriceText = "₹4/min";
+
+  if (classNum >= 1 && classNum <= 8) {
+    classRangeText = "Classes 1–8";
+    priceVal = 59;
+    aiCreditsText = "1000 AI CHAT CREDITS";
+    extraPriceText = "₹3/min";
+  } else if (classNum >= 9 && classNum <= 10) {
+    classRangeText = "Classes 9–10";
+    priceVal = 79;
+    aiCreditsText = "2000 AI CHAT CREDITS";
+    extraPriceText = "₹4/min";
+  } else if (classNum >= 11 && classNum <= 12) {
+    classRangeText = "Classes 11–12";
+    priceVal = 99;
+    aiCreditsText = "3000 AI CHAT CREDITS";
+    extraPriceText = "₹5/min";
+  }
 
   const handleStartTrial = () => {
-    const planId = activePlanId;
-    if (!planId) return;
-    sessionStorage.setItem("vlm_selected_plan_id", planId);
-    activateTrial.mutate(planId, {
+    // Call activate trial API
+    activateTrial.mutate("mock-annual-plan", {
       onSuccess: () => navigate(PATHS.STUDENT_DASHBOARD),
       onError: () => navigate(PATHS.STUDENT_DASHBOARD),
     });
   };
 
-  if (isLoading) return <DashboardLoading />;
+  const features = [
+    { 
+      icon: BookOpen, 
+      title: "COMPLETE STUDY MATERIAL", 
+      desc: "NCERT & CBSE Solutions, Reference Book Solutions, Downloadable PDFs." 
+    },
+    { 
+      icon: Video, 
+      title: "CHAPTER-WISE VIDEO LESSONS", 
+      desc: "Engaging tutorials by expert teachers." 
+    },
+    { 
+      icon: MessageSquare, 
+      title: `${aiCreditsText} (24x7)`, 
+      desc: "Doubts solved instantly, anytime." 
+    },
+    { 
+      icon: PhoneCall, 
+      title: "24x7 WHATSAPP AI TUTOR", 
+      desc: "Instant tutoring support on WhatsApp." 
+    },
+    { 
+      icon: PlayCircle, 
+      title: "ENGAGING SHORT VIDEOS", 
+      desc: "Key concepts explained in bite-sized videos." 
+    },
+    { 
+      icon: ClipboardList, 
+      title: "DAILY TASK TRACKING", 
+      desc: "Organized daily study plans." 
+    },
+    { 
+      icon: Trophy, 
+      title: "DAILY MCQ PRACTICE & QUIZZES", 
+      desc: "Master each chapter with regular tests." 
+    },
+    { 
+      icon: Users, 
+      title: "PARENTS ACCESS & PROGRESS REPORTS", 
+      desc: "Track learning performance and goals." 
+    }
+  ];
 
   return (
-    <div className="relative min-h-svh w-full bg-[#050505] text-white flex flex-col items-center px-4 pb-40 overflow-x-hidden">
-
-      {/* ── Background glow blobs ── */}
-      <div className="pointer-events-none absolute inset-0 overflow-hidden -z-10">
-        <div className="absolute top-[8%] left-[-12%] w-72 h-72 bg-blue-700/10 blur-[120px]" />
-        <div className="absolute bottom-[20%] right-[-12%] w-72 h-72 bg-purple-900/10 blur-[120px]" />
-      </div>
-
-      {/* ── Header ── */}
-      <header className="w-full max-w-md pt-10 flex items-center gap-3">
+    <div className="min-h-screen w-full bg-[#d6ebff] text-slate-800 flex flex-col items-center pb-32 overflow-x-hidden font-sans relative">
+      
+      {/* Header */}
+      <header className="w-full max-w-md pt-6 px-4 flex items-center justify-between z-10">
         <button
           onClick={() => navigate(-1)}
-          className="flex items-center justify-center w-9 h-9 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors"
+          className="flex items-center justify-center w-9 h-9 rounded-xl bg-white border border-slate-200/80 shadow-sm hover:bg-slate-50 transition-colors shrink-0"
         >
-          <ChevronLeft className="h-5 w-5 text-white/70" />
+          <ChevronLeft className="h-5 w-5 text-slate-600" />
         </button>
-        <h1 className="flex-1 text-center text-xl font-bold tracking-tight pr-9">
-          Choose Your Learning Plan
-        </h1>
+        <div className="flex flex-col items-center flex-grow -mr-9">
+          <div className="flex items-center gap-1.5">
+            <span className="text-xl font-black text-blue-900 tracking-tighter uppercase">VLM Academy</span>
+          </div>
+        </div>
       </header>
 
-      {/* ── Plans list ── */}
-      <div className="flex flex-col gap-4 mt-8 w-full max-w-md">
-        {plans.map((plan) => {
-          const isActive = activePlanId === plan.id;
-          return (
-            <div
-              key={plan.id}
-              onClick={() => setSelectedPlanId(plan.id)}
-              className={cn(
-                "relative cursor-pointer rounded-[2rem] border border-white/8 transition-all duration-300 overflow-visible",
-                plan.bg,
-                plan.glow,
-                isActive && `ring-2 ${plan.ring}`
-              )}
-            >
-              {/* Recommended badge */}
-              {plan.recommended && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-20">
-                  <Badge className="bg-yellow-300 text-black font-black text-[10px] tracking-widest px-4 py-1 rounded-full border-none">
-                    RECOMMENDED
-                  </Badge>
+      {/* Main Container */}
+      <div className="w-full max-w-md px-4 mt-6 flex-1 flex flex-col gap-6">
+        
+        {/* Title Group */}
+        <div className="text-center space-y-1">
+          <h1 className="text-2xl font-black text-blue-900 tracking-tight uppercase">
+            Premium Learning Plan
+          </h1>
+          <div className="inline-block bg-blue-900 text-white text-[9px] font-black tracking-widest px-4 py-1.5 rounded-md uppercase">
+            India's First 24/7 Live Teacher Support App 🎓
+          </div>
+        </div>
+
+        {/* Subscription Plan Card */}
+        <div className="bg-white border-2 border-[#d5a848] rounded-[24px] shadow-md p-6 relative overflow-hidden flex flex-col items-center">
+          
+          {/* Class Range Badge */}
+          <div className="bg-blue-900 text-white text-xs font-black px-6 py-1.5 rounded-full uppercase tracking-wider mb-4">
+            {classRangeText}
+          </div>
+
+          {/* Pricing Display */}
+          <div className="text-center mb-6">
+            <div className="flex items-baseline justify-center gap-1">
+              <span className="text-5xl font-black text-[#d5a848] tracking-tight">₹{priceVal}</span>
+              <span className="text-xl font-black text-[#d5a848]">only</span>
+            </div>
+            <p className="text-[11px] font-bold text-slate-600 uppercase tracking-widest mt-1">
+              Annual Subscription
+            </p>
+          </div>
+
+          {/* Feature List */}
+          <div className="w-full space-y-4 pt-4 border-t border-slate-100">
+            {features.map((feat, idx) => (
+              <div key={idx} className="flex gap-3.5 items-start">
+                <div className="w-6 h-6 rounded-lg bg-blue-550/10 flex items-center justify-center shrink-0 mt-0.5 text-blue-900">
+                  <feat.icon size={16} strokeWidth={2.5} />
                 </div>
-              )}
-
-              <div className="p-6 pt-8 space-y-5">
-                {/* Plan name + price row */}
-                <div className="flex items-start justify-between">
-                  <div className="space-y-1">
-                    <h2 className="text-base font-bold text-white">{plan.name}</h2>
-                    <p className="text-xs text-white/30 line-through">{plan.oldPrice}/mo</p>
-                    <p className={cn("text-2xl font-black tracking-tight", plan.color)}>
-                      {plan.price}<span className="text-sm font-medium text-white/40">/mo</span>
-                    </p>
-                  </div>
-
-                  {/* Selected indicator */}
-                  <div className={cn(
-                    "w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all",
-                    isActive ? "border-transparent" : "border-white/20"
-                  )}>
-                    {isActive && <CheckCircle2 className={cn("w-6 h-6", plan.color)} fill="currentColor" fillOpacity={0.15} />}
-                  </div>
-                </div>
-
-                {/* 3-day trial badge */}
-                <Badge className="bg-yellow-300 text-black font-bold text-[10px] px-3 py-1 rounded-lg border-none">
-                  3 Days Free Trial
-                </Badge>
-
-                {/* Divider */}
-                <div className="h-px bg-white/8" />
-
-                {/* Features */}
-                <div className="space-y-3">
-                  {plan.features.map((feat, idx) => (
-                    <div key={idx} className="flex items-center gap-3">
-                      <div className={cn("shrink-0", plan.color)}>
-                        <feat.icon size={16} strokeWidth={2} />
-                      </div>
-                      <p className="text-sm text-white/70">{feat.text}</p>
-                    </div>
-                  ))}
+                <div className="space-y-0.5">
+                  <h4 className="text-[11px] font-black text-slate-800 tracking-wide uppercase">
+                    {feat.title}
+                  </h4>
+                  <p className="text-[10px] text-slate-500 font-medium leading-relaxed">
+                    {feat.desc}
+                  </p>
                 </div>
               </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Optional Extras Card */}
+        <div className="bg-white border border-slate-200/80 rounded-[20px] shadow-sm p-4 flex flex-col gap-3">
+          <div className="space-y-0.5">
+            <span className="text-[9px] font-black text-blue-800 tracking-wider uppercase">
+              Optional Extras
+            </span>
+            <h3 className="text-sm font-black text-slate-800">
+              Live One-on-One Support
+            </h3>
+          </div>
+          <div className="flex items-center gap-3 bg-blue-50/50 p-3 rounded-xl border border-blue-100/50">
+            <div className="w-10 h-10 rounded-full bg-blue-900 flex items-center justify-center text-white shrink-0">
+              <VideoIcon size={20} />
             </div>
-          );
-        })}
+            <div>
+              <p className="text-[11px] font-black text-slate-700 uppercase">
+                Video Call, Call & Chat Support
+              </p>
+              <p className="text-base font-black text-[#d5a848]">
+                {extraPriceText}
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
 
-      {/* ── Decorative stars ── */}
-      <Star className="absolute top-14 right-8 text-white/10 h-4 w-4 fill-current" />
-      <Star className="absolute top-1/3 left-4 text-purple-400/20 h-5 w-5 fill-current" />
-
-      {/* ── Sticky footer ── */}
-      <footer className="fixed bottom-0 left-0 w-full px-4 pb-8 pt-4 bg-gradient-to-t from-black via-black/90 to-transparent flex flex-col items-center gap-1 z-50">
-        <p className="text-white/60 text-sm font-semibold">
-          Activate trial for <span className="text-white font-bold">₹1</span>
+      {/* Sticky Action Footer */}
+      <footer className="fixed bottom-0 left-0 w-full px-4 pb-6 pt-4 bg-gradient-to-t from-[#d6ebff] via-[#d6ebff]/95 to-transparent flex flex-col items-center gap-2 z-50">
+        <p className="text-slate-600 text-[11px] font-bold uppercase tracking-wider">
+          Activate trial for <span className="text-blue-900 font-black">₹1</span>
         </p>
         <div className="w-full max-w-md relative">
-          <div className="absolute inset-x-0 bottom-0 h-12 bg-blue-500/20 blur-[32px] rounded-full" />
           <Button
             onClick={handleStartTrial}
-            disabled={activateTrial.isPending || plans.length === 0}
+            disabled={activateTrial.isPending}
             className={cn(
-              "relative w-full h-14 rounded-full text-base font-bold tracking-wide transition-all active:scale-[0.98]",
-              "bg-gradient-to-b from-[#1e3a8e] to-[#0f172a]",
-              "border border-blue-400/40 text-white shadow-2xl hover:brightness-110",
-              "disabled:opacity-40 disabled:cursor-not-allowed"
+              "w-full h-14 rounded-full text-base font-bold tracking-wide transition-all active:scale-[0.98] shadow-lg shadow-blue-900/10",
+              "bg-blue-900 text-white hover:brightness-110",
+              "border border-blue-800"
             )}
           >
             {activateTrial.isPending ? "ACTIVATING..." : "START 3-DAY TRIAL"}

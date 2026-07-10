@@ -18,10 +18,15 @@ import ReviewSectionCard from "@/components/basic/teacher/ReviewSectionCard";
 const ProfileReview: React.FC = () => {
   const navigate = useNavigate();
 
-  const { data: profile, isLoading } = useQuery({
+  const { data: profile, isLoading, refetch } = useQuery({
     queryKey: ["teacherProfile"],
     queryFn: teacherApi.getProfile,
+    staleTime: 0,
   });
+
+  React.useEffect(() => {
+    refetch();
+  }, [refetch]);
 
   const submitMutation = useMutation({
     mutationFn: teacherApi.submitForVerification,

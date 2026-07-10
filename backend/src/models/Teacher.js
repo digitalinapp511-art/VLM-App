@@ -64,6 +64,7 @@ const teacherSchema = new mongoose.Schema(
       enum: ['online', 'offline', 'busy'],
       default: 'offline',
     },
+    manuallySetOffline: { type: Boolean, default: false }, // true only when teacher explicitly clicked offline
     availabilitySlots: [{
       day: { type: String, enum: ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] },
       startTime: String,

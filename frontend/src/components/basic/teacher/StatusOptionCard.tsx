@@ -44,19 +44,19 @@ const StatusOptionCard: React.FC<StatusOptionCardProps> = ({
       whileTap={{ scale: 0.98 }}
       onClick={onClick}
       className={cn(
-        "w-full p-8 rounded-[32px] border bg-[#121212] transition-all duration-300 flex flex-col items-center justify-center gap-4 group",
+        "w-full py-5 px-4 rounded-[24px] border bg-[#121212] transition-all duration-300 flex flex-col items-center justify-center gap-2.5 group",
         variantStyles[variant]
       )}
     >
-      <h3 className={cn("text-xl font-black uppercase tracking-widest", isSelected ? "text-white" : "text-zinc-500")}>
+      <h3 className={cn("text-base font-black uppercase tracking-widest leading-none mb-1", isSelected ? "text-white" : "text-zinc-400")}>
         {title}
       </h3>
 
-      <div className={cn("transition-transform duration-300 group-hover:scale-110", iconColors[variant])}>
+      <div className={cn("transition-transform duration-300 group-hover:scale-105 shrink-0 flex items-center justify-center h-10", iconColors[variant])}>
         {icon}
       </div>
 
-      <p className={cn("text-[13px] font-medium tracking-tight text-center", isSelected ? "text-zinc-400" : "text-zinc-600")}>
+      <p className={cn("text-[11px] font-medium tracking-tight text-center leading-snug", isSelected ? "text-zinc-400" : "text-zinc-500")}>
         {description}
       </p>
     </motion.button>

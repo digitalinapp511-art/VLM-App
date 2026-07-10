@@ -10,7 +10,7 @@ import { createNotification } from '../services/notificationService.js';
 import { generateVlmId } from '../utils/vlmIdGenerator.js';
 
 export const getTeacherProfile = asyncHandler(async (req, res) => {
-  let teacher = await Teacher.findOne({ userId: req.user._id }).populate('userId', 'email mobile fullName');
+  let teacher = await Teacher.findOne({ userId: req.user._id }).populate('userId', 'email mobile fullName isEmailVerified isMobileVerified');
   if (!teacher) {
     const vlmTeacherId = await generateVlmId('TCH');
     teacher = await Teacher.create({
@@ -19,11 +19,14 @@ export const getTeacherProfile = asyncHandler(async (req, res) => {
       firstName: 'Teacher',
       applicationStatus: 'draft',
     });
-    teacher = await Teacher.findOne({ userId: req.user._id }).populate('userId', 'email mobile');
+    teacher = await Teacher.findOne({ userId: req.user._id }).populate('userId', 'email mobile fullName isEmailVerified isMobileVerified');
   }
   
   const teacherObj = teacher.toObject();
   teacherObj.user = teacherObj.userId; // Map populated User document to p.user
+  if (teacherObj.dateOfBirth) {
+    teacherObj.dob = teacherObj.dateOfBirth;
+  }
   
   res.json({ success: true, data: teacherObj });
 });
@@ -42,7 +45,7 @@ export const updateOnboarding = asyncHandler(async (req, res) => {
         return res.status(400).json({ success: false, message: 'This mobile number is already linked to another account' });
       }
       authUser.mobile = cleanMobile;
-      authUser.isMobileVerified = true;
+      authUser.isMobileVerified = false;
       authUserUpdated = true;
     }
     if (data.email && !authUser.email) {
@@ -52,12 +55,17 @@ export const updateOnboarding = asyncHandler(async (req, res) => {
         return res.status(400).json({ success: false, message: 'This email address is already linked to another account' });
       }
       authUser.email = cleanEmail;
-      authUser.isEmailVerified = true;
+      authUser.isEmailVerified = false;
       authUserUpdated = true;
     }
     if (authUserUpdated) {
       await authUser.save();
     }
+  }
+
+  if (data.dob) {
+    data.dateOfBirth = data.dob;
+    delete data.dob;
   }
 
   if (!teacher) {
@@ -75,7 +83,12 @@ export const updateOnboarding = asyncHandler(async (req, res) => {
     await teacher.save();
   }
 
-  res.json({ success: true, data: teacher });
+  const teacherObj = teacher.toObject();
+  if (teacherObj.dateOfBirth) {
+    teacherObj.dob = teacherObj.dateOfBirth;
+  }
+
+  res.json({ success: true, data: teacherObj });
 });
 
 export const submitApplication = asyncHandler(async (req, res) => {
@@ -125,19 +138,22 @@ export const updateAvailability = asyncHandler(async (req, res) => {
   if (rawStatus) {
     teacher.availabilityStatus = rawStatus;
 
+    // Track whether teacher explicitly set themselves offline
+    if (rawStatus === 'offline') {
+      teacher.manuallySetOffline = true;
+    } else {
+      teacher.manuallySetOffline = false;
+    }
+
     // Sync to PresenceService (Redis dispatch pool)
-    // NOTE: Only approved teachers enter the dispatch pool (teachers:available set)
-    // Non-approved teachers can set their status but won't receive student requests
     try {
       const { setTeacherState, TEACHER_PRESENCE } = await import('../services/presenceService.js');
-      const isApproved = teacher.applicationStatus === 'approved';
       let presenceStatus;
-      if (rawStatus === 'online' && isApproved) {
+      if (rawStatus === 'online') {
         presenceStatus = TEACHER_PRESENCE.ONLINE;
-      } else if (rawStatus === 'busy' && isApproved) {
+      } else if (rawStatus === 'busy') {
         presenceStatus = TEACHER_PRESENCE.BUSY;
       } else {
-        // offline OR non-approved teacher going 'online' → keep them out of dispatch pool
         presenceStatus = TEACHER_PRESENCE.OFFLINE;
       }
       await setTeacherState(teacher._id, presenceStatus);
@@ -225,7 +241,7 @@ export const updateProfile = asyncHandler(async (req, res) => {
 
   const allowed = [
     'firstName', 'middleName', 'lastName', 'bio', 'teachingStyle', 'bankDetails', 'profilePhoto', 
-    'address', 'city', 'state', 'pincode', 'gender', 'dob',
+    'address', 'city', 'state', 'pincode', 'gender',
     'subjects', 'classes', 'boards', 'languages'
   ];
   allowed.forEach((key) => {
@@ -233,6 +249,10 @@ export const updateProfile = asyncHandler(async (req, res) => {
       teacher[key] = req.body[key];
     }
   });
+
+  if (req.body.dob !== undefined) {
+    teacher.dateOfBirth = req.body.dob;
+  }
 
   if (req.body.qualification) {
     if (!teacher.qualification) teacher.qualification = {};
@@ -293,7 +313,12 @@ export const updateProfile = asyncHandler(async (req, res) => {
     }
   }
 
-  res.json({ success: true, data: teacher });
+  const teacherObj = teacher.toObject();
+  if (teacherObj.dateOfBirth) {
+    teacherObj.dob = teacherObj.dateOfBirth;
+  }
+
+  res.json({ success: true, data: teacherObj });
 });
 
 export const scheduleInterview = asyncHandler(async (req, res) => {

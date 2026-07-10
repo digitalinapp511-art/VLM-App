@@ -20,7 +20,7 @@ export const createParentProfile = asyncHandler(async (req, res) => {
         return res.status(400).json({ success: false, message: 'This mobile number is already linked to another account' });
       }
       authUser.mobile = cleanMobile;
-      authUser.isMobileVerified = true;
+      authUser.isMobileVerified = false;
       authUserUpdated = true;
     }
     if (req.body.email && !authUser.email) {
@@ -30,7 +30,7 @@ export const createParentProfile = asyncHandler(async (req, res) => {
         return res.status(400).json({ success: false, message: 'This email address is already linked to another account' });
       }
       authUser.email = cleanEmail;
-      authUser.isEmailVerified = true;
+      authUser.isEmailVerified = false;
       authUserUpdated = true;
     }
     if (authUserUpdated) {

@@ -47,7 +47,7 @@ export const createStudentProfile = asyncHandler(async (req, res) => {
       return res.status(400).json({ success: false, message: 'This mobile number is already linked to another account' });
     }
     authUser.mobile = cleanMobile;
-    authUser.isMobileVerified = true;
+    authUser.isMobileVerified = false;
     authUserUpdated = true;
   }
   if (req.body.email && !authUser.email) {
@@ -57,7 +57,7 @@ export const createStudentProfile = asyncHandler(async (req, res) => {
       return res.status(400).json({ success: false, message: 'This email address is already linked to another account' });
     }
     authUser.email = cleanEmail;
-    authUser.isEmailVerified = true;
+    authUser.isEmailVerified = false;
     authUserUpdated = true;
   }
   if (authUserUpdated) {
@@ -165,31 +165,44 @@ export const getPlans = asyncHandler(async (req, res) => {
 export const activateTrial = asyncHandler(async (req, res) => {
   const { planId } = req.body;
   const student = await Student.findOne({ userId: req.user._id });
+  if (!student) return res.status(404).json({ success: false, message: 'Student not found' });
+
   let plan;
-  
   try {
     plan = await Plan.findById(planId);
   } catch(e) {
-    // planId might be a mock id like "1" that causes CastError
     plan = null;
   }
 
+  const studentClassStr = student.class || '10';
+  const classNum = parseInt(studentClassStr.replace(/\D/g, ''), 10) || 10;
+
+  let aiCredits = 2000;
+  if (classNum >= 1 && classNum <= 8) {
+    aiCredits = 1000;
+  } else if (classNum >= 9 && classNum <= 10) {
+    aiCredits = 2000;
+  } else if (classNum >= 11 && classNum <= 12) {
+    aiCredits = 3000;
+  }
+
   const trialEndsAt = new Date();
-  trialEndsAt.setDate(trialEndsAt.getDate() + (plan?.trialDays || 3));
+  trialEndsAt.setDate(trialEndsAt.getDate() + 365); // 1 Year Annual Subscription
 
   student.subscription = {
     planId: plan?._id || null,
-    status: 'trial',
+    status: 'active',
     trialEndsAt,
     autopayEnabled: true,
   };
-  student.wallet.aiCredits = plan?.benefits?.aiCredits || 10;
-  student.wallet.humanChatCredits = plan?.benefits?.humanChatCredits || 5;
-  student.wallet.audioMinutes = plan?.benefits?.audioMinutes || 30;
-  student.wallet.videoMinutes = plan?.benefits?.videoMinutes || 15;
+  student.wallet.aiCredits = aiCredits;
+  // Initialize humanChatCredits to 0 as they pay per minute via wallet
+  student.wallet.humanChatCredits = 0;
+  student.wallet.audioMinutes = 0;
+  student.wallet.videoMinutes = 0;
   await student.save();
 
-  res.json({ success: true, message: 'Trial activated', data: student });
+  res.json({ success: true, message: 'Subscription activated', data: student });
 });
 
 export const submitDoubt = asyncHandler(async (req, res) => {
@@ -658,10 +671,16 @@ export const claimSpinReward = asyncHandler(async (req, res) => {
     return res.status(404).json({ success: false, message: 'Student not found' });
   }
 
-  // ── 24-hour cooldown gate (matches frontend timer) ──
+  // Get accumulated active seconds of all time
+  const totalActiveSeconds = await getAccumulatedActiveSeconds(student._id);
+  const activeSecondsSinceSpin = totalActiveSeconds - (student.lastSpinActiveSeconds || 0);
+
+  // ── 2-hour cooldown gate ──
   if (student.lastSpinDate) {
     const diffMs = Date.now() - new Date(student.lastSpinDate).getTime();
-    const cooldownMs = 24 * 60 * 60 * 1000; // 24 hours
+    const cooldownMs = 2 * 60 * 60 * 1000; // 2 hours
+    
+    // Check both time and active seconds (must satisfy both or just time depending on design - let's enforce 2 hours cooldown)
     if (diffMs < cooldownMs) {
       const secondsRemaining = Math.ceil((cooldownMs - diffMs) / 1000);
       return res.status(400).json({
@@ -670,10 +689,20 @@ export const claimSpinReward = asyncHandler(async (req, res) => {
         secondsLeft: secondsRemaining,
       });
     }
+
+    if (activeSecondsSinceSpin < 7200) {
+      const secondsRemaining = 7200 - activeSecondsSinceSpin;
+      return res.status(400).json({
+        success: false,
+        message: `Spin Wheel is locked! You need ${Math.ceil(secondsRemaining / 60)} more minutes of active learning time.`,
+        secondsLeft: secondsRemaining,
+      });
+    }
   }
 
   const now = new Date();
   student.lastSpinDate = now;
+  student.lastSpinActiveSeconds = totalActiveSeconds;
 
   if (rewardType === 'POINTS') {
     student.totalPoints += (amount || 0);
@@ -1205,11 +1234,14 @@ export const submitUsageHeartbeat = asyncHandler(async (req, res) => {
   const totalActiveSeconds = await getAccumulatedActiveSeconds(student._id);
   const activeSecondsSinceSpin = totalActiveSeconds - (student.lastSpinActiveSeconds || 0);
 
+  const hasNeverSpun = !student.lastSpinDate;
+  const canSpin = hasNeverSpun || activeSecondsSinceSpin >= 7200; // 2 hours = 7200 seconds
+
   res.json({
     success: true,
     totalActiveSeconds: usage.totalActiveSeconds,
     activeSecondsSinceLastSpin: activeSecondsSinceSpin,
-    canSpin: activeSecondsSinceSpin >= 7200, // 2 hours = 7200 seconds
+    canSpin,
   });
 });
 
@@ -1218,14 +1250,24 @@ export const deductSessionCredits = asyncHandler(async (req, res) => {
   const student = await Student.findOne({ userId: req.user._id });
   if (!student) return res.status(404).json({ success: false, message: 'Student not found' });
 
-  // Deduct 10 credits
-  const creditsToDeduct = 10;
+  const studentClassStr = student.class || '10';
+  const classNum = parseInt(studentClassStr.replace(/\D/g, ''), 10) || 10;
+  
+  let creditsToDeduct = 4; // default
+  if (classNum >= 1 && classNum <= 8) {
+    creditsToDeduct = 3;
+  } else if (classNum >= 9 && classNum <= 10) {
+    creditsToDeduct = 4;
+  } else if (classNum >= 11 && classNum <= 12) {
+    creditsToDeduct = 5;
+  }
+
   student.wallet.humanChatCredits = Math.max(0, (student.wallet.humanChatCredits || 0) - creditsToDeduct);
   await student.save();
 
   res.json({
     success: true,
-    message: 'Credits deducted successfully',
+    message: `Credits deducted successfully (${creditsToDeduct}/min)`,
     remainingCredits: student.wallet.humanChatCredits
   });
 });

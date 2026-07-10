@@ -1,5 +1,7 @@
 import { io, Socket } from "socket.io-client";
 
+const isDev = import.meta.env.DEV;
+
 let socketInstance: Socket | null = null;
 
 export const getSocket = (): Socket => {
@@ -8,24 +10,25 @@ export const getSocket = (): Socket => {
     const baseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5000/api";
     const socketUrl = baseUrl.replace("/api", "");
 
-    console.log("[Socket] Initializing socket connection to URL:", socketUrl);
+    if (isDev) console.log("[Socket] Connecting to:", socketUrl);
 
     socketInstance = io(socketUrl, {
       auth: { token },
       autoConnect: false,
-      transports: ["websocket", "polling"], // Allow polling fallback in case WebSocket is blocked
+      transports: ["websocket", "polling"],
     });
 
     socketInstance.on("connect", () => {
-      console.log("[Socket] Successfully connected! ID:", socketInstance?.id);
+      if (isDev) console.log("[Socket] Connected. ID:", socketInstance?.id);
     });
 
     socketInstance.on("connect_error", (err) => {
-      console.error("[Socket] Connection error details:", err.message, err);
+      // Always log errors — even in production so engineers can debug via browser devtools if needed
+      console.error("[Socket] Connection error:", err.message);
     });
 
     socketInstance.on("disconnect", (reason) => {
-      console.log("[Socket] Disconnected. Reason:", reason);
+      if (isDev) console.log("[Socket] Disconnected:", reason);
     });
   } else {
     socketInstance.auth = { token };

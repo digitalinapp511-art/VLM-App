@@ -76,16 +76,16 @@ const AvailabilityStatus: React.FC = () => {
   };
 
   return (
-    <div className={cn("min-h-screen flex flex-col items-center p-6 pb-12", bgCss)}>
+    <div className={cn("min-h-screen flex flex-col items-center p-6 pb-6", bgCss)}>
       {/* Header */}
-      <header className="w-full max-w-xl flex items-center mb-10">
+      <header className="w-full max-w-xl flex items-center mb-6">
         <button 
           onClick={() => navigate(-1)} 
           className="p-2 -ml-2 text-zinc-400 hover:text-white transition-colors"
         >
-          <ChevronLeft size={28} />
+          <ChevronLeft size={24} />
         </button>
-        <h1 className="flex-1 text-center text-sm font-bold text-zinc-400 uppercase tracking-widest mr-7">
+        <h1 className="flex-1 text-center text-xs font-bold text-zinc-500 uppercase tracking-widest mr-6">
           Availability Status
         </h1>
       </header>
@@ -113,7 +113,7 @@ const AvailabilityStatus: React.FC = () => {
             variant="offline"
             title="Offline"
             description="Not receiving requests"
-            icon={<Power size={44} strokeWidth={1.5} />}
+            icon={<Power size={28} strokeWidth={1.5} />}
             isSelected={selectedStatus === "offline"}
             onClick={() => setSelectedStatus("offline")}
           />
@@ -132,8 +132,8 @@ const AvailabilityStatus: React.FC = () => {
       </motion.div>
 
       {/* Footer Info */}
-      <footer className="mt-auto w-full max-w-xl flex flex-col gap-8">
-        <p className="text-zinc-500 text-[13px] text-center font-medium leading-relaxed px-4">
+      <footer className="mt-auto w-full max-w-xl flex flex-col gap-4 pt-6">
+        <p className="text-zinc-500 text-[11px] text-center font-medium leading-relaxed px-6">
           Manage incoming student session requests based on your current availability. 
           Changes take effect instantly.
         </p>
@@ -146,9 +146,8 @@ const AvailabilityStatus: React.FC = () => {
             onClick={handleApply}
             disabled={mutation.isPending}
             className={cn(
-              "w-full h-16 rounded-full text-lg font-bold transition-all",
-              "bg-gradient-to-r from-[#2b4b9b] to-[#1a2e5d] hover:brightness-110",
-              "border border-white/10 shadow-2xl text-white flex items-center justify-center gap-2"
+              "w-full h-14 rounded-full text-base font-bold transition-all shadow-none",
+              "border border-[#2b4c9b] bg-[#2b4c9b]/15 hover:bg-[#2b4c9b]/25 text-white flex items-center justify-center gap-2"
             )}
           >
             {mutation.isPending ? "Updating..." : "Apply Status >"}

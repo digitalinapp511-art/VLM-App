@@ -23,13 +23,17 @@ export const authApi = {
       role,
     };
     const { data } = await apiClient.post<VerifyOtpResponse>("/auth/verify-otp", body);
+    // Store the short-lived access token
+    if (data.accessToken) {
+      localStorage.setItem("vlm_token", data.accessToken);
+    }
     return data;
   },
 
   selectRole: async (role: Role) => {
     const { data } = await apiClient.post("/auth/role", { role });
-    if (data.token) {
-      localStorage.setItem("vlm_token", data.token);
+    if (data.accessToken) {
+      localStorage.setItem("vlm_token", data.accessToken);
     }
     return data;
   },

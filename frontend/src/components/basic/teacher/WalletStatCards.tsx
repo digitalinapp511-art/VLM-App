@@ -5,24 +5,20 @@ export const PointsCard = ({ points, inr }: { points: string; inr: string }) => 
   <motion.div
     initial={{ opacity: 0, x: -20 }}
     animate={{ opacity: 1, x: 0 }}
-    className="flex-1 p-6 rounded-[32px] border border-cyan-500/40 bg-zinc-950/40 backdrop-blur-xl flex flex-col justify-between min-h-[280px] shadow-[0_0_40px_rgba(34,211,238,0.1)]"
+    className="p-5 rounded-[24px] border border-cyan-500/40 bg-zinc-950/40 backdrop-blur-xl flex flex-col gap-3 shadow-[0_0_30px_rgba(34,211,238,0.08)]"
   >
-    <div className="space-y-4">
-      <p className="text-[11px] font-bold text-zinc-500 uppercase tracking-widest">Total VLM Points</p>
-      <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-full bg-cyan-400/10 flex items-center justify-center border border-cyan-400/30">
-          <Star className="text-cyan-400 fill-cyan-400" size={20} />
-        </div>
-        <div className="flex flex-col">
-          <span className="text-3xl font-black text-white tracking-tighter leading-none">{points}</span>
-          <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mt-1">Points</span>
+    <div className="flex items-center justify-between">
+      <div className="space-y-1">
+        <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Total VLM Points</p>
+        <div className="flex items-center gap-2 mt-1">
+          <Star className="text-cyan-400 fill-cyan-400" size={16} />
+          <span className="text-2xl font-black text-white tracking-tighter leading-none">{points}</span>
         </div>
       </div>
-    </div>
-
-    <div className="space-y-1 pt-6 border-t border-white/5">
-      <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">INR Equivalent</p>
-      <h3 className="text-2xl font-black text-cyan-400 tracking-tighter">₹ {inr}</h3>
+      <div className="text-right space-y-1">
+        <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">INR Equivalent</p>
+        <h3 className="text-lg font-black text-cyan-400 tracking-tighter mt-1">₹ {inr}</h3>
+      </div>
     </div>
   </motion.div>
 );
