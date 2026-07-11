@@ -116,7 +116,7 @@ export default function ProfileView() {
       console.error(err);
     }
     queryClient.clear();
-    navigate(PATHS.SPLASH, { replace: true });
+    navigate(PATHS.LOGIN_STUDENT, { replace: true });
   };
 
   if (isLoading) return <LoadingSkeleton />;

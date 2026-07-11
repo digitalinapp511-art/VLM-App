@@ -72,7 +72,15 @@ export default function RoleSelectPage() {
       document.documentElement.classList.remove("light");
       document.documentElement.classList.add("dark");
     }
-    navigate(PATHS.LOGIN);
+    if (selected === "student") {
+      navigate(PATHS.LOGIN_STUDENT);
+    } else if (selected === "teacher") {
+      navigate(PATHS.LOGIN_TEACHER);
+    } else if (selected === "parent") {
+      navigate(PATHS.LOGIN_PARENT);
+    } else {
+      navigate(PATHS.LOGIN);
+    }
   };
 
   return (

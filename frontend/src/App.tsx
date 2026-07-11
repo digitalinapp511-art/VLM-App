@@ -122,6 +122,9 @@ function SocketInitializer({ setActiveRequest }: { setActiveRequest: (data: any)
       "/",
       "/role-select",
       "/login",
+      "/login/student",
+      "/login/teacher",
+      "/login/parent",
       "/otp",
       "/coming-soon",
       "/create-profile",
@@ -201,6 +204,7 @@ export default function App() {
           <Route path={PATHS.SPLASH} element={<SplashPage />} />
           <Route path={PATHS.ROLE_SELECT} element={<RoleSelectPage />} />
           <Route path={PATHS.LOGIN} element={<LoginPage />} />
+          <Route path="/login/:role" element={<LoginPage />} />
           <Route path={PATHS.OTP} element={<OtpPage />} />
           <Route path={PATHS.COMING_SOON} element={<ComingSoonPage />} />
 

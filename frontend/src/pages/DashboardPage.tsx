@@ -6,9 +6,18 @@ export default function DashboardPage() {
   const navigate = useNavigate();
 
   const handleLogout = () => {
+    const role = localStorage.getItem("vlm_role");
     localStorage.removeItem("vlm_token");
     localStorage.removeItem("vlm_role");
-    navigate(PATHS.SPLASH, { replace: true });
+    if (role === "student") {
+      navigate(PATHS.LOGIN_STUDENT, { replace: true });
+    } else if (role === "teacher") {
+      navigate(PATHS.LOGIN_TEACHER, { replace: true });
+    } else if (role === "parent") {
+      navigate(PATHS.LOGIN_PARENT, { replace: true });
+    } else {
+      navigate(PATHS.ROLE_SELECT, { replace: true });
+    }
   };
 
   return (

@@ -1,11 +1,5 @@
 import mongoose from 'mongoose';
 
-/**
- * TeacherMetrics
- * Separated from Teacher to avoid document size issues.
- * Contains all frequently-updated counters and performance data.
- * One-to-one with Teacher via teacherId.
- */
 const teacherMetricsSchema = new mongoose.Schema(
   {
     teacherId: { type: mongoose.Schema.Types.ObjectId, ref: 'Teacher', required: true, unique: true },

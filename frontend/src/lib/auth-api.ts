@@ -50,7 +50,6 @@ export const authApi = {
     } finally {
       // Always clear all VLM session data regardless of API response
       localStorage.removeItem("vlm_token");
-      localStorage.removeItem("vlm_role");
       sessionStorage.removeItem("vlm_email");
       sessionStorage.removeItem("vlm_auth_email");
       sessionStorage.removeItem("vlm_sent_otp");

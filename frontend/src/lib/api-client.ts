@@ -75,7 +75,12 @@ apiClient.interceptors.response.use(
       } catch (refreshError) {
         processQueue(refreshError, null);
         localStorage.removeItem("vlm_token");
-        window.location.href = "/login";     // refresh token also expired → full logout
+        const role = localStorage.getItem("vlm_role");
+        if (role === "student" || role === "teacher" || role === "parent") {
+          window.location.href = `/login/${role}`;
+        } else {
+          window.location.href = "/role-select";
+        }
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;

@@ -41,7 +41,7 @@ export default function TeacherProfile() {
       console.error("Logout failed:", error);
     }
     queryClient.clear();
-    navigate(PATHS.SPLASH, { replace: true });
+    navigate(PATHS.LOGIN_TEACHER, { replace: true });
   };
 
   const startVerification = async (type: "email" | "mobile", value: string) => {

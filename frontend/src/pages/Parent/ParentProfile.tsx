@@ -65,7 +65,7 @@ export default function ParentProfile() {
       console.error("Logout failed:", error);
     }
     queryClient.clear();
-    navigate(PATHS.SPLASH, { replace: true });
+    navigate(PATHS.LOGIN_PARENT, { replace: true });
   };
 
   const parentName = profile?.fullName || "Parent";

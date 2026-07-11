@@ -4,6 +4,9 @@ export const PATHS = {
   SPLASH: "/",
   ROLE_SELECT: "/role-select",
   LOGIN: "/login",
+  LOGIN_STUDENT: "/login/student",
+  LOGIN_TEACHER: "/login/teacher",
+  LOGIN_PARENT: "/login/parent",
   OTP: "/otp",
   COMING_SOON: "/coming-soon",
 

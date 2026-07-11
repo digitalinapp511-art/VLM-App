@@ -1,10 +1,5 @@
 import mongoose from 'mongoose';
 
-/**
- * TeacherAvailability
- * Separated from Teacher to avoid unbounded array growth in the Teacher document.
- * One-to-many with Teacher — each doc is one time slot.
- */
 const teacherAvailabilitySchema = new mongoose.Schema(
   {
     teacherId: { type: mongoose.Schema.Types.ObjectId, ref: 'Teacher', required: true, index: true },

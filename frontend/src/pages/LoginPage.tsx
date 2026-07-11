@@ -1,5 +1,5 @@
-import { useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useRef, useState, useEffect } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import { Star } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { VlmWordmark } from "@/components/basic/VlmWordMark";
@@ -39,11 +39,27 @@ const DECORATIONS = [
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const { role: urlRole } = useParams<{ role: string }>();
   const emailRef = useRef<HTMLInputElement>(null);
   const phoneRef = useRef<HTMLInputElement>(null);
-  const role = (localStorage.getItem("vlm_role") ?? sessionStorage.getItem("vlm_role") ?? "student") as import("@/types").Role;
+  const role = (urlRole ?? localStorage.getItem("vlm_role") ?? sessionStorage.getItem("vlm_role") ?? "student") as import("@/types").Role;
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
+
+  useEffect(() => {
+    const activeRole = urlRole || localStorage.getItem("vlm_role") || sessionStorage.getItem("vlm_role") || "student";
+    if (["student", "teacher", "parent"].includes(activeRole)) {
+      localStorage.setItem("vlm_role", activeRole);
+      if (activeRole === "student") {
+        localStorage.setItem("vlm_student_theme", "light");
+        document.documentElement.classList.remove("dark");
+        document.documentElement.classList.add("light");
+      } else {
+        document.documentElement.classList.remove("light");
+        document.documentElement.classList.add("dark");
+      }
+    }
+  }, [urlRole]);
 
 
   const loginMutation = useSendOtp();
