@@ -190,7 +190,7 @@ export default function CreateProfileShadcn() {
   const [email, setEmail] = useState("");
   const [parentMobile, setParentMobile] = useState("");
 
-  const [errors, setErrors] = useState<{ [key: string]: boolean }>({});
+  const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -231,19 +231,39 @@ export default function CreateProfileShadcn() {
   ];
 
   const validate = () => {
-    const newErrors: { [key: string]: boolean } = {};
-    if (!firstName.trim()) newErrors.firstName = true;
-    if (!lastName.trim()) newErrors.lastName = true;
-    if (!gender) newErrors.gender = true;
-    if (!dateOfBirth) newErrors.dateOfBirth = true;
-    if (!className) newErrors.className = true;
-    if (!board) newErrors.board = true;
-    if (!medium) newErrors.medium = true;
-    if (!city.trim()) newErrors.city = true;
-    if (!state) newErrors.state = true;
-    if (!mobile.trim() || mobile.trim().length !== 10) newErrors.mobile = true;
-    if (!email.trim()) newErrors.email = true;
-    if (!parentMobile.trim() || parentMobile.trim().length !== 10) newErrors.parentMobile = true;
+    const newErrors: { [key: string]: string } = {};
+    if (!firstName.trim()) newErrors.firstName = "First Name is required";
+    if (!lastName.trim()) newErrors.lastName = "Last Name is required";
+    if (!gender) newErrors.gender = "Gender is required";
+    
+    if (!dateOfBirth) {
+      newErrors.dateOfBirth = "Date of birth is required";
+    } else {
+      const birthDate = new Date(dateOfBirth);
+      const today = new Date();
+      let age = today.getFullYear() - birthDate.getFullYear();
+      const m = today.getMonth() - birthDate.getMonth();
+      if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+        age--;
+      }
+
+      if (birthDate.getFullYear() < today.getFullYear() - 100) {
+        newErrors.dateOfBirth = "Enter a valid year (max 100 years old)";
+      } else if (age < 8) {
+        newErrors.dateOfBirth = "Student must be at least 8 years old";
+      } else if (birthDate > today) {
+        newErrors.dateOfBirth = "Future dates are not allowed";
+      }
+    }
+
+    if (!className) newErrors.className = "Class is required";
+    if (!board) newErrors.board = "Board is required";
+    if (!medium) newErrors.medium = "Medium is required";
+    if (!city.trim()) newErrors.city = "City is required";
+    if (!state) newErrors.state = "State is required";
+    if (!mobile.trim() || mobile.trim().length !== 10) newErrors.mobile = "Valid 10-digit mobile is required";
+    if (!email.trim()) newErrors.email = "Email is required";
+    if (!parentMobile.trim() || parentMobile.trim().length !== 10) newErrors.parentMobile = "Valid 10-digit parent mobile is required";
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -421,7 +441,7 @@ export default function CreateProfileShadcn() {
                 }}
                 className={cn(inputCls, "text-slate-800 dark:text-white [color-scheme:light] dark:[color-scheme:dark]", errors.dateOfBirth && "border-red-500 bg-red-50/50 dark:bg-red-950/20 focus-visible:ring-red-500/50")}
               />
-              {errors.dateOfBirth && <span className="text-[10px] text-red-500 font-bold mt-0.5 block">Date of birth is required</span>}
+              {errors.dateOfBirth && <span className="text-[10px] text-red-500 font-bold mt-0.5 block">{errors.dateOfBirth}</span>}
             </Field>
           </div>
 

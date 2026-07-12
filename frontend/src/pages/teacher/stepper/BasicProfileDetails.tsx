@@ -108,7 +108,25 @@ const BasicProfileDetails: React.FC = () => {
     if (!form.firstName.trim()) newErrors.firstName = "First Name is required";
     if (!form.lastName.trim()) newErrors.lastName = "Last Name is required";
     if (!form.gender) newErrors.gender = "Gender is required";
-    if (!form.dob) newErrors.dob = "Date of birth is required";
+    if (!form.dob) {
+      newErrors.dob = "Date of birth is required";
+    } else {
+      const birthDate = new Date(form.dob);
+      const today = new Date();
+      let age = today.getFullYear() - birthDate.getFullYear();
+      const m = today.getMonth() - birthDate.getMonth();
+      if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+        age--;
+      }
+
+      if (birthDate.getFullYear() < today.getFullYear() - 100) {
+        newErrors.dob = "Enter a valid year (max 100 years old)";
+      } else if (age < 18) {
+        newErrors.dob = "Teacher must be at least 18 years old";
+      } else if (birthDate > today) {
+        newErrors.dob = "Future dates are not allowed";
+      }
+    }
     if (!form.address.trim()) newErrors.address = "Address is required";
     if (!form.city.trim()) newErrors.city = "City is required";
     if (!form.state.trim()) newErrors.state = "State is required";
@@ -310,7 +328,7 @@ const BasicProfileDetails: React.FC = () => {
               )}>
                 <div className="flex items-center gap-3">
                   <MapPin size={18} className="text-blue-400/80 shrink-0 stroke-[1.5]" />
-                  <div className="flex flex-1 flex-col overflow-hidden leading-tight">
+                  <div className="flex flex-1 flex-col leading-tight">
                     <span className="text-[11px] font-bold text-zinc-100 uppercase tracking-tight flex items-center gap-0.5">
                       City
                       <span className="text-red-500 font-black text-xs inline-block ml-0.5">*</span>
@@ -340,7 +358,7 @@ const BasicProfileDetails: React.FC = () => {
               )}>
                 <div className="flex items-center gap-3">
                   <Globe size={18} className="text-blue-400/80 shrink-0 stroke-[1.5]" />
-                  <div className="flex flex-1 flex-col overflow-hidden leading-tight">
+                  <div className="flex flex-1 flex-col leading-tight">
                     <span className="text-[11px] font-bold text-zinc-100 uppercase tracking-tight flex items-center gap-0.5">
                       State
                       <span className="text-red-500 font-black text-xs inline-block ml-0.5">*</span>
@@ -487,28 +505,31 @@ function AutocompleteDropdown({ placeholder, value, options, onChange, allowCust
   );
 
   return (
-    <div className="relative w-full" ref={ref}>
-      <input
-        type="text"
-        placeholder={placeholder}
-        value={displayValue}
-        onFocus={() => setOpen(true)}
-        onChange={(e) => {
-          setSearchQuery(e.target.value);
-          setOpen(true);
-          if (allowCustomVal) {
-            onChange(e.target.value);
-          } else {
-            const matched = options.find(opt => opt.toLowerCase() === e.target.value.toLowerCase());
-            if (matched) {
-              onChange(matched);
-            } else if (!e.target.value) {
-              onChange("");
+    <div className="relative w-full cursor-pointer" ref={ref} onClick={() => setOpen(true)}>
+      <div className="flex items-center justify-between gap-1">
+        <input
+          type="text"
+          placeholder={placeholder}
+          value={displayValue}
+          onFocus={() => setOpen(true)}
+          onChange={(e) => {
+            setSearchQuery(e.target.value);
+            setOpen(true);
+            if (allowCustomVal) {
+              onChange(e.target.value);
+            } else {
+              const matched = options.find(opt => opt.toLowerCase() === e.target.value.toLowerCase());
+              if (matched) {
+                onChange(matched);
+              } else if (!e.target.value) {
+                onChange("");
+              }
             }
-          }
-        }}
-        className="bg-transparent border-none outline-none p-0 m-0 text-[14px] w-full text-zinc-350 focus-visible:ring-0 placeholder:text-zinc-650"
-      />
+          }}
+          className="bg-transparent border-none outline-none p-0 m-0 text-[14px] w-full text-zinc-350 focus-visible:ring-0 placeholder:text-zinc-650"
+        />
+        <ChevronDown size={14} className={cn("text-zinc-500 transition-transform duration-200 shrink-0", open && "rotate-180")} />
+      </div>
 
       {open && (
         <div className="absolute left-0 right-0 mt-3 z-[999] rounded-2xl bg-zinc-900 border border-zinc-800 shadow-xl py-1 overflow-hidden flex flex-col">

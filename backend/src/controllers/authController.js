@@ -9,6 +9,8 @@ import { generateAccessToken, generateRefreshToken, setRefreshCookie, clearRefre
 import { asyncHandler } from '../middleware/errorHandler.js';
 import { generateOtp, generateReferralCode } from '../utils/helpers.js';
 import { ROLES } from '../config/constants.js';
+import { sendOtpViaWidget, verifyOtpViaWidget } from '../services/msg91Service.js';
+
 
 /* ─────────────────────────────────────────────────────────────────────
  * HELPERS
@@ -120,7 +122,30 @@ export const sendOtp = asyncHandler(async (req, res) => {
     }
   }
 
-  const otp = generateOtp();
+  const identifier = mobile || email;
+  let msg91Result = { success: false, message: 'Email login initiated' };
+
+  if (mobile) {
+    msg91Result = await sendOtpViaWidget(mobile);
+  }
+
+  let otp;
+  let reqId;
+
+  if (msg91Result.success) {
+    reqId = msg91Result.reqId;
+  } else {
+    if (process.env.NODE_ENV === 'development') {
+      otp = generateOtp();
+      console.log(`\x1b[33m%s\x1b[0m`, `[DEV ONLY] Mock OTP for ${identifier}: ${otp}`);
+    } else {
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to send OTP. Please try again later.',
+      });
+    }
+  }
+
   const expiresAt = new Date(Date.now() + (parseInt(process.env.OTP_EXPIRY_MINUTES || '10', 10) * 60000));
 
   // Clear any old OTPs for this exact identifier
@@ -128,12 +153,12 @@ export const sendOtp = asyncHandler(async (req, res) => {
   if (mobile) otpFilter.mobile = mobile;
   if (email)  otpFilter.email  = email;
   await Otp.deleteMany(otpFilter);
-  await Otp.create({ mobile, email, otp, purpose, expiresAt });
+  await Otp.create({ mobile, email, otp, reqId, purpose, expiresAt });
 
   res.json({
     success: true,
-    message: 'OTP sent successfully',
-    ...(process.env.NODE_ENV === 'development' && { otp }),
+    message: msg91Result.message || 'OTP sent successfully',
+    ...(process.env.NODE_ENV === 'development' && !mobile && { otp }),
   });
 });
 
@@ -167,10 +192,19 @@ export const verifyOtp = asyncHandler(async (req, res) => {
   if (otpRecord.attempts >= parseInt(process.env.OTP_MAX_RETRIES || '5', 10)) {
     return res.status(429).json({ success: false, message: 'Max retries reached. Please request a new OTP.' });
   }
-  if (otpRecord.otp !== String(otp)) {
-    otpRecord.attempts += 1;
-    await otpRecord.save();
-    return res.status(400).json({ success: false, message: 'Invalid OTP. Please try again.' });
+  if (otpRecord.reqId) {
+    const verifyResult = await verifyOtpViaWidget(otpRecord.reqId, otp);
+    if (!verifyResult.success) {
+      otpRecord.attempts += 1;
+      await otpRecord.save();
+      return res.status(400).json({ success: false, message: verifyResult.message || 'Invalid OTP. Please try again.' });
+    }
+  } else {
+    if (otpRecord.otp !== String(otp)) {
+      otpRecord.attempts += 1;
+      await otpRecord.save();
+      return res.status(400).json({ success: false, message: 'Invalid OTP. Please try again.' });
+    }
   }
 
   otpRecord.verified = true;
@@ -372,8 +406,15 @@ export const verifyProfileContact = asyncHandler(async (req, res) => {
   if (otpRecord.expiresAt < new Date()) {
     return res.status(400).json({ success: false, message: 'OTP expired. Please request a new one.' });
   }
-  if (otpRecord.otp !== String(otp)) {
-    return res.status(400).json({ success: false, message: 'Invalid OTP. Please try again.' });
+  if (otpRecord.reqId) {
+    const verifyResult = await verifyOtpViaWidget(otpRecord.reqId, otp);
+    if (!verifyResult.success) {
+      return res.status(400).json({ success: false, message: verifyResult.message || 'Invalid OTP. Please try again.' });
+    }
+  } else {
+    if (otpRecord.otp !== String(otp)) {
+      return res.status(400).json({ success: false, message: 'Invalid OTP. Please try again.' });
+    }
   }
 
   otpRecord.verified = true;

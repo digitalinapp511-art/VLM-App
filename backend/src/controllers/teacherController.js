@@ -252,6 +252,24 @@ export const getDashboard = asyncHandler(async (req, res) => {
 });
 
 export const updateProfile = asyncHandler(async (req, res) => {
+  // Validate DOB if provided
+  if (req.body.dob !== undefined) {
+    const birthDate = new Date(req.body.dob);
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const m = today.getMonth() - birthDate.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+
+    if (birthDate.getFullYear() < today.getFullYear() - 100 || birthDate > today) {
+      return res.status(400).json({ success: false, message: 'Invalid Date of Birth' });
+    }
+    if (age < 18) {
+      return res.status(400).json({ success: false, message: 'Teacher must be at least 18 years old' });
+    }
+  }
+
   let teacher = await Teacher.findOne({ userId: req.user._id });
   if (!teacher) {
     teacher = await Teacher.create({

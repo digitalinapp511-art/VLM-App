@@ -34,6 +34,24 @@ const logStudentPointsTransaction = async (userId, points, type, description) =>
 };
 
 export const createStudentProfile = asyncHandler(async (req, res) => {
+  // Validate DOB if provided
+  if (req.body.dateOfBirth) {
+    const birthDate = new Date(req.body.dateOfBirth);
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const m = today.getMonth() - birthDate.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+
+    if (birthDate.getFullYear() < today.getFullYear() - 100 || birthDate > today) {
+      return res.status(400).json({ success: false, message: 'Invalid Date of Birth' });
+    }
+    if (age < 8) {
+      return res.status(400).json({ success: false, message: 'Student must be at least 8 years old' });
+    }
+  }
+
   // Fetch the User to sync verified email/mobile
   const authUser = await User.findById(req.user._id);
   if (!authUser) return res.status(401).json({ success: false, message: 'Unauthorized' });

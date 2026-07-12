@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   BookOpen,
@@ -60,6 +60,12 @@ const ROLES: RoleConfig[] = [
 export default function RoleSelectPage() {
   const navigate = useNavigate();
   const [selected, setSelected] = useState<Role | null>(null);
+
+  useEffect(() => {
+    // RoleSelectPage is built around a dark layout. Reset to dark mode on mount.
+    document.documentElement.classList.remove("light");
+    document.documentElement.classList.add("dark");
+  }, []);
 
   const handleContinue = () => {
     if (!selected) return;
