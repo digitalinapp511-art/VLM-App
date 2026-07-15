@@ -54,6 +54,7 @@ export default function Mcq() {
   const [timeLeft, setTimeLeft] = useState(1200); // 20 minutes in seconds
   const [showExitWarning, setShowExitWarning] = useState(false);
   const [showLeaderboardModal, setShowLeaderboardModal] = useState(false);
+  const [selectedHistoryTask, setSelectedHistoryTask] = useState<any>(null);
 
   // Timer Effect
   useEffect(() => {
@@ -82,6 +83,14 @@ export default function Mcq() {
     queryFn: () => studentApi.getDailyMcq(),
   });
 
+  // Fetch MCQ history
+  const { data: historyData } = useQuery({
+    queryKey: ["mcqHistory"],
+    queryFn: () => studentApi.getMcqHistory(),
+  });
+
+  const historyList = historyData?.data || [];
+
   const student = (profile as any)?.data ?? profile;
   const task = mcqData?.data || mcqData?.task;
   const questionsList = task?.questions || [];
@@ -96,6 +105,18 @@ export default function Mcq() {
     correctAnswer: String.fromCharCode(65 + (typeof q.correctAnswer === 'number' ? q.correctAnswer : (q.options as string[]).indexOf(q.answer || q.correctAnswer))),
     _dbAnswer: q.answer || q.correctAnswer,
   }));
+
+  // Load answers if quiz is already completed
+  useEffect(() => {
+    if (task && task.status === 'completed' && task.answers) {
+      const loadedAnswers: Record<number, string> = {};
+      task.answers.forEach((ans: any) => {
+        const optionLetter = String.fromCharCode(65 + ans.selectedAnswer);
+        loadedAnswers[ans.questionIndex] = optionLetter;
+      });
+      setUserAnswers(loadedAnswers);
+    }
+  }, [task]);
 
   const streak = mcqData?.streak ?? student?.streak ?? 0;
   const completedDays = mcqData?.completedDays || [];
@@ -249,6 +270,51 @@ export default function Mcq() {
             >
               {isAlreadyDone ? "Challenge Completed" : "Start Daily MCQ"}
             </Button>
+
+            {/* PRACTICE HISTORY SECTION */}
+            <div className="w-full text-left space-y-3 pt-4">
+              <h3 className="text-xs font-black text-slate-800 dark:text-white uppercase tracking-wider pl-1">
+                Practice History
+              </h3>
+              {historyList.length === 0 ? (
+                <Card className="border border-slate-100 dark:border-[#221c4e] bg-white dark:bg-[#161233] rounded-[2rem] p-5 text-center">
+                  <p className="text-xs font-bold text-slate-400">No previous practice data available.</p>
+                </Card>
+              ) : (
+                <div className="space-y-2.5 max-h-[40vh] overflow-y-auto no-scrollbar">
+                  {historyList.map((histTask: any) => {
+                    const dateStr = new Date(histTask.completedAt || histTask.updatedAt).toLocaleDateString("en-US", {
+                      weekday: 'short', month: 'short', day: 'numeric', year: 'numeric'
+                    });
+                    
+                    return (
+                      <Card 
+                        key={histTask._id} 
+                        onClick={() => setSelectedHistoryTask(histTask)}
+                        className="border border-slate-100 dark:border-[#221c4e] bg-white dark:bg-[#161233] rounded-2xl p-4 flex items-center justify-between cursor-pointer hover:border-violet-500/20 active:scale-[0.99] transition-all shadow-sm"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="h-9 w-9 rounded-xl bg-violet-50 dark:bg-violet-950/20 flex items-center justify-center text-violet-600 dark:text-violet-400">
+                            <Calendar size={18} />
+                          </div>
+                          <div>
+                            <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider leading-none">Completed MCQ</p>
+                            <h4 className="text-xs font-black text-slate-850 dark:text-white mt-1 leading-tight">{dateStr}</h4>
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-black text-cyan-500 bg-cyan-500/10 px-2 py-0.5 rounded-lg">
+                            {histTask.score}/{histTask.questions?.length || 0}
+                          </span>
+                          <ChevronRight size={16} className="text-slate-400" />
+                        </div>
+                      </Card>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </main>
 
         </div>
@@ -288,7 +354,7 @@ export default function Mcq() {
                   <div className="col-span-2">Rank</div>
                   <div className="col-span-4 text-left">Name</div>
                   <div className="col-span-2">Class</div>
-                  <div className="col-span-2">Pts</div>
+                  <div className="col-span-2">XP</div>
                   <div className="col-span-2">Streak</div>
                 </div>
 
@@ -331,9 +397,9 @@ export default function Mcq() {
                           {user.class || student?.class || "12"}
                         </div>
 
-                        {/* Pts */}
+                        {/* MCQ Points (XP) */}
                         <div className="col-span-2 text-cyan-500 font-black">
-                          {user.totalPoints || 0}
+                          {user.mcqPoints || 0}
                         </div>
 
                         {/* Streak */}
@@ -347,6 +413,113 @@ export default function Mcq() {
 
                 <div className="border-t border-slate-100 dark:border-slate-800 pt-3 mt-4 text-center">
                   <p className="text-[9px] text-slate-450 font-bold uppercase tracking-wider">Rankings updated daily based on quiz activity</p>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+
+        {/* ── HISTORY REVIEW MODAL ── */}
+        <AnimatePresence>
+          {selectedHistoryTask && (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setSelectedHistoryTask(null)}
+                className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+              />
+
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 15 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 15 }}
+                className="relative w-full max-w-md rounded-[2.5rem] border border-slate-100 dark:border-[#221c4e] bg-[#f4f6ff] dark:bg-[#0b081e] p-5 flex flex-col max-h-[85vh] shadow-2xl text-slate-800 dark:text-slate-100"
+              >
+                <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3 shrink-0">
+                  <div>
+                    <h3 className="text-xs font-black tracking-wider uppercase text-slate-800 dark:text-white">
+                      Practice History Review
+                    </h3>
+                    <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase mt-0.5">
+                      {new Date(selectedHistoryTask.completedAt || selectedHistoryTask.updatedAt).toLocaleDateString("en-US", {
+                        month: 'short', day: 'numeric', year: 'numeric'
+                      })} • Score: {selectedHistoryTask.score}/{selectedHistoryTask.questions?.length}
+                    </p>
+                  </div>
+                  <button 
+                    onClick={() => setSelectedHistoryTask(null)}
+                    className="h-7 w-7 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-850 flex items-center justify-center text-slate-400 hover:text-slate-700 dark:hover:text-white"
+                  >
+                    <XCircle size={16} />
+                  </button>
+                </div>
+
+                <div className="flex-1 overflow-y-auto py-4 space-y-3 pr-1 no-scrollbar">
+                  {selectedHistoryTask.questions.map((q: any, idx: number) => {
+                    const savedAns = selectedHistoryTask.answers?.find((a: any) => a.questionIndex === idx);
+                    const selectedIdx = savedAns?.selectedAnswer;
+                    const selectedLetter = selectedIdx !== undefined ? String.fromCharCode(65 + selectedIdx) : "";
+                    const correctLetter = String.fromCharCode(65 + q.correctAnswer);
+                    const isCorrect = selectedLetter === correctLetter;
+                    
+                    return (
+                      <Card key={q._id || idx} className="border border-slate-100 dark:border-slate-800 rounded-3xl p-5 bg-white dark:bg-[#161233] text-left">
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">
+                              Question {idx + 1}
+                            </span>
+                            <span className={cn(
+                              "text-[9px] font-black uppercase px-2.5 py-1 rounded-full",
+                              isCorrect 
+                                ? "bg-green-50 text-green-700 dark:bg-green-950/20 dark:text-green-400"
+                                : "bg-red-50 text-red-700 dark:bg-red-950/20 dark:text-red-400"
+                            )}>
+                              {isCorrect ? "Correct" : "Incorrect"}
+                            </span>
+                          </div>
+                          <h4 className="text-sm font-bold text-slate-850 dark:text-white leading-snug">
+                            {q.question}
+                          </h4>
+                          
+                          <div className="space-y-2 pt-1">
+                            {q.options.map((opt: string, i: number) => {
+                              const optLetter = String.fromCharCode(65 + i);
+                              const isUserSelected = selectedLetter === optLetter;
+                              const isCorrectOpt = correctLetter === optLetter;
+                              
+                              let optStyle = "border-slate-100 dark:border-slate-900 bg-slate-50/50 dark:bg-slate-900/20";
+                              let badgeStyle = "bg-slate-100 dark:bg-slate-950 border-slate-200 dark:border-slate-850 text-slate-450";
+                              
+                              if (isCorrectOpt) {
+                                optStyle = "border-green-500 bg-green-50/30 dark:bg-green-950/10";
+                                badgeStyle = "bg-green-600 border-green-600 text-white";
+                              } else if (isUserSelected && !isCorrectOpt) {
+                                optStyle = "border-red-500 bg-red-50/30 dark:bg-red-950/10";
+                                badgeStyle = "bg-red-600 border-red-600 text-white";
+                              }
+                              
+                              return (
+                                <div key={optLetter} className={cn("border rounded-xl px-3 py-2 flex items-center gap-3 text-xs font-bold transition-all", optStyle)}>
+                                  <div className={cn("h-6 w-6 shrink-0 flex items-center justify-center rounded-full text-[10px] font-black border", badgeStyle)}>
+                                    {optLetter}
+                                  </div>
+                                  <span className={cn(
+                                    "leading-tight",
+                                    isCorrectOpt ? "text-green-700 dark:text-green-400" : isUserSelected ? "text-red-700 dark:text-red-400" : "text-slate-650 dark:text-slate-350"
+                                  )}>
+                                    {opt}
+                                  </span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </Card>
+                    );
+                  })}
                 </div>
               </motion.div>
             </div>
@@ -408,10 +581,11 @@ export default function Mcq() {
 
           <main className="w-full space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
             {/* Stats Grid */}
-            <div className="grid grid-cols-3 gap-3 w-full">
+            <div className="grid grid-cols-4 gap-2 w-full">
               <StatCard label="Score" value={`${score}/${totalQuestions}`} sub="TOTAL SCORE" color="cyan" />
               <StatCard label="Accuracy" value={`${accuracy}%`} sub="QUIZ ACCURACY" color="cyan" />
-              <StatCard label="PTS Earned" value={`${pts} PTS`} sub="PTS REWARD" color="gold" />
+              <StatCard label="XP Earned" value={`${score * 10} XP`} sub="LEADERBOARD XP" color="cyan" />
+              <StatCard label="PTS Earned" value={`${pts} PTS`} sub="WALLET REWARD" color="gold" />
             </div>
 
             {/* Pie Chart Card */}
@@ -443,6 +617,74 @@ export default function Mcq() {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Question Review List */}
+            <div className="space-y-4 text-left">
+              <h3 className="text-sm font-black text-slate-850 dark:text-white uppercase tracking-wider pl-1">
+                Question Review
+              </h3>
+              <div className="space-y-3">
+                {questions.map((q: any, idx: number) => {
+                  const userAnswer = userAnswers[idx];
+                  const isCorrect = userAnswer === q.correctAnswer;
+                  
+                  return (
+                    <Card key={q.id} className="border border-slate-100 dark:border-slate-800 rounded-3xl p-5 bg-white dark:bg-[#161233]">
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-black text-slate-450 dark:text-slate-500 uppercase tracking-widest">
+                            Question {idx + 1}
+                          </span>
+                          <span className={cn(
+                            "text-[9px] font-black uppercase px-2.5 py-1 rounded-full",
+                            isCorrect 
+                              ? "bg-green-50 text-green-700 dark:bg-green-950/20 dark:text-green-400"
+                              : "bg-red-50 text-red-700 dark:bg-red-950/20 dark:text-red-400"
+                          )}>
+                            {isCorrect ? "Correct" : "Incorrect"}
+                          </span>
+                        </div>
+                        <h4 className="text-sm font-bold text-slate-850 dark:text-white leading-snug">
+                          {q.question}
+                        </h4>
+                        
+                        <div className="space-y-2 pt-1">
+                          {q.options.map((opt: any) => {
+                            const isUserSelected = userAnswer === opt.id;
+                            const isCorrectOpt = q.correctAnswer === opt.id;
+                            
+                            let optStyle = "border-slate-100 dark:border-slate-900 bg-slate-50/50 dark:bg-slate-900/20";
+                            let badgeStyle = "bg-slate-100 dark:bg-slate-950 border-slate-200 dark:border-slate-850 text-slate-450";
+                            
+                            if (isCorrectOpt) {
+                              optStyle = "border-green-500 bg-green-50/30 dark:bg-green-950/10";
+                              badgeStyle = "bg-green-600 border-green-600 text-white";
+                            } else if (isUserSelected && !isCorrectOpt) {
+                              optStyle = "border-red-500 bg-red-50/30 dark:bg-red-950/10";
+                              badgeStyle = "bg-red-600 border-red-600 text-white";
+                            }
+                            
+                            return (
+                              <div key={opt.id} className={cn("border rounded-xl px-3 py-2 flex items-center gap-3 text-xs font-bold transition-all", optStyle)}>
+                                <div className={cn("h-6 w-6 shrink-0 flex items-center justify-center rounded-full text-[10px] font-black border", badgeStyle)}>
+                                  {opt.id}
+                                </div>
+                                <span className={cn(
+                                  "leading-tight",
+                                  isCorrectOpt ? "text-green-700 dark:text-green-400" : isUserSelected ? "text-red-700 dark:text-red-400" : "text-slate-650 dark:text-slate-350"
+                                )}>
+                                  {opt.text}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </Card>
+                  );
+                })}
+              </div>
+            </div>
 
             {/* Action Buttons */}
             <div className="w-full">

@@ -16,7 +16,7 @@ const seedAdmin = async () => {
       await User.create({
         email: 'admin@vlm.com',
         password: 'AdminPassword123',
-        roles: ['admin'],
+        role: 'admin',
         activeRole: 'admin',
         isEmailVerified: true
       });

@@ -1,7 +1,3 @@
-/**
- * Service to handle OTP sending and verification via MSG91 OTP Widget.
- */
-
 
 
 /**

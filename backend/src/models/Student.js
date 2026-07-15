@@ -54,6 +54,7 @@ const studentSchema = new mongoose.Schema(
     teacherReferralCode: { type: String, unique: true, sparse: true },
     leaderboardRank: { type: Number, default: 0 },
     totalPoints: { type: Number, default: 0 },
+    mcqPoints: { type: Number, default: 0 },
     onboardingCompleted: { type: Boolean, default: false },
     linkedParents: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Parent' }],
   },

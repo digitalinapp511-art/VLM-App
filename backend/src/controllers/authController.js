@@ -47,24 +47,16 @@ async function checkRoleLevelDuplicate(mobile, email, role, excludeUserId = null
 
 /** Find a User who already has this credential AND this role. */
 async function findUserByCredentialAndRole(mobile, email, role) {
+  if (!role) return null;
   const orClauses = [];
   if (mobile) orClauses.push({ mobile });
   if (email)  orClauses.push({ email });
   if (!orClauses.length) return null;
 
-  const candidates = await User.find({ $or: orClauses });
-  if (!candidates.length) return null;
-
-  // Prefer the one that already has the requested role
-  if (role) {
-    const withRole = candidates.find(u => u.roles.includes(role));
-    if (withRole) return withRole;
-  }
-  // If only one candidate exists, return it (new-user path, role will be added)
-  if (candidates.length === 1) return candidates[0];
-
-  // Multiple candidates, none with this role → new user needs to be created
-  return null;
+  return User.findOne({
+    role,
+    $or: orClauses
+  });
 }
 
 /** Build the public user payload sent to the client. */
@@ -73,8 +65,8 @@ function buildUserPayload(user) {
     id: user._id,
     mobile: user.mobile,
     email: user.email,
-    roles: user.roles,
-    activeRole: user.activeRole,
+    roles: [user.role],
+    activeRole: user.activeRole || user.role,
     isMobileVerified: user.isMobileVerified,
     isEmailVerified:  user.isEmailVerified,
     status: user.status,
@@ -110,16 +102,7 @@ export const sendOtp = asyncHandler(async (req, res) => {
 
   // ── PRE-CHECK for login: ensure a user with this credential+role exists ──
   if (role && purpose === 'login') {
-    const user = await findUserByCredentialAndRole(mobile, email, role);
-    if (!user) {
-      // No account at all? Let them through (they'll create one on OTP verify)
-    } else if (user.roles.length > 0 && !user.roles.includes(role)) {
-      return res.status(403).json({
-        success: false,
-        message: `No ${role} account found with this ${mobile ? 'phone number' : 'email'}. Please use the correct login portal.`,
-        existingRoles: user.roles,
-      });
-    }
+    await findUserByCredentialAndRole(mobile, email, role);
   }
 
   const identifier = mobile || email;
@@ -215,46 +198,12 @@ export const verifyOtp = asyncHandler(async (req, res) => {
   let isNewUser = false;
 
   if (!user) {
-    // ── Role-level duplicate check before creating ──
-    // Ensures two different students cannot share the same phone/email
-    if (role) {
-      const dup = await checkRoleLevelDuplicate(mobile, email, role);
-      if (dup.conflict) {
-        // There's already a profile in this role with this credential.
-        // Load that user and log them in (covers case where User doc was orphaned).
-        const linkedUser = await User.findById(dup.userId);
-        if (linkedUser) {
-          if (!linkedUser.roles.includes(role)) linkedUser.roles.push(role);
-          linkedUser.activeRole = role;
-          if (mobile && !linkedUser.mobile) linkedUser.mobile = mobile;
-          if (email  && !linkedUser.email)  linkedUser.email  = email;
-          if (mobile) linkedUser.isMobileVerified = true;
-          if (email)  linkedUser.isEmailVerified  = true;
-          linkedUser.lastLogin = new Date();
-          await linkedUser.save();
-          const accessToken = generateAccessToken(linkedUser._id);
-          const refreshToken = generateRefreshToken(linkedUser._id);
-          setRefreshCookie(res, refreshToken);
-          const profile = await getProfileForRole(linkedUser);
-          return res.json({
-            success: true, message: 'OTP verified', accessToken,
-            isNewUser: !profile,
-            user: buildUserPayload(linkedUser), profile,
-          });
-        }
-        return res.status(409).json({
-          success: false,
-          message: `A ${role} account already exists with this ${mobile ? 'phone number' : 'email'}. Please login instead.`,
-        });
-      }
-    }
-
     // Truly new user — create
     isNewUser = true;
     user = await User.create({
       mobile,
       email,
-      roles:  role ? [role] : [],
+      role,
       activeRole: role || null,
       isMobileVerified: !!mobile,
       isEmailVerified:  !!email,
@@ -262,22 +211,6 @@ export const verifyOtp = asyncHandler(async (req, res) => {
     });
   } else {
     // ── Existing user found ──
-    const userHasRoles = user.roles && user.roles.length > 0;
-
-    if (role && userHasRoles && !user.roles.includes(role)) {
-      // User exists but doesn't have this role — block cross-role phantom login
-      return res.status(403).json({
-        success: false,
-        message: `This account does not have a ${role} profile. Please use the correct login portal.`,
-        existingRoles: user.roles,
-      });
-    }
-
-    // Merge: add role if new, update credential verification flags
-    if (role && !user.roles.includes(role)) user.roles.push(role);
-    if (role) user.activeRole = role;
-    if (mobile && !user.mobile) user.mobile = mobile;
-    if (email  && !user.email)  user.email  = email;
     if (mobile) user.isMobileVerified = true;
     if (email)  user.isEmailVerified  = true;
     user.lastLogin = new Date();
@@ -308,12 +241,7 @@ export const loginWithEmail = asyncHandler(async (req, res) => {
   const { password, role } = req.body;
   
   // Find user with this email who also has the requested role
-  const orClauses = [{ email }];
-  const candidates = await User.find({ $or: orClauses }).select('+password');
-  
-  let user = role
-    ? candidates.find(u => u.roles.includes(role))
-    : candidates[0];
+  const user = await User.findOne({ email, role }).select('+password');
 
   if (!user || !(await user.comparePassword(password))) {
     return res.status(401).json({ success: false, message: 'Invalid credentials' });
@@ -321,16 +249,8 @@ export const loginWithEmail = asyncHandler(async (req, res) => {
   if (user.status === 'blocked') {
     return res.status(403).json({ success: false, message: 'Account blocked', reason: user.blockReason });
   }
-  if (role && user.roles.length > 0 && !user.roles.includes(role)) {
-    return res.status(403).json({
-      success: false,
-      message: `This account is not registered as a ${role}. Please use the correct login portal.`,
-      existingRoles: user.roles,
-    });
-  }
 
   if (role) {
-    if (!user.roles.includes(role)) user.roles.push(role);
     user.activeRole = role;
   }
   user.lastLogin = new Date();
@@ -366,7 +286,7 @@ export const registerWithEmail = asyncHandler(async (req, res) => {
 
   const user = await User.create({
     email, password, mobile,
-    roles: [role],
+    role,
     activeRole: role,
     isEmailVerified: true,
     referralCode: generateReferralCode(),
@@ -377,7 +297,7 @@ export const registerWithEmail = asyncHandler(async (req, res) => {
   setRefreshCookie(res, refreshToken);
   res.status(201).json({
     success: true, accessToken,
-    user: { id: user._id, email, roles: user.roles, activeRole: role },
+    user: { id: user._id, email, roles: [user.role], activeRole: role },
     needsMobileVerification: !mobile,
   });
 });
@@ -465,13 +385,40 @@ export const getMe = asyncHandler(async (req, res) => {
 
 export const switchRole = asyncHandler(async (req, res) => {
   const { role } = req.body;
-  if (!req.user.roles.includes(role)) {
-    return res.status(400).json({ success: false, message: 'Role not assigned to user' });
+
+  // Find another User document with the same phone or email, and the target role
+  const orClauses = [];
+  if (req.user.mobile) orClauses.push({ mobile: req.user.mobile });
+  if (req.user.email) orClauses.push({ email: req.user.email });
+  if (!orClauses.length) {
+    return res.status(400).json({ success: false, message: 'No phone or email to match other roles' });
   }
-  req.user.activeRole = role;
-  await req.user.save();
-  const profile = await getProfileForRole(req.user);
-  res.json({ success: true, activeRole: role, profile });
+
+  const targetUser = await User.findOne({
+    role,
+    $or: orClauses
+  });
+
+  if (!targetUser) {
+    return res.status(404).json({ success: false, message: `No ${role} profile linked to this account` });
+  }
+
+  targetUser.activeRole = role;
+  targetUser.lastLogin = new Date();
+  await targetUser.save();
+
+  const accessToken = generateAccessToken(targetUser._id);
+  const refreshToken = generateRefreshToken(targetUser._id);
+  setRefreshCookie(res, refreshToken);
+
+  const profile = await getProfileForRole(targetUser);
+  res.json({
+    success: true,
+    accessToken,
+    activeRole: role,
+    user: buildUserPayload(targetUser),
+    profile
+  });
 });
 
 export const logout = asyncHandler(async (req, res) => {

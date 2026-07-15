@@ -4,10 +4,10 @@ import { ROLES } from '../config/constants.js';
 
 const userSchema = new mongoose.Schema(
   {
-    mobile: { type: String, sparse: true, unique: true },
-    email: { type: String, sparse: true, unique: true },
+    mobile: { type: String, sparse: true },
+    email: { type: String, sparse: true },
     password: { type: String, select: false },
-    roles: [{ type: String, enum: Object.values(ROLES) }],
+    role: { type: String, enum: Object.values(ROLES), required: true },
     activeRole: { type: String, enum: Object.values(ROLES) },
     isMobileVerified: { type: Boolean, default: false },
     isEmailVerified: { type: Boolean, default: false },
@@ -23,8 +23,21 @@ const userSchema = new mongoose.Schema(
     referralCode: { type: String, unique: true, sparse: true },
     referredBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   },
-  { timestamps: true }
+  { 
+    timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true }
+  }
 );
+
+// Virtual property roles for backward compatibility
+userSchema.virtual('roles').get(function() {
+  return [this.role];
+});
+
+// Compound Indexes for role-scoped uniqueness
+userSchema.index({ mobile: 1, role: 1 }, { unique: true, sparse: true });
+userSchema.index({ email: 1, role: 1 }, { unique: true, sparse: true });
 
 userSchema.pre('save', async function (next) {
   if (!this.isModified('password') || !this.password) return next();

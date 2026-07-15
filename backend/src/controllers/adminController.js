@@ -16,9 +16,9 @@ import { generateToken } from '../middleware/auth.js';
  */
 export const getAdminDashboardStats = asyncHandler(async (req, res) => {
   const totalStudents = await Student.countDocuments();
-  const activeStudents = await User.countDocuments({ roles: 'student', status: 'active' });
+  const activeStudents = await User.countDocuments({ role: 'student', status: 'active' });
   const totalTeachers = await Teacher.countDocuments();
-  const activeTeachers = await User.countDocuments({ roles: 'teacher', status: 'active' });
+  const activeTeachers = await User.countDocuments({ role: 'teacher', status: 'active' });
   const totalParents = await Parent.countDocuments();
   
   // Doubt requests currently in 'searching' state (waiting for a teacher to accept)

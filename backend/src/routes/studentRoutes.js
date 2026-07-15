@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import {
   createStudentProfile, getStudentProfile, getDashboard, getPlans,
-  activateTrial, submitDoubt, getDailyMcq, submitMcq, toggleFavoriteTeacher, getSubjects,
+  activateTrial, submitDoubt, getDailyMcq, submitMcq, getMcqHistory, toggleFavoriteTeacher, getSubjects,
   getChapters, claimSpinReward, getStudentWalletHistory, rechargeWallet, submitDoubtWithImages, getDoubtById,
   getAvailableTeachers, getParentRequests, approveParentRequest, rejectParentRequest,
   getAiChatHistory, submitAiChatQuery, getAiChatSessions, deleteAiChatSession, clearAllAiChatHistory,
@@ -58,6 +58,7 @@ router.get('/doubts/:id', getDoubtById);
 router.post('/doubts/:id/cancel', cancelDoubtRequest);
 router.get('/teachers', getAvailableTeachers);
 router.get('/mcq/daily', getDailyMcq);
+router.get('/mcq/history', getMcqHistory);
 router.post('/mcq/submit', submitMcq);
 router.post('/favorite-teacher', toggleFavoriteTeacher);
 router.get('/sessions', getSessionHistory);

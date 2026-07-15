@@ -87,6 +87,11 @@ export const studentApi = {
     return data;
   },
 
+  getMcqHistory: async () => {
+    const { data } = await apiClient.get("/student/mcq/history");
+    return data;
+  },
+
   submitMcq: async (taskId: string, answers: { questionIndex: number; selectedAnswer: number }[]) => {
     const { data } = await apiClient.post("/student/mcq/submit", { taskId, answers });
     return data;

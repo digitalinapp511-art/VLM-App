@@ -90,17 +90,17 @@ export const createStudentProfile = asyncHandler(async (req, res) => {
       return res.status(403).json({ success: false, message: 'Profile ownership mismatch' });
     }
     Object.assign(student, req.body);
-    // Sync contact from User record
-    if (authUser.email) student.email = authUser.email;
-    if (authUser.mobile) student.mobile = authUser.mobile;
+    // Sync contact from User record only if not already present
+    if (!student.email) student.email = authUser.email;
+    if (!student.mobile) student.mobile = authUser.mobile;
     await student.save();
   } else {
     const vlmStudentId = await generateVlmId('STU');
     student = await Student.create({
       userId: req.user._id,
       vlmStudentId,
-      email: authUser.email || req.body.email,
-      mobile: authUser.mobile || req.body.mobile,
+      email: req.body.email || authUser.email,
+      mobile: req.body.mobile || authUser.mobile,
       ...req.body,
     });
   }
@@ -610,9 +610,9 @@ Return ONLY a valid JSON array, do not wrap in markdown or backticks.`
 
   // Fetch Class Leaderboard
   const leaderboard = await Student.find({ class: student.class })
-    .sort({ totalPoints: -1 })
+    .sort({ mcqPoints: -1 })
     .limit(10)
-    .select('fullName nickname totalPoints streak avatarUrl');
+    .select('fullName nickname totalPoints mcqPoints streak avatarUrl');
 
   res.json({
     success: true,
@@ -645,6 +645,7 @@ export const submitMcq = asyncHandler(async (req, res) => {
   const student = await Student.findById(task.studentId);
   student.totalPoints += task.pointsEarned;
   student.wallet.totalPoints += task.pointsEarned;
+  student.mcqPoints += (score * 10); // MCQ Points specifically for leaderboard calculation
   student.markModified('wallet');
 
   // Streak logic
@@ -675,6 +676,18 @@ export const submitMcq = asyncHandler(async (req, res) => {
   }
 
   res.json({ success: true, data: { score, total: task.questions.length, pointsEarned: task.pointsEarned } });
+});
+
+export const getMcqHistory = asyncHandler(async (req, res) => {
+  const student = await Student.findOne({ userId: req.user._id });
+  if (!student) return res.status(404).json({ success: false, message: 'Student not found' });
+
+  const tasks = await McqTask.find({
+    studentId: student._id,
+    status: 'completed'
+  }).sort({ completedAt: -1 });
+
+  res.json({ success: true, data: tasks });
 });
 
 export const toggleFavoriteTeacher = asyncHandler(async (req, res) => {
