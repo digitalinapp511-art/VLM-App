@@ -124,7 +124,7 @@ export const getStudentProfile = asyncHandler(async (req, res) => {
   res.json({ success: true, data: studentObj });
 });export const getDashboard = asyncHandler(async (req, res) => {
   const student = await Student.findOne({ userId: req.user._id })
-    .select('firstName nickname streak totalPoints lastSpinActiveSeconds lastSpinDate wallet.totalPoints class board profilePhoto');
+    .select('firstName nickname streak totalPoints mcqPoints lastSpinActiveSeconds lastSpinDate wallet.totalPoints class board profilePhoto');
   
   if (!student) return res.json({ success: true, data: null });
 
@@ -162,6 +162,7 @@ export const getStudentProfile = asyncHandler(async (req, res) => {
         profilePhoto: student.profilePhoto || "",
         streak: student.streak || 0,
         totalPoints: student.totalPoints || 0,
+        mcqPoints: student.mcqPoints || 0,
         activeSecondsSinceLastSpin,
         lastSpinDate: student.lastSpinDate,
         class: student.class,
@@ -612,7 +613,7 @@ Return ONLY a valid JSON array, do not wrap in markdown or backticks.`
   const leaderboard = await Student.find({ class: student.class })
     .sort({ mcqPoints: -1 })
     .limit(10)
-    .select('fullName nickname totalPoints mcqPoints streak avatarUrl');
+    .select('fullName nickname totalPoints mcqPoints streak profilePhoto');
 
   res.json({
     success: true,
@@ -688,6 +689,65 @@ export const getMcqHistory = asyncHandler(async (req, res) => {
   }).sort({ completedAt: -1 });
 
   res.json({ success: true, data: tasks });
+});
+
+export const getLeaderboard = asyncHandler(async (req, res) => {
+  const student = await Student.findOne({ userId: req.user._id });
+  if (!student) return res.status(404).json({ success: false, message: 'Student not found' });
+
+  const { type = 'Class' } = req.query; // 'Class', 'City', 'State', or 'Global'
+  const query = {};
+
+  if (type === 'Class') {
+    query.class = student.class;
+  } else if (type === 'City') {
+    if (student.city) query.city = student.city;
+  } else if (type === 'State') {
+    if (student.state) query.state = student.state;
+  }
+
+  const list = await Student.find(query)
+    .sort({ mcqPoints: -1, totalPoints: -1 })
+    .limit(50)
+    .select('fullName nickname totalPoints mcqPoints streak profilePhoto class city state');
+
+  res.json({
+    success: true,
+    data: list
+  });
+});
+
+export const getStudentResources = asyncHandler(async (req, res) => {
+  const student = await Student.findOne({ userId: req.user._id });
+  if (!student) return res.status(404).json({ success: false, message: 'Student profile not found' });
+
+  const { default: StudyResource } = await import('../models/StudyResource.js');
+
+  const query = {
+    board: student.board,
+    className: student.class,
+    visibility: 'public',
+    status: 'active'
+  };
+
+  const resources = await StudyResource.find(query).sort({ createdAt: -1 });
+
+  const mapped = resources.map(r => ({
+    _id: r._id,
+    title: r.title,
+    board: r.board,
+    className: r.className,
+    subject: r.subject,
+    chapterName: r.chapterName,
+    topic: r.topic,
+    description: r.description,
+    resourceType: r.resourceType,
+    pdfUrl: r.pdfUrl || r.fileUrl,
+    thumbnailUrl: r.thumbnailUrl,
+    createdAt: r.createdAt
+  }));
+
+  res.json({ success: true, data: mapped });
 });
 
 export const toggleFavoriteTeacher = asyncHandler(async (req, res) => {

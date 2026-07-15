@@ -1,5 +1,6 @@
 import express from 'express';
 import { protect, authorize } from '../middleware/auth.js';
+import { upload, cloudinaryUploadMiddleware } from '../middleware/upload.js';
 
 // ── Auth Controller ──────────────────────────────────────────────────────────
 import {
@@ -242,8 +243,8 @@ router.delete('/topics/:id', topicsCrud.delete);
 
 // ── RESOURCES ────────────────────────────────────────────────────────────────
 router.get('/resources', getResources);
-router.post('/resources', createResource);
-router.put('/resources/:id', updateResource);
+router.post('/resources', upload.single('pdf'), cloudinaryUploadMiddleware, createResource);
+router.put('/resources/:id', upload.single('pdf'), cloudinaryUploadMiddleware, updateResource);
 router.delete('/resources/:id', deleteResource);
 
 // ── MCQ ──────────────────────────────────────────────────────────────────────

@@ -432,16 +432,43 @@ export const getResources = asyncHandler(async (req, res) => {
   if (className) filter.className = className;
   if (subject) filter.subject = subject;
   const resources = await StudyResource.find(filter).sort({ createdAt: -1 });
-  res.json({ success: true, data: resources });
+  const mapped = resources.map(r => ({
+    _id: r._id,
+    title: r.title,
+    type: r.type,
+    board: r.board,
+    className: r.className,
+    subject: r.subject,
+    chapterName: r.chapterName,
+    topic: r.topic,
+    description: r.description,
+    resourceType: r.resourceType,
+    visibility: r.visibility,
+    status: r.status,
+    pdfUrl: r.pdfUrl || r.fileUrl,
+    thumbnailUrl: r.thumbnailUrl,
+    createdAt: r.createdAt
+  }));
+  res.json({ success: true, data: mapped });
 });
 
 export const createResource = asyncHandler(async (req, res) => {
-  const resource = await StudyResource.create({ ...req.body, uploadedBy: req.user._id });
+  const resourceData = { ...req.body };
+  if (req.file && req.file.cloudinaryUrl) {
+    resourceData.pdfUrl = req.file.cloudinaryUrl;
+    resourceData.fileUrl = req.file.cloudinaryUrl;
+  }
+  const resource = await StudyResource.create({ ...resourceData, uploadedBy: req.user._id });
   res.status(201).json({ success: true, data: resource });
 });
 
 export const updateResource = asyncHandler(async (req, res) => {
-  const resource = await StudyResource.findByIdAndUpdate(req.params.id, req.body, { new: true });
+  const resourceData = { ...req.body };
+  if (req.file && req.file.cloudinaryUrl) {
+    resourceData.pdfUrl = req.file.cloudinaryUrl;
+    resourceData.fileUrl = req.file.cloudinaryUrl;
+  }
+  const resource = await StudyResource.findByIdAndUpdate(req.params.id, resourceData, { new: true });
   if (!resource) return res.status(404).json({ success: false, message: 'Resource not found' });
   res.json({ success: true, data: resource });
 });

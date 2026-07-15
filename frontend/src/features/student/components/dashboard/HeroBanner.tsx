@@ -68,6 +68,7 @@ export default function HeroBanner({
             icon={<Shield size={13} className="text-cyan-400" />}
             value={level}
             label="Level"
+            onClick={() => navigate(PATHS.LEADERBOARD)}
           />
         </div>
       </div>
@@ -87,13 +88,18 @@ function StatBadge({
   icon,
   value,
   label,
+  onClick,
 }: {
   icon: React.ReactNode;
   value: string | number;
   label: string;
+  onClick?: () => void;
 }) {
   return (
-    <div className="flex flex-col items-center gap-0.5">
+    <div 
+      onClick={onClick}
+      className={`flex flex-col items-center gap-0.5 ${onClick ? 'cursor-pointer active:scale-95 transition-transform' : ''}`}
+    >
       <div className="flex items-center gap-1">
         {icon}
         <span className="text-white font-black text-sm">{value}</span>

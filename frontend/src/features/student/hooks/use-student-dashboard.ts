@@ -80,8 +80,9 @@ export function useStudentDashboard() {
   const nickname = studentData?.nickname || studentData?.firstName || studentData?.fullName || fullNameFromParts || "Student";
   const photo = studentData?.profilePhoto || "";
   const totalPoints = studentData?.totalPoints ?? dashboardData?.totalPoints ?? 0;
+  const mcqPoints = studentData?.mcqPoints ?? dashboardData?.mcqPoints ?? 0;
   const streak = studentData?.streak ?? dashboardData?.streak ?? 0;
-  const level = totalPoints > 1500 ? "Platinum" : totalPoints > 500 ? "Gold" : "Silver";
+  const level = mcqPoints >= 1000 ? "Diamond" : mcqPoints >= 600 ? "Platinum" : mcqPoints >= 300 ? "Gold" : mcqPoints >= 100 ? "Silver" : "Bronze";
   const lastSpinDate = studentData?.lastSpinDate ?? dashboardData?.lastSpinDate ?? null;
   const activeSecondsSinceLastSpin = isBypass
     ? 2700 // 45 minutes in seconds
@@ -111,6 +112,7 @@ export function useStudentDashboard() {
     nickname,
     photo,
     totalPoints,
+    mcqPoints,
     streak,
     level,
     lastSpinDate,

@@ -1,11 +1,11 @@
 import { Router } from 'express';
 import {
   createStudentProfile, getStudentProfile, getDashboard, getPlans,
-  activateTrial, submitDoubt, getDailyMcq, submitMcq, getMcqHistory, toggleFavoriteTeacher, getSubjects,
+  activateTrial, submitDoubt, getDailyMcq, submitMcq, getMcqHistory, getLeaderboard, toggleFavoriteTeacher, getSubjects,
   getChapters, claimSpinReward, getStudentWalletHistory, rechargeWallet, submitDoubtWithImages, getDoubtById,
   getAvailableTeachers, getParentRequests, approveParentRequest, rejectParentRequest,
   getAiChatHistory, submitAiChatQuery, getAiChatSessions, deleteAiChatSession, clearAllAiChatHistory,
-  getStudentStats, submitUsageHeartbeat, cancelDoubtRequest, deductSessionCredits
+  getStudentStats, submitUsageHeartbeat, cancelDoubtRequest, deductSessionCredits, getStudentResources
 } from '../controllers/studentController.js';
 import {
   getSessionHistory, getSessionMessages, sendMessage, resolveSession,
@@ -60,6 +60,8 @@ router.get('/teachers', getAvailableTeachers);
 router.get('/mcq/daily', getDailyMcq);
 router.get('/mcq/history', getMcqHistory);
 router.post('/mcq/submit', submitMcq);
+router.get('/leaderboard', getLeaderboard);
+router.get('/resources', getStudentResources);
 router.post('/favorite-teacher', toggleFavoriteTeacher);
 router.get('/sessions', getSessionHistory);
 router.get('/sessions/:sessionId/messages', getSessionMessages);
