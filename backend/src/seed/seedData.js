@@ -54,6 +54,18 @@ const seed = async () => {
     }
   }
 
+  const { default: PromoBanner } = await import('../models/PromoBanner.js');
+  const banners = [
+    { tag: 'NEW', title: 'Master Your Concepts', highlightWord: 'Concepts', description: 'Explore new courses, practice daily and achieve your goals!', buttonText: 'Explore Now', buttonLink: '/library', imageUrl: '/onboarding1.png', order: 1, isCoupon: false },
+    { tag: '24/7 AI', title: 'Meet Your AI Tutor', highlightWord: 'Tutor', description: 'Ask doubts anytime, get step-by-step math solver help!', buttonText: 'Chat Now', buttonLink: '/ai-chat', imageUrl: '/onboarding2.png', order: 2, isCoupon: false },
+    { tag: 'XP BONUS', title: 'Daily MCQ Streak', highlightWord: 'Streak', description: 'Complete 20 daily questions and earn double XP multiplier!', buttonText: 'Start Now', buttonLink: '/mcq', imageUrl: '/onboarding3.png', order: 3, isCoupon: false },
+    { tag: 'CASHBACK', title: 'Get 50% Cashback on Recharge', highlightWord: '50%', description: 'Recharge your VLM Wallet today and get an instant 50% bonus points cashback!', buttonText: 'Recharge Now', buttonLink: '/wallet', imageUrl: '/onboarding4.png', order: 4, isCoupon: false }
+  ];
+
+  for (const b of banners) {
+    await PromoBanner.findOneAndUpdate({ title: b.title }, b, { upsert: true, new: true });
+  }
+
   console.log('Seed data created successfully');
   await mongoose.disconnect();
 };

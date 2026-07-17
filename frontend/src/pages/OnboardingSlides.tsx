@@ -3,29 +3,43 @@ import { useNavigate } from "react-router-dom";
 import { PATHS } from "@/routes/paths";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronLeft, Brain, Trophy, Users, Star, ArrowRight } from "lucide-react";
+import { ChevronLeft, ArrowRight } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import studentApi from "@/lib/student-api";
 
-const SLIDES = [
+interface SlideData {
+  _id?: string;
+  title: string;
+  description: string;
+  imageUrl: string;
+  order: number;
+}
+
+const DEFAULT_SLIDES: SlideData[] = [
   {
-    id: 0,
-    title: "24×7 Live\nTeacher Support",
-    subtitle: "Get instant academic help anytime\nthrough chat, audio, or video calls.",
+    title: "Interactive Lessons",
+    description: "Learn complex concepts with interactive slides and visual models.",
+    imageUrl: "/onboarding1.png",
+    order: 1
   },
   {
-    id: 1,
-    title: "AI-Powered\nDoubt Solving",
-    subtitle: "Ask any question and get detailed,\nstep-by-step AI explanation instantly.",
+    title: "24/7 AI Tutor Support",
+    description: "Ask doubts anytime and get step-by-step assistance in real-time.",
+    imageUrl: "/onboarding2.png",
+    order: 2
   },
   {
-    id: 2,
-    title: "Track Your\nProgress Daily",
-    subtitle: "Solve customized daily MCQ tests\nand see your analytics grow.",
+    title: "Daily Streak Rewards",
+    description: "Complete daily MCQs and streak targets to earn double XP multipliers.",
+    imageUrl: "/onboarding3.png",
+    order: 3
   },
   {
-    id: 3,
-    title: "Start Your\n3-Day Trial for ₹1",
-    subtitle: "Our Premium USP! Access all features\nincluding live calls for just ₹1 setup.",
-  },
+    title: "VLM Premium Plans",
+    description: "Unlock full courses, practice test series, and unlimited features.",
+    imageUrl: "/onboarding4.png",
+    order: 4
+  }
 ];
 
 export default function OnboardingSlides() {
@@ -33,8 +47,15 @@ export default function OnboardingSlides() {
   const [current, setCurrent] = useState(0);
   const [direction, setDirection] = useState(1);
 
-  const slide = SLIDES[current];
-  const isLast = current === SLIDES.length - 1;
+  const { data: slidesResponse } = useQuery({
+    queryKey: ["onboardingSlides"],
+    queryFn: () => studentApi.getOnboardingSlides()
+  });
+
+  const slides: SlideData[] = slidesResponse?.data?.length > 0 ? slidesResponse.data : DEFAULT_SLIDES;
+
+  const slide = slides[current] || DEFAULT_SLIDES[0];
+  const isLast = current === slides.length - 1;
 
   const goNext = () => {
     if (isLast) {
@@ -63,47 +84,15 @@ export default function OnboardingSlides() {
     setCurrent(idx);
   };
 
-  const renderSlideImage = (id: number) => {
-    let content;
-
-    if (id === 0) {
-      content = (
-        <img
-          src="/onboarding1.png"
-          alt="Live Teacher Support"
-          className="w-full h-full object-contain"
-        />
-      );
-    } else if (id === 1) {
-      content = (
-        <img
-          src="/onboarding2.png"
-          alt="AI Doubt Assistant"
-          className="w-full h-full object-contain"
-        />
-      );
-    } else if (id === 2) {
-      content = (
-        <img
-          src="/onboarding3.png"
-          alt="Track Progress Daily"
-          className="w-full h-full object-contain"
-        />
-      );
-    } else {
-      content = (
-        <img
-          src="/onboarding4.png"
-          alt="Start Trial"
-          className="w-full h-full object-contain"
-        />
-      );
-    }
-
+  const renderSlideImage = (url: string, title: string) => {
     return (
       <div className="relative flex items-center justify-center transition-all duration-300 w-full h-[280px] sm:h-[350px] md:h-[420px] px-0">
         <div className="w-full h-full flex items-center justify-center select-none">
-          {content}
+          <img
+            src={url}
+            alt={title}
+            className="w-full h-full object-contain"
+          />
         </div>
       </div>
     );
@@ -117,7 +106,6 @@ export default function OnboardingSlides() {
 
   return (
     <div className="h-screen w-full bg-white text-slate-800 flex flex-col items-center justify-between relative overflow-hidden pb-6 transition-colors duration-300 font-sans">
-
       <div className="w-full max-w-md flex-1 flex flex-col items-center justify-between relative z-10">
         
         {/* Header */}
@@ -148,7 +136,7 @@ export default function OnboardingSlides() {
               className="flex flex-col items-center text-center gap-4 w-full"
             >
               {/* Feature Area */}
-              {renderSlideImage(slide.id)}
+              {renderSlideImage(slide.imageUrl, slide.title)}
 
               {/* Text */}
               <div className="space-y-3">
@@ -156,7 +144,7 @@ export default function OnboardingSlides() {
                   {slide.title}
                 </h1>
                 <p className="text-slate-500 text-sm leading-relaxed max-w-[320px] mx-auto whitespace-pre-line font-bold">
-                  {slide.subtitle}
+                  {slide.description}
                 </p>
               </div>
             </motion.div>
@@ -167,7 +155,7 @@ export default function OnboardingSlides() {
         <div className="w-full px-6 flex flex-col items-center gap-6 z-10">
           {/* Indicator dots */}
           <div className="flex items-center gap-2">
-            {SLIDES.map((_, i) => (
+            {slides.map((_, i) => (
               <button
                 key={i}
                 onClick={() => goTo(i)}

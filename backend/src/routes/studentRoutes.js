@@ -5,7 +5,8 @@ import {
   getChapters, claimSpinReward, getStudentWalletHistory, rechargeWallet, submitDoubtWithImages, getDoubtById,
   getAvailableTeachers, getParentRequests, approveParentRequest, rejectParentRequest,
   getAiChatHistory, submitAiChatQuery, getAiChatSessions, deleteAiChatSession, clearAllAiChatHistory,
-  getStudentStats, submitUsageHeartbeat, cancelDoubtRequest, deductSessionCredits, getStudentResources
+  getStudentStats, submitUsageHeartbeat, cancelDoubtRequest, deductSessionCredits, getStudentResources, getActiveBanners,
+  getOnboardingSlides
 } from '../controllers/studentController.js';
 import {
   getSessionHistory, getSessionMessages, sendMessage, resolveSession,
@@ -62,6 +63,8 @@ router.get('/mcq/history', getMcqHistory);
 router.post('/mcq/submit', submitMcq);
 router.get('/leaderboard', getLeaderboard);
 router.get('/resources', getStudentResources);
+router.get('/banners', getActiveBanners);
+router.get('/onboarding-slides', getOnboardingSlides);
 router.post('/favorite-teacher', toggleFavoriteTeacher);
 router.get('/sessions', getSessionHistory);
 router.get('/sessions/:sessionId/messages', getSessionMessages);

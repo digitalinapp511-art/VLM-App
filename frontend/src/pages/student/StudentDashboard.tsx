@@ -62,6 +62,7 @@ export default function StudentDashboard() {
     photo,
     streak,
     totalPoints,
+    mcqPoints,
     level,
     lastSpinDate,
     activeSecondsSinceLastSpin,
@@ -296,6 +297,7 @@ export default function StudentDashboard() {
           nickname={nickname}
           streak={streak}
           totalPoints={totalPoints}
+          mcqPoints={mcqPoints}
           level={level}
         />
 

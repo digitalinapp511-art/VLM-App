@@ -1,4 +1,4 @@
-import {studentApi} from "@/lib/student-api";
+import { studentApi } from "@/lib/student-api";
 import { useState, useEffect } from "react";
 import {
   AlertDialog,
@@ -14,9 +14,9 @@ import { useStudentProfile } from "@/hooks/use-student";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { PATHS } from "@/routes/paths";
-import { 
-  ChevronLeft, Clock,  ArrowRight, 
-  ChevronRight, BookOpen, Calendar, BookText, XCircle, Flame, Trophy
+import {
+  ChevronLeft, Clock, ArrowRight,
+  ChevronRight, BookOpen, Calendar, BookText, XCircle, Flame, Trophy, Star
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { bgCss } from "@/helper/CssHelper";
@@ -55,6 +55,7 @@ export default function Mcq() {
   const [showExitWarning, setShowExitWarning] = useState(false);
   const [showLeaderboardModal, setShowLeaderboardModal] = useState(false);
   const [selectedHistoryTask, setSelectedHistoryTask] = useState<any>(null);
+  const [rePracticeTask, setRePracticeTask] = useState<any>(null);
 
   // Timer Effect
   useEffect(() => {
@@ -77,23 +78,46 @@ export default function Mcq() {
     return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
+  const hasToken = !!localStorage.getItem("vlm_token");
+  const isBypass = localStorage.getItem("dev_bypass_auth") === "true" && !hasToken;
+
   // Fetch MCQ task data (includes streak, calendar completedDays, leaderboard)
   const { data: mcqData, isLoading, refetch } = useQuery({
     queryKey: ["dailyMcqData"],
     queryFn: () => studentApi.getDailyMcq(),
+    enabled: !isBypass,
   });
 
   // Fetch MCQ history
   const { data: historyData } = useQuery({
     queryKey: ["mcqHistory"],
     queryFn: () => studentApi.getMcqHistory(),
+    enabled: !isBypass,
   });
 
   const historyList = historyData?.data || [];
 
   const student = (profile as any)?.data ?? profile;
-  const task = mcqData?.data || mcqData?.task;
-  const questionsList = task?.questions || [];
+
+  // Fallback 20 mock questions if bypass is active or if API fails
+  const mockTask = {
+    _id: "mock-task-today",
+    status: "pending",
+    questions: Array.from({ length: 20 }, (_, i) => ({
+      _id: `mock-q-${i}`,
+      subject: ["Mathematics", "Physics", "Chemistry", "Biology"][i % 4],
+      question: `This is daily practice question ${i + 1} for Class 12. Solve the following question.`,
+      options: ["Option A: Correct Choice", "Option B: Incorrect Choice", "Option C: Incorrect Choice", "Option D: Incorrect Choice"],
+      correctAnswer: 0,
+      explanation: `Explanation for practice question ${i + 1}. Option A is correct.`
+    }))
+  };
+
+  const task = isBypass ? mockTask : (mcqData?.data || mcqData?.task || mockTask);
+
+  // Use rePracticeTask questions if in practice mode, else use today's task questions
+  const activeTask = rePracticeTask || task;
+  const questionsList = activeTask?.questions || [];
 
   const questions = questionsList.map((q: any, index: number) => ({
     id: q._id || String(index),
@@ -106,9 +130,9 @@ export default function Mcq() {
     _dbAnswer: q.answer || q.correctAnswer,
   }));
 
-  // Load answers if quiz is already completed
+  // Load answers if quiz is already completed and NOT in re-practice mode
   useEffect(() => {
-    if (task && task.status === 'completed' && task.answers) {
+    if (!rePracticeTask && task && task.status === 'completed' && task.answers) {
       const loadedAnswers: Record<number, string> = {};
       task.answers.forEach((ans: any) => {
         const optionLetter = String.fromCharCode(65 + ans.selectedAnswer);
@@ -116,7 +140,7 @@ export default function Mcq() {
       });
       setUserAnswers(loadedAnswers);
     }
-  }, [task]);
+  }, [task, rePracticeTask]);
 
   const streak = mcqData?.streak ?? student?.streak ?? 0;
   const completedDays = mcqData?.completedDays || [];
@@ -134,7 +158,7 @@ export default function Mcq() {
     if (currentIndex < totalQuestions - 1) {
       setCurrentIndex(currentIndex + 1);
     } else {
-      // Quiz Finished! Submit all answers to API in one go
+      // Quiz Finished! Submit all answers to API in one go if NOT in re-practice mode
       const answersList = questions.map((q: any, idx: number) => {
         const selectedLetter = userAnswers[idx];
         const selectedIndex = selectedLetter ? selectedLetter.charCodeAt(0) - 65 : 0;
@@ -144,15 +168,17 @@ export default function Mcq() {
         };
       });
 
-      try {
-        if (task?._id) {
-          await studentApi.submitMcq(task._id, answersList);
+      if (!rePracticeTask) {
+        try {
+          if (task?._id) {
+            await studentApi.submitMcq(task._id, answersList);
+          }
+        } catch (err) {
+          console.error("Failed to submit MCQ:", err);
         }
-      } catch (err) {
-        console.error("Failed to submit MCQ:", err);
+        refetch(); // Reload daily MCQ data to update leaderboard/streak/calendar status!
       }
       setIsFinished(true);
-      refetch(); // Reload daily MCQ data to update leaderboard/streak/calendar status!
     }
   };
 
@@ -172,21 +198,34 @@ export default function Mcq() {
     return (
       <div className="relative flex min-h-svh w-full flex-col items-center bg-[#f4f6ff] dark:bg-[#0b081e] px-6 py-8 overflow-hidden text-slate-800 dark:text-slate-100 transition-colors duration-300">
         <div className="max-w-xl w-full flex flex-col min-h-svh pb-24">
-          
+
           {/* Header */}
           <div className="relative z-10 flex w-full items-center justify-between mb-6">
-            <Button 
-              variant="outline" 
-              size="icon" 
+            <Button
+              variant="outline"
+              size="icon"
               onClick={() => navigate(PATHS.STUDENT_DASHBOARD)}
               className="h-10 w-10 rounded-xl border-slate-200 dark:border-[#221c4e] bg-white dark:bg-[#161233] text-slate-800 dark:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-900 active:scale-95 transition-all shadow-sm"
             >
               <ChevronLeft size={20} />
             </Button>
-            <h1 className="text-md font-black tracking-tight uppercase">Daily MCQ Challenge</h1>
-            <Button 
-              variant="outline" 
-              size="icon" 
+            <div className="text-center flex flex-col items-center">
+              <h1 className="text-md font-black tracking-tight uppercase">Daily MCQ Challenge</h1>
+              <div className="flex items-center gap-2 mt-1 select-none">
+                <span className="text-[9px] font-black bg-violet-100 dark:bg-violet-955/40 text-violet-600 dark:text-violet-400 px-2 py-0.5 rounded-full uppercase tracking-wider">
+                  {student?.mcqPoints || 0} XP
+                </span>
+                <span className="text-[9px] font-black bg-amber-105 dark:bg-amber-955/40 text-amber-600 dark:text-amber-400 px-2 py-0.5 rounded-full uppercase tracking-wider">
+                  {(() => {
+                    const pts = student?.mcqPoints || 0;
+                    return pts >= 1000 ? "Diamond" : pts >= 600 ? "Platinum" : pts >= 300 ? "Gold" : pts >= 100 ? "Silver" : "Bronze";
+                  })()}
+                </span>
+              </div>
+            </div>
+            <Button
+              variant="outline"
+              size="icon"
               onClick={() => setShowLeaderboardModal(true)}
               className="h-10 w-10 rounded-xl border-slate-200 dark:border-[#221c4e] bg-white dark:bg-[#161233] text-slate-800 dark:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-900 active:scale-95 transition-all shadow-sm"
               title="Class Leaderboard"
@@ -209,6 +248,11 @@ export default function Mcq() {
               </div>
               <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider">Current Streak Days</p>
 
+              <div className="mt-3.5 flex items-center gap-1.5 bg-violet-500/10 border border-violet-500/20 px-3 py-1 rounded-full text-violet-600 dark:text-violet-400 select-none">
+                <Star size={11} className="fill-current text-violet-500" />
+                <span className="text-[10px] font-black tracking-wider uppercase">{student?.mcqPoints || 0} XP (Leaderboard)</span>
+              </div>
+
               {/* Streak Calendar Box */}
               <div className="mt-5 w-full rounded-2xl bg-slate-50/50 dark:bg-slate-900/40 border border-slate-100 dark:border-slate-800 p-4 flex flex-col items-center">
                 <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-3">Streak Calendar</p>
@@ -220,7 +264,7 @@ export default function Mcq() {
                     return (
                       <div key={day} className="flex flex-col items-center gap-1.5">
                         <span className={cn("text-[9px] font-black", isToday ? "text-cyan-500" : "text-slate-400 dark:text-slate-550")}>{day}</span>
-                        <div 
+                        <div
                           className={cn(
                             "h-7 w-7 rounded-full border flex items-center justify-center transition-all text-xs font-black",
                             isCompleted
@@ -282,32 +326,61 @@ export default function Mcq() {
                 </Card>
               ) : (
                 <div className="space-y-2.5 max-h-[40vh] overflow-y-auto no-scrollbar">
+                  {/* Table-like column header row */}
+                  <div className="grid grid-cols-12 gap-1.5 px-3.5 text-[8.5px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest pb-1 text-center items-center">
+                    <div className="col-span-3 text-left">Date</div>
+                    <div className="col-span-3">Score</div>
+                    <div className="col-span-3">XP Earned</div>
+                    <div className="col-span-3 text-right">Action</div>
+                  </div>
+
                   {historyList.map((histTask: any) => {
-                    const dateStr = new Date(histTask.completedAt || histTask.updatedAt).toLocaleDateString("en-US", {
-                      weekday: 'short', month: 'short', day: 'numeric', year: 'numeric'
+                    const formattedDate = new Date(histTask.completedAt || histTask.updatedAt).toLocaleDateString("en-US", {
+                      month: 'short', day: 'numeric'
                     });
                     
                     return (
                       <Card 
                         key={histTask._id} 
                         onClick={() => setSelectedHistoryTask(histTask)}
-                        className="border border-slate-100 dark:border-[#221c4e] bg-white dark:bg-[#161233] rounded-2xl p-4 flex items-center justify-between cursor-pointer hover:border-violet-500/20 active:scale-[0.99] transition-all shadow-sm"
+                        className="border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#161233] rounded-2xl p-3 grid grid-cols-12 gap-1.5 items-center cursor-pointer hover:border-violet-500/20 active:scale-[0.99] transition-all shadow-sm text-center"
                       >
-                        <div className="flex items-center gap-3">
-                          <div className="h-9 w-9 rounded-xl bg-violet-50 dark:bg-violet-950/20 flex items-center justify-center text-violet-600 dark:text-violet-400">
-                            <Calendar size={18} />
-                          </div>
-                          <div>
-                            <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider leading-none">Completed MCQ</p>
-                            <h4 className="text-xs font-black text-slate-850 dark:text-white mt-1 leading-tight">{dateStr}</h4>
-                          </div>
+                        {/* Date column */}
+                        <div className="col-span-3 text-left font-black text-[11px] text-slate-800 dark:text-white truncate">
+                          {formattedDate}
                         </div>
                         
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-black text-cyan-500 bg-cyan-500/10 px-2 py-0.5 rounded-lg">
+                        {/* Score column */}
+                        <div className="col-span-3 flex justify-center">
+                          <span className="text-[9px] font-black text-cyan-500 bg-cyan-500/10 px-2 py-0.5 rounded-lg shrink-0">
                             {histTask.score}/{histTask.questions?.length || 0}
                           </span>
-                          <ChevronRight size={16} className="text-slate-400" />
+                        </div>
+
+                        {/* XP column */}
+                        <div className="col-span-3 flex justify-center">
+                          <span className="text-[9px] font-black text-violet-500 bg-violet-500/10 px-2 py-0.5 rounded-lg shrink-0">
+                            +{(histTask.score || 0) * 10} XP
+                          </span>
+                        </div>
+                        
+                        {/* Action column */}
+                        <div className="col-span-3 flex justify-end">
+                          <Button
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation(); // Prevent opening the review modal
+                              setRePracticeTask(histTask);
+                              setQuizStarted(true);
+                              setCurrentIndex(0);
+                              setUserAnswers({});
+                              setIsFinished(false);
+                              setTimeLeft(histTask.timerSeconds || 1200);
+                            }}
+                            className="h-7 px-2 rounded-lg bg-gradient-to-r from-violet-600 to-fuchsia-500 hover:from-violet-500 hover:to-fuchsia-400 text-white font-black text-[8px] uppercase tracking-wider shadow-sm flex items-center justify-center border-none cursor-pointer shrink-0"
+                          >
+                            Practice
+                          </Button>
                         </div>
                       </Card>
                     );
@@ -341,7 +414,7 @@ export default function Mcq() {
                   <h3 className="text-xs font-black tracking-wider uppercase flex items-center gap-2">
                     🏆 Class {student?.class || "12"}th Leaderboard
                   </h3>
-                  <button 
+                  <button
                     onClick={() => setShowLeaderboardModal(false)}
                     className="h-7 w-7 rounded-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-850 flex items-center justify-center text-slate-400 hover:text-slate-700 dark:hover:text-white"
                   >
@@ -364,7 +437,7 @@ export default function Mcq() {
                     <p className="text-center text-xs font-bold text-slate-400 py-8">No leaderboard data found.</p>
                   ) : (
                     leaderboard.map((user: any, idx: number) => (
-                      <div 
+                      <div
                         key={user._id}
                         className={cn(
                           "grid grid-cols-12 gap-1 items-center p-2 rounded-xl border text-xs text-center font-bold",
@@ -448,7 +521,7 @@ export default function Mcq() {
                       })} • Score: {selectedHistoryTask.score}/{selectedHistoryTask.questions?.length}
                     </p>
                   </div>
-                  <button 
+                  <button
                     onClick={() => setSelectedHistoryTask(null)}
                     className="h-7 w-7 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-850 flex items-center justify-center text-slate-400 hover:text-slate-700 dark:hover:text-white"
                   >
@@ -463,7 +536,7 @@ export default function Mcq() {
                     const selectedLetter = selectedIdx !== undefined ? String.fromCharCode(65 + selectedIdx) : "";
                     const correctLetter = String.fromCharCode(65 + q.correctAnswer);
                     const isCorrect = selectedLetter === correctLetter;
-                    
+
                     return (
                       <Card key={q._id || idx} className="border border-slate-100 dark:border-slate-800 rounded-3xl p-5 bg-white dark:bg-[#161233] text-left">
                         <div className="space-y-3">
@@ -473,7 +546,7 @@ export default function Mcq() {
                             </span>
                             <span className={cn(
                               "text-[9px] font-black uppercase px-2.5 py-1 rounded-full",
-                              isCorrect 
+                              isCorrect
                                 ? "bg-green-50 text-green-700 dark:bg-green-950/20 dark:text-green-400"
                                 : "bg-red-50 text-red-700 dark:bg-red-950/20 dark:text-red-400"
                             )}>
@@ -483,16 +556,16 @@ export default function Mcq() {
                           <h4 className="text-sm font-bold text-slate-850 dark:text-white leading-snug">
                             {q.question}
                           </h4>
-                          
+
                           <div className="space-y-2 pt-1">
                             {q.options.map((opt: string, i: number) => {
                               const optLetter = String.fromCharCode(65 + i);
                               const isUserSelected = selectedLetter === optLetter;
                               const isCorrectOpt = correctLetter === optLetter;
-                              
+
                               let optStyle = "border-slate-100 dark:border-slate-900 bg-slate-50/50 dark:bg-slate-900/20";
                               let badgeStyle = "bg-slate-100 dark:bg-slate-950 border-slate-200 dark:border-slate-850 text-slate-450";
-                              
+
                               if (isCorrectOpt) {
                                 optStyle = "border-green-500 bg-green-50/30 dark:bg-green-950/10";
                                 badgeStyle = "bg-green-600 border-green-600 text-white";
@@ -500,7 +573,7 @@ export default function Mcq() {
                                 optStyle = "border-red-500 bg-red-50/30 dark:bg-red-950/10";
                                 badgeStyle = "bg-red-600 border-red-600 text-white";
                               }
-                              
+
                               return (
                                 <div key={optLetter} className={cn("border rounded-xl px-3 py-2 flex items-center gap-3 text-xs font-bold transition-all", optStyle)}>
                                   <div className={cn("h-6 w-6 shrink-0 flex items-center justify-center rounded-full text-[10px] font-black border", badgeStyle)}>
@@ -521,6 +594,24 @@ export default function Mcq() {
                     );
                   })}
                 </div>
+
+                <div className="pt-3 border-t border-slate-200 dark:border-slate-800 shrink-0">
+                  <Button
+                    onClick={() => {
+                      setRePracticeTask(selectedHistoryTask);
+                      setSelectedHistoryTask(null);
+                      setQuizStarted(true);
+                      setCurrentIndex(0);
+                      setUserAnswers({});
+                      setIsFinished(false);
+                      setTimeLeft(selectedHistoryTask.timerSeconds || 1200);
+                    }}
+                    className="w-full h-11 rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-500 hover:from-violet-500 hover:to-fuchsia-400 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-md shadow-violet-500/20 active:scale-95 transition-all cursor-pointer border-none"
+                  >
+                    <span>Practice Again</span>
+                    <ArrowRight size={13} />
+                  </Button>
+                </div>
               </motion.div>
             </div>
           )}
@@ -535,7 +626,7 @@ export default function Mcq() {
     return (
       <div className="min-h-svh bg-[#f4f6ff] dark:bg-[#0b081e] flex flex-col items-center justify-center text-slate-850 gap-4 px-6 text-center">
         <p className="text-slate-500 font-bold">No MCQ questions available today.</p>
-        <Button 
+        <Button
           onClick={() => navigate(PATHS.STUDENT_DASHBOARD)}
           className="h-12 px-6 rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-500 hover:from-violet-500 hover:to-fuchsia-400 text-white font-black text-xs uppercase"
         >
@@ -548,7 +639,7 @@ export default function Mcq() {
   const currentQuestion = questions[currentIndex];
 
   // ── NEW PREMIUM RESULT SCREEN ──
-  if (isFinished || isAlreadyDone) {
+  if (isFinished || (isAlreadyDone && !rePracticeTask)) {
     const score = isAlreadyDone ? (task?.score ?? 0) : calculateScore();
     const accuracy = totalQuestions > 0 ? Math.round((score / totalQuestions) * 100) : 0;
     const pts = isAlreadyDone ? (task?.pointsEarned ?? 0) : (score * 5);
@@ -574,18 +665,15 @@ export default function Mcq() {
                 <h1 className="text-base font-black text-slate-850 dark:text-white leading-tight">Well Done, {student?.fullName?.split(' ')[0] || 'Student'}!</h1>
               </div>
             </div>
-            <div className="bg-emerald-550/10 p-2 rounded-xl border border-emerald-500/20 text-emerald-500">
-              <BookText className="h-5 w-5" />
-            </div>
           </header>
 
           <main className="w-full space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
             {/* Stats Grid */}
-            <div className="grid grid-cols-4 gap-2 w-full">
-              <StatCard label="Score" value={`${score}/${totalQuestions}`} sub="TOTAL SCORE" color="cyan" />
-              <StatCard label="Accuracy" value={`${accuracy}%`} sub="QUIZ ACCURACY" color="cyan" />
-              <StatCard label="XP Earned" value={`${score * 10} XP`} sub="LEADERBOARD XP" color="cyan" />
-              <StatCard label="PTS Earned" value={`${pts} PTS`} sub="WALLET REWARD" color="gold" />
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 w-full">
+              <StatCard label="Score" value={`${score}/${totalQuestions}`} sub="TOTAL SCORE" colorClass="text-emerald-500" borderClass="border-emerald-500/20" />
+              <StatCard label="Accuracy" value={`${accuracy}%`} sub="QUIZ ACCURACY" colorClass="text-blue-500" borderClass="border-blue-500/20" />
+              <StatCard label="XP Earned" value={`${score * 10} XP`} sub="LEADERBOARD XP" colorClass="text-indigo-500" borderClass="border-indigo-500/20" />
+              <StatCard label="PTS Earned" value={`${pts} PTS`} sub="WALLET REWARD" colorClass="text-amber-500" borderClass="border-amber-500/20" />
             </div>
 
             {/* Pie Chart Card */}
@@ -627,7 +715,7 @@ export default function Mcq() {
                 {questions.map((q: any, idx: number) => {
                   const userAnswer = userAnswers[idx];
                   const isCorrect = userAnswer === q.correctAnswer;
-                  
+
                   return (
                     <Card key={q.id} className="border border-slate-100 dark:border-slate-800 rounded-3xl p-5 bg-white dark:bg-[#161233]">
                       <div className="space-y-3">
@@ -637,7 +725,7 @@ export default function Mcq() {
                           </span>
                           <span className={cn(
                             "text-[9px] font-black uppercase px-2.5 py-1 rounded-full",
-                            isCorrect 
+                            isCorrect
                               ? "bg-green-50 text-green-700 dark:bg-green-950/20 dark:text-green-400"
                               : "bg-red-50 text-red-700 dark:bg-red-950/20 dark:text-red-400"
                           )}>
@@ -647,15 +735,15 @@ export default function Mcq() {
                         <h4 className="text-sm font-bold text-slate-850 dark:text-white leading-snug">
                           {q.question}
                         </h4>
-                        
+
                         <div className="space-y-2 pt-1">
                           {q.options.map((opt: any) => {
                             const isUserSelected = userAnswer === opt.id;
                             const isCorrectOpt = q.correctAnswer === opt.id;
-                            
+
                             let optStyle = "border-slate-100 dark:border-slate-900 bg-slate-50/50 dark:bg-slate-900/20";
                             let badgeStyle = "bg-slate-100 dark:bg-slate-950 border-slate-200 dark:border-slate-850 text-slate-450";
-                            
+
                             if (isCorrectOpt) {
                               optStyle = "border-green-500 bg-green-50/30 dark:bg-green-950/10";
                               badgeStyle = "bg-green-600 border-green-600 text-white";
@@ -663,7 +751,7 @@ export default function Mcq() {
                               optStyle = "border-red-500 bg-red-50/30 dark:bg-red-950/10";
                               badgeStyle = "bg-red-600 border-red-600 text-white";
                             }
-                            
+
                             return (
                               <div key={opt.id} className={cn("border rounded-xl px-3 py-2 flex items-center gap-3 text-xs font-bold transition-all", optStyle)}>
                                 <div className={cn("h-6 w-6 shrink-0 flex items-center justify-center rounded-full text-[10px] font-black border", badgeStyle)}>
@@ -688,12 +776,27 @@ export default function Mcq() {
 
             {/* Action Buttons */}
             <div className="w-full">
-              <button
-                onClick={() => navigate(PATHS.STUDENT_DASHBOARD)}
-                className="w-full h-14 rounded-2xl bg-gradient-to-r from-violet-600 to-fuchsia-500 hover:from-violet-500 hover:to-fuchsia-400 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md shadow-violet-500/20 active:scale-95 transition-all cursor-pointer"
-              >
-                Back to Dashboard
-              </button>
+              {rePracticeTask ? (
+                <button
+                  onClick={() => {
+                    setRePracticeTask(null);
+                    setIsFinished(false);
+                    setCurrentIndex(0);
+                    setUserAnswers({});
+                    setTimeLeft(1200);
+                  }}
+                  className="w-full h-14 rounded-2xl bg-gradient-to-r from-violet-600 to-fuchsia-500 hover:from-violet-500 hover:to-fuchsia-400 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md shadow-violet-500/20 active:scale-95 transition-all cursor-pointer border-none"
+                >
+                  Exit Practice Mode
+                </button>
+              ) : (
+                <button
+                  onClick={() => navigate(PATHS.STUDENT_DASHBOARD)}
+                  className="w-full h-14 rounded-2xl bg-gradient-to-r from-violet-600 to-fuchsia-500 hover:from-violet-500 hover:to-fuchsia-400 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md shadow-violet-500/20 active:scale-95 transition-all cursor-pointer border-none"
+                >
+                  Back to Dashboard
+                </button>
+              )}
             </div>
           </main>
         </div>
@@ -704,12 +807,12 @@ export default function Mcq() {
   return (
     <div className="relative flex h-svh w-full flex-col items-center bg-[#f4f6ff] dark:bg-[#0b081e] px-4 py-4 overflow-hidden text-slate-800 dark:text-slate-100 transition-colors duration-300">
       <div className="max-w-xl w-full flex-1 flex flex-col h-full justify-between pb-2">
-        
+
         <header className="relative z-10 flex w-full items-center justify-between mb-2">
-          <Button 
-            variant="outline" 
-            size="icon" 
-            onClick={() => setShowExitWarning(true)} 
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => setShowExitWarning(true)}
             className="h-9 w-9 rounded-xl border-slate-200 dark:border-[#221c4e] bg-white dark:bg-[#161233] text-slate-800 dark:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-900 active:scale-95 transition-all shadow-sm"
           >
             <ChevronLeft size={18} />
@@ -719,7 +822,7 @@ export default function Mcq() {
             <p className="text-[9px] text-slate-450 dark:text-slate-500 font-bold tracking-wider uppercase">QUESTION {currentIndex + 1} / {totalQuestions}</p>
           </div>
           <div className="flex items-center gap-1.5 text-slate-850 dark:text-white/80 font-mono text-xs font-black">
-            <Clock size={14} className={timeLeft < 60 ? "text-rose-500" : "text-slate-400 dark:text-slate-500"} /> 
+            <Clock size={14} className={timeLeft < 60 ? "text-rose-500" : "text-slate-400 dark:text-slate-500"} />
             <span className={timeLeft < 60 ? "text-rose-500" : ""}>{formatTime(timeLeft)}</span>
           </div>
         </header>
@@ -735,26 +838,26 @@ export default function Mcq() {
                 <span className="text-[8.5px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Question</span>
                 <h2 className="text-base font-black text-slate-855 dark:text-white leading-snug break-words">{currentQuestion.question}</h2>
               </div>
-              
+
               <div className="space-y-2.5 py-2">
                 {currentQuestion.options.map((option: McqOption) => {
                   const isSelected = userAnswers[currentIndex] === option.id;
                   return (
-                    <Card 
-                      key={option.id} 
-                      onClick={() => handleSelect(option.id)} 
+                    <Card
+                      key={option.id}
+                      onClick={() => handleSelect(option.id)}
                       className={cn(
-                        "cursor-pointer border rounded-2xl transition-all duration-200", 
-                        isSelected 
-                          ? "border-violet-500 bg-violet-500/10 shadow-sm" 
+                        "cursor-pointer border rounded-2xl transition-all duration-200",
+                        isSelected
+                          ? "border-violet-500 bg-violet-500/10 shadow-sm"
                           : "border-slate-100 dark:border-slate-900 bg-slate-50/50 dark:bg-slate-900/20 hover:border-violet-500/20"
                       )}
                     >
                       <CardContent className="px-4 py-2.5 flex items-center gap-3 text-left">
                         <div className={cn(
-                          "h-6.5 w-6.5 shrink-0 flex items-center justify-center rounded-full text-xs font-black border", 
-                          isSelected 
-                            ? "bg-violet-600 border-violet-600 text-white" 
+                          "h-6.5 w-6.5 shrink-0 flex items-center justify-center rounded-full text-xs font-black border",
+                          isSelected
+                            ? "bg-violet-600 border-violet-600 text-white"
                             : "bg-slate-100 dark:bg-slate-950 border-slate-200 dark:border-slate-850 text-slate-450"
                         )}>
                           {option.id}
@@ -770,9 +873,9 @@ export default function Mcq() {
             </div>
 
             <div className="mt-3 flex justify-end shrink-0">
-              <Button 
-                onClick={handleNext} 
-                disabled={!userAnswers[currentIndex]} 
+              <Button
+                onClick={handleNext}
+                disabled={!userAnswers[currentIndex]}
                 className="h-10 px-5 rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-500 hover:from-violet-500 hover:to-fuchsia-400 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-md shadow-violet-500/20 cursor-pointer border-none"
               >
                 {currentIndex === totalQuestions - 1 ? "Submit Quiz" : "Next Question"}
@@ -797,7 +900,7 @@ export default function Mcq() {
             <AlertDialogCancel className="h-11 rounded-xl border-slate-200 dark:border-[#221c4e] bg-transparent text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 font-bold text-xs">
               Continue Test
             </AlertDialogCancel>
-            <AlertDialogAction 
+            <AlertDialogAction
               onClick={() => navigate(PATHS.STUDENT_DASHBOARD)}
               className="h-11 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-black text-xs border-none"
             >
@@ -811,19 +914,16 @@ export default function Mcq() {
 }
 
 // ── Internal Result Components ──
-function StatCard({ label, value, sub, color }: any) {
-  const isGold = color === "gold";
+function StatCard({ label, value, sub, colorClass, borderClass }: any) {
   return (
     <Card className={cn(
-      "bg-white dark:bg-[#161233] rounded-[2rem] border text-center py-4 px-2 shadow-sm", 
-      isGold 
-        ? "border-yellow-500/30 shadow-[0_0_15px_rgba(245,158,11,0.05)]" 
-        : "border-slate-100 dark:border-[#221c4e]"
+      "bg-white dark:bg-[#161233] rounded-[2rem] border text-center py-4 px-1.5 shadow-sm transition-all hover:scale-[1.02]",
+      borderClass || "border-slate-100 dark:border-[#221c4e]"
     )}>
       <div className="space-y-1">
-        <p className="text-[9px] font-black tracking-wider text-slate-400 dark:text-slate-550 uppercase">{label}</p>
-        <h2 className={cn("text-lg font-black", isGold ? "text-yellow-500" : "text-cyan-500")}>{value}</h2>
-        <p className="text-[7px] font-black text-slate-400 dark:text-slate-550 uppercase tracking-widest">{sub}</p>
+        <p className="text-[9px] font-black tracking-wider text-slate-455 dark:text-slate-500 uppercase">{label}</p>
+        <h2 className={cn("text-base font-black leading-none my-1", colorClass)}>{value}</h2>
+        <p className="text-[7px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">{sub}</p>
       </div>
     </Card>
   );

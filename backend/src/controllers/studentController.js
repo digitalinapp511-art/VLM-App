@@ -33,6 +33,24 @@ const logStudentPointsTransaction = async (userId, points, type, description) =>
   }
 };
 
+export const getOrCreateStudentProfile = async (userId) => {
+  let student = await Student.findOne({ userId });
+  if (!student) {
+    const user = await User.findById(userId);
+    const vlmStudentId = await generateVlmId('STU');
+    student = await Student.create({
+      userId,
+      vlmStudentId,
+      email: user?.email || '',
+      mobile: user?.mobile || '',
+      class: '10',
+      board: 'CBSE',
+      fullName: user?.email ? user.email.split('@')[0] : 'Student'
+    });
+  }
+  return student;
+};
+
 export const createStudentProfile = asyncHandler(async (req, res) => {
   // Validate DOB if provided
   if (req.body.dateOfBirth) {
@@ -500,8 +518,7 @@ export const getAvailableTeachers = asyncHandler(async (req, res) => {
 });
 
 export const getDailyMcq = asyncHandler(async (req, res) => {
-  const student = await Student.findOne({ userId: req.user._id });
-  if (!student) return res.status(404).json({ success: false, message: 'Student profile not found' });
+  const student = await getOrCreateStudentProfile(req.user._id);
   
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -511,13 +528,42 @@ export const getDailyMcq = asyncHandler(async (req, res) => {
   let task = await McqTask.findOne({ studentId: student._id, class: selectedClass, date: { $gte: today } });
   if (!task) {
     const subjects = student.subjects?.length ? student.subjects : ['Math', 'Science', 'English'];
-    const weakSubjects = student.weakSubjects?.length ? student.weakSubjects : [];
+    
+    // Fetch incorrect MCQ answers from the last 1-3 days
+    const startOf3DaysAgo = new Date();
+    startOf3DaysAgo.setDate(startOf3DaysAgo.getDate() - 3);
+    startOf3DaysAgo.setHours(0, 0, 0, 0);
+
+    const pastThreeDaysTasks = await McqTask.find({
+      studentId: student._id,
+      status: 'completed',
+      completedAt: { $gte: startOf3DaysAgo }
+    });
+
+    const wrongQuestions = [];
+    for (const t of pastThreeDaysTasks) {
+      if (t.answers && t.answers.length) {
+        for (const ans of t.answers) {
+          if (!ans.isCorrect) {
+            const questionDetail = t.questions[ans.questionIndex];
+            if (questionDetail) {
+              wrongQuestions.push({
+                subject: questionDetail.subject,
+                question: questionDetail.question,
+                correctAnswerText: questionDetail.options[questionDetail.correctAnswer],
+                explanation: questionDetail.explanation
+              });
+            }
+          }
+        }
+      }
+    }
     
     let questions = [];
 
-    // Call LLM to generate exactly 15 customized MCQ questions
-    const apiKey = process.env.AICREDITS_API_KEY || 'sk-live-a92f285a97499b113c4bb6ef0098e42ac4a0875f83afb0903512abb77491db96';
-    const baseUrl = process.env.AICREDITS_BASE_URL || 'https://aicredits.in/v1';
+    // Call Gemini API to generate exactly 20 customized MCQ questions
+    const apiKey = process.env.GEMINI_API_KEY;
+    const baseUrl = process.env.GEMINI_BASE_URL || 'https://generativelanguage.googleapis.com/v1beta/openai';
 
     try {
       const response = await fetch(`${baseUrl}/chat/completions`, {
@@ -527,11 +573,11 @@ export const getDailyMcq = asyncHandler(async (req, res) => {
           'Authorization': `Bearer ${apiKey}`
         },
         body: JSON.stringify({
-          model: 'gpt-4o-mini',
+          model: 'gemini-3.1-flash-lite',
           messages: [
             {
               role: 'system',
-              content: `You are an educational assistant that generates daily MCQ test tasks for students. Generate exactly 15 MCQ questions in JSON format. The response must be a valid JSON array containing exactly 15 objects with the following schema:
+              content: `You are an educational assistant that generates daily MCQ test tasks for students. Generate exactly 20 MCQ questions in JSON format. The response must be a valid JSON array containing exactly 20 objects with the following schema:
 [
   {
     "subject": "string",
@@ -544,13 +590,14 @@ export const getDailyMcq = asyncHandler(async (req, res) => {
             },
             {
               role: 'user',
-              content: `Generate exactly 15 multiple choice questions for a Class ${selectedClass} student.
+              content: `Generate exactly 20 multiple choice questions for a Class ${selectedClass} student.
 The student takes the following subjects: ${subjects.join(', ')}.
-The student's weak subjects are: ${weakSubjects.join(', ')}. Please weight the questions to focus more (approx 50-60%) on these weak subjects so they can practice and improve.
+The student recently answered the following questions incorrectly in the last 3 days: ${JSON.stringify(wrongQuestions.slice(0, 10))}.
+Please include questions targeting the topics/concepts of these incorrect questions, while maintaining coverage of all subjects.
 Return ONLY a valid JSON array, do not wrap in markdown or backticks.`
             }
           ],
-          max_tokens: 2000
+          max_tokens: 3000
         })
       });
 
@@ -563,20 +610,22 @@ Return ONLY a valid JSON array, do not wrap in markdown or backticks.`
         }
         const parsed = JSON.parse(cleaned);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          questions = parsed.slice(0, 15);
+          questions = parsed.slice(0, 20);
         }
+      } else {
+        const errText = await response.text();
+        console.error("Gemini Daily MCQ API response error:", errText);
       }
     } catch (err) {
-      console.error("Failed to generate MCQs using LLM:", err.message);
+      console.error("Failed to generate MCQs using Gemini:", err.message);
     }
 
     // Fallback if LLM fails or returns invalid format
-    if (questions.length < 15) {
+    if (questions.length < 20) {
       questions = [];
-      for (let i = 0; i < 15; i++) {
-        const subj = weakSubjects.length && i % 2 === 0
-          ? weakSubjects[Math.floor(Math.random() * weakSubjects.length)]
-          : subjects[i % subjects.length];
+      const subjectsPool = subjects;
+      for (let i = 0; i < 20; i++) {
+        const subj = subjectsPool[i % subjectsPool.length];
         questions.push({
           subject: subj,
           question: `Practice ${subj} problem ${i + 1} for Class ${selectedClass}`,
@@ -592,7 +641,7 @@ Return ONLY a valid JSON array, do not wrap in markdown or backticks.`
       class: selectedClass,
       date: today,
       questions,
-      timerSeconds: 1200,
+      timerSeconds: 1500, // 25 mins for 20 questions
     });
   }
 
@@ -613,7 +662,7 @@ Return ONLY a valid JSON array, do not wrap in markdown or backticks.`
   const leaderboard = await Student.find({ class: student.class })
     .sort({ mcqPoints: -1 })
     .limit(10)
-    .select('fullName nickname totalPoints mcqPoints streak profilePhoto');
+    .select('firstName lastName nickname totalPoints mcqPoints streak profilePhoto');
 
   res.json({
     success: true,
@@ -709,7 +758,7 @@ export const getLeaderboard = asyncHandler(async (req, res) => {
   const list = await Student.find(query)
     .sort({ mcqPoints: -1, totalPoints: -1 })
     .limit(50)
-    .select('fullName nickname totalPoints mcqPoints streak profilePhoto class city state');
+    .select('firstName lastName nickname totalPoints mcqPoints streak profilePhoto class city state');
 
   res.json({
     success: true,
@@ -718,36 +767,71 @@ export const getLeaderboard = asyncHandler(async (req, res) => {
 });
 
 export const getStudentResources = asyncHandler(async (req, res) => {
-  const student = await Student.findOne({ userId: req.user._id });
-  if (!student) return res.status(404).json({ success: false, message: 'Student profile not found' });
+  const student = await getOrCreateStudentProfile(req.user._id);
 
-  const { default: StudyResource } = await import('../models/StudyResource.js');
+  // Normalize class name to numeric format (e.g. "10th" -> "10")
+  const classNum = student.class?.replace(/\D/g, '') || '10';
+  const prefix = `vlm-academy/study-material/class-${classNum}/`;
 
-  const query = {
-    board: student.board,
-    className: student.class,
-    visibility: 'public',
-    status: 'active'
-  };
+  let objects = [];
+  try {
+    const { listR2Objects } = await import('../config/s3.js');
+    objects = await listR2Objects(prefix);
+  } catch (err) {
+    console.error("Failed to list files from Cloudflare R2:", err);
+  }
 
-  const resources = await StudyResource.find(query).sort({ createdAt: -1 });
+  const resources = [];
+  const basePublicUrl = (process.env.R2_PUBLIC_URL || '').replace(/\/$/, '');
 
-  const mapped = resources.map(r => ({
-    _id: r._id,
-    title: r.title,
-    board: r.board,
-    className: r.className,
-    subject: r.subject,
-    chapterName: r.chapterName,
-    topic: r.topic,
-    description: r.description,
-    resourceType: r.resourceType,
-    pdfUrl: r.pdfUrl || r.fileUrl,
-    thumbnailUrl: r.thumbnailUrl,
-    createdAt: r.createdAt
-  }));
+  for (const obj of objects) {
+    const key = obj.Key;
+    if (key.endsWith('/')) continue; // Skip folders
 
-  res.json({ success: true, data: mapped });
+    const relativePath = key.substring(prefix.length); // e.g. Mathematics/notes/Quadratic_Equations.pdf
+    const parts = relativePath.split('/');
+    if (parts.length >= 3) {
+      const subject = parts[0];
+      const type = parts[1]; // notes, videos, etc.
+      const filenameWithExt = parts.slice(2).join('/');
+      const extIndex = filenameWithExt.lastIndexOf('.');
+      const filename = extIndex > -1 ? filenameWithExt.substring(0, extIndex) : filenameWithExt;
+      const title = filename.replace(/[-_]+/g, ' ');
+
+      const fileUrl = `${basePublicUrl}/${key}`;
+
+      resources.push({
+        _id: key,
+        title: title,
+        board: student.board || 'CBSE',
+        className: student.class,
+        subject: subject,
+        type: type,
+        resourceType: type.includes('video') ? 'video' : 'note',
+        pdfUrl: fileUrl,
+        fileUrl: fileUrl,
+        thumbnailUrl: type.includes('video') ? '/video-thumbnail.png' : '/pdf-thumbnail.png',
+        createdAt: obj.LastModified || new Date()
+      });
+    }
+  }
+
+  let filtered = resources;
+  if (req.query.subject) {
+    const subQuery = req.query.subject.toLowerCase();
+    filtered = filtered.filter(r => r.subject.toLowerCase() === subQuery);
+  }
+
+  if (req.query.type) {
+    const typeQuery = req.query.type.toLowerCase();
+    if (typeQuery === 'note' || typeQuery === 'notes' || typeQuery === 'pdf-notes') {
+      filtered = filtered.filter(r => r.type.includes('note'));
+    } else if (typeQuery === 'video' || typeQuery === 'videos') {
+      filtered = filtered.filter(r => r.type.includes('video'));
+    }
+  }
+
+  res.json({ success: true, data: filtered });
 });
 
 export const toggleFavoriteTeacher = asyncHandler(async (req, res) => {
@@ -1149,7 +1233,7 @@ export const submitAiChatQuery = asyncHandler(async (req, res) => {
   }
 
   // Choose model and format query content
-  const model = imageUrl ? 'gpt-4o' : 'gpt-4o-mini';
+  const model = 'gemini-3.1-flash-lite';
   
   if (imageUrl) {
     messagesContext.push({
@@ -1166,9 +1250,9 @@ export const submitAiChatQuery = asyncHandler(async (req, res) => {
     });
   }
 
-  // Make request to aicredits.in API
-  const apiKey = process.env.AICREDITS_API_KEY || 'sk-live-a92f285a97499b113c4bb6ef0098e42ac4a0875f83afb0903512abb77491db96';
-  const baseUrl = process.env.AICREDITS_BASE_URL || 'https://aicredits.in/v1';
+  // Make request to Google Gemini API
+  const apiKey = process.env.GEMINI_API_KEY;
+  const baseUrl = process.env.GEMINI_BASE_URL || 'https://generativelanguage.googleapis.com/v1beta/openai';
 
   try {
     const response = await fetch(`${baseUrl}/chat/completions`, {
@@ -1180,30 +1264,24 @@ export const submitAiChatQuery = asyncHandler(async (req, res) => {
       body: JSON.stringify({
         model: model,
         messages: messagesContext,
-        max_tokens: 800
+        max_tokens: 1000
       })
     });
 
     if (!response.ok) {
       const errText = await response.text();
-      console.error('AICredits API error:', errText);
+      console.error('Gemini API error:', errText);
       return res.status(500).json({ success: false, message: 'AI Tutor failed to respond' });
     }
 
     const responseData = await response.json();
     const replyText = responseData.choices?.[0]?.message?.content || '';
     const usage = responseData.usage || { prompt_tokens: 0, completion_tokens: 0 };
+    
+    // Deduct 1 flat credit per request for Gemini
+    const creditsUsed = 1;
 
-    // Calculate credits to deduct
-    let costUsd = 0;
-    if (model === 'gpt-4o') {
-      costUsd = (usage.prompt_tokens * 0.0000025) + (usage.completion_tokens * 0.0000100);
-    } else {
-      costUsd = (usage.prompt_tokens * 0.000000150) + (usage.completion_tokens * 0.000000600);
-    }
-    const creditsUsed = Math.max(1, Math.ceil(costUsd * 10000));
-
-    console.log(`AI Chat cost: ${costUsd} USD -> Deducting ${creditsUsed} credits. Current balance: ${currentCredits}`);
+    console.log(`Gemini AI Chat success -> Deducting ${creditsUsed} credit. Current balance: ${currentCredits}`);
 
     // Deduct credits from student
     student.wallet.aiCredits = Math.max(0, currentCredits - creditsUsed);
@@ -1396,4 +1474,16 @@ export const deductSessionCredits = asyncHandler(async (req, res) => {
     message: `Credits deducted successfully (${creditsToDeduct}/min)`,
     remainingCredits: student.wallet.humanChatCredits
   });
+});
+
+export const getActiveBanners = asyncHandler(async (req, res) => {
+  const { default: PromoBanner } = await import('../models/PromoBanner.js');
+  const banners = await PromoBanner.find({ isActive: true }).sort({ order: 1 });
+  res.json({ success: true, data: banners });
+});
+
+export const getOnboardingSlides = asyncHandler(async (req, res) => {
+  const { default: OnboardingSlide } = await import('../models/OnboardingSlide.js');
+  const slides = await OnboardingSlide.find({ isActive: true }).sort({ order: 1 });
+  res.json({ success: true, data: slides });
 });

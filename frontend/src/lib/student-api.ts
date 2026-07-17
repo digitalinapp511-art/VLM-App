@@ -104,6 +104,21 @@ export const studentApi = {
     return data;
   },
 
+  getResources: async (params?: { subject?: string; type?: string }) => {
+    const { data } = await apiClient.get("/student/resources", { params });
+    return data;
+  },
+
+  getActiveBanners: async () => {
+    const { data } = await apiClient.get("/student/banners");
+    return data;
+  },
+
+  getOnboardingSlides: async () => {
+    const { data } = await apiClient.get("/student/onboarding-slides");
+    return data;
+  },
+
   getAvailableTeachers: async (params: { limit?: number }) => {
     const { data } = await apiClient.get("/student/teachers", { params });
     return data;

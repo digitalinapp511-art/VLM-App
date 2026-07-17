@@ -1,6 +1,12 @@
 import express from 'express';
 import { protect, authorize } from '../middleware/auth.js';
 import { upload, cloudinaryUploadMiddleware } from '../middleware/upload.js';
+import {
+  getBanners, createBanner, updateBanner, deleteBanner
+} from '../controllers/admin/adminBannerController.js';
+import {
+  getOnboardingSlidesAdmin, createOnboardingSlide, updateOnboardingSlide, deleteOnboardingSlide
+} from '../controllers/admin/adminOnboardingController.js';
 
 // ── Auth Controller ──────────────────────────────────────────────────────────
 import {
@@ -268,6 +274,18 @@ router.get('/spin-settings', getSpinSettings);
 router.post('/spin-settings', createSpinSetting);
 router.put('/spin-settings', updateSpinSetting);
 router.delete('/spin-settings/:id', deleteSpinSetting);
+
+// ── PROMO BANNERS ─────────────────────────────────────────────────────────────
+router.get('/banners', getBanners);
+router.post('/banners', upload.single('image'), cloudinaryUploadMiddleware, createBanner);
+router.put('/banners/:id', upload.single('image'), cloudinaryUploadMiddleware, updateBanner);
+router.delete('/banners/:id', deleteBanner);
+
+// ── ONBOARDING SLIDES ──────────────────────────────────────────────────────────
+router.get('/onboarding-slides', getOnboardingSlidesAdmin);
+router.post('/onboarding-slides', upload.single('image'), cloudinaryUploadMiddleware, createOnboardingSlide);
+router.put('/onboarding-slides/:id', upload.single('image'), cloudinaryUploadMiddleware, updateOnboardingSlide);
+router.delete('/onboarding-slides/:id', deleteOnboardingSlide);
 
 // ── NOTIFICATIONS ─────────────────────────────────────────────────────────────
 router.get('/notifications', getNotifications);

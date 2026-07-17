@@ -1,6 +1,6 @@
 import multer from 'multer';
 import path from 'path';
-import { uploadToCloudinary as cloudinaryUpload } from '../config/cloudinary.js';
+import { uploadToS3 } from '../config/s3.js';
 
 const storage = multer.memoryStorage();
 
@@ -16,8 +16,7 @@ export const upload = multer({
 });
 
 /**
- * Middleware to upload a parsed file to Cloudinary.
- * Expects multer middleware (e.g. upload.single(...)) to have run first.
+ * Middleware to upload a parsed file to Cloudflare R2 / S3.
  * Automatically detects folder based on mimetype.
  */
 export const cloudinaryUploadMiddleware = async (req, res, next) => {
@@ -27,39 +26,38 @@ export const cloudinaryUploadMiddleware = async (req, res, next) => {
 
   try {
     let folder = 'documents';
-    let resourceType = 'auto';
 
     if (req.file.mimetype.startsWith('image/')) {
-      folder = 'profiles';
-      resourceType = 'image';
+      const role = req.user?.role || 'user';
+      folder = `profiles/${role}s`;
     } else if (req.file.mimetype.startsWith('video/')) {
       folder = 'videos';
-      resourceType = 'video';
     } else if (req.file.mimetype.startsWith('audio/')) {
       folder = 'recordings';
-      resourceType = 'video';
     } else if (req.file.mimetype === 'application/pdf') {
       folder = 'documents';
-      resourceType = 'raw';
     }
 
-    const result = await cloudinaryUpload(req.file.buffer, folder, resourceType);
+    const publicUrl = await uploadToS3(
+      req.file.buffer,
+      folder,
+      req.file.originalname || 'file',
+      req.file.mimetype
+    );
     
-    // Assign the Cloudinary URL to req.file
-    req.file.filename = result.secure_url;
-    req.file.path = result.secure_url;
-    req.file.cloudinaryUrl = result.secure_url;
+    // Assign S3 URL to req.file fields to maintain backward compatibility
+    req.file.filename = publicUrl;
+    req.file.path = publicUrl;
+    req.file.cloudinaryUrl = publicUrl;
+    req.file.s3Url = publicUrl;
     
     next();
   } catch (err) {
-    console.error('Cloudinary upload error:', err);
+    console.error('S3/R2 upload error:', err);
     res.status(500).json({ success: false, message: 'File upload failed', error: err.message || err });
   }
 };
 
 export const getFileUrl = (filename, folder = 'documents') => {
-  if (filename && (filename.startsWith('http://') || filename.startsWith('https://'))) {
-    return filename;
-  }
-  return `/uploads/${folder}/${filename}`;
+  return filename;
 };

@@ -11,6 +11,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { useQuery } from "@tanstack/react-query";
+import { studentApi } from "@/lib/student-api";
 import { bgCss } from "@/helper/CssHelper";
 import { cn } from "@/lib/utils";
 
@@ -49,6 +51,38 @@ export default function Library() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedClassTab, setSelectedClassTab] = useState("All");
   const [selectedFilterTab, setSelectedFilterTab] = useState("All");
+
+  // Real resources from backend API
+  const { data: resourcesResponse, isLoading: resourcesLoading } = useQuery({
+    queryKey: ["studentResources", selectedCategory],
+    queryFn: () => studentApi.getResources({ type: selectedCategory || undefined }),
+    enabled: !!selectedCategory,
+  });
+
+  const resourcesList = resourcesResponse?.data || [];
+
+  // Dynamically group unique subjects from real backend resources list
+  const uniqueSubjects = Array.from(new Set(resourcesList.map((r: any) => r.subject))).map((subj: any) => {
+    const count = resourcesList.filter((r: any) => r.subject === subj).length;
+    return {
+      name: subj,
+      count: `${count} Material${count > 1 ? 's' : ''}`,
+      color: "text-blue-400"
+    };
+  });
+
+  const getCategorySubjects = () => {
+    if (resourcesList.length > 0 && uniqueSubjects.length > 0) {
+      return uniqueSubjects;
+    }
+    return selectedCategory === "pdf-notes" 
+      ? subjectsMockData.pdf 
+      : selectedCategory === "chapter-notes"
+        ? subjectsMockData.chapters
+        : selectedCategory === "video-lessons"
+          ? subjectsMockData.videos
+          : subjectsMockData.papers;
+  };
 
   // Simulated Downloader States
   const [downloadProgress, setDownloadProgress] = useState<Record<string, number>>({});
@@ -278,6 +312,21 @@ export default function Library() {
 
   // Mock chapters list depending on the clicked subject
   const getSubjectChapters = (subjectName: string): ChapterItem[] => {
+    // If we have real resources for this subject, use them!
+    const subjectResources = resourcesList.filter((r: any) => r.subject === subjectName);
+    if (subjectResources.length > 0) {
+      return subjectResources.map((r: any, idx: number) => ({
+        id: r._id,
+        chNumber: `Item ${String(idx + 1).padStart(2, '0')}`,
+        title: r.title,
+        pages: "1 Document",
+        size: "PDF / Link",
+        type: r.resourceType || "Study Material",
+        textSnippet: r.description || `${r.chapterName} - Complete study material guide.`,
+        pdfUrl: r.pdfUrl
+      })) as any;
+    }
+
     if (subjectName === "Mathematics") {
       return [
         { id: "m-ch-1", chNumber: "CH 01", title: "Real Numbers", pages: "14 Pages", size: "2.4 MB", type: "Detailed Notes", textSnippet: "Chapter 1 covers Euclid's Division Lemma, Fundamental Theorem of Arithmetic, revisiting irrational numbers, and rational numbers and their decimal expansions." },
@@ -476,15 +525,7 @@ export default function Library() {
             </div>
 
             <div className="flex flex-col gap-3">
-              {getFilteredItems(
-                selectedCategory === "pdf-notes" 
-                  ? subjectsMockData.pdf 
-                  : selectedCategory === "chapter-notes"
-                    ? subjectsMockData.chapters
-                    : selectedCategory === "video-lessons"
-                      ? subjectsMockData.videos
-                      : subjectsMockData.papers
-              ).map((sub, idx) => (
+              {getFilteredItems(getCategorySubjects()).map((sub, idx) => (
                 <Card 
                   key={idx}
                   onClick={() => setSelectedSubject(sub)}
