@@ -573,7 +573,7 @@ export const getDailyMcq = asyncHandler(async (req, res) => {
           'Authorization': `Bearer ${apiKey}`
         },
         body: JSON.stringify({
-          model: 'gemini-2.5-flash-lite',
+          model: 'gemini-3.1-flash-lite',
           messages: [
             {
               role: 'system',
@@ -1231,7 +1231,7 @@ export const submitAiChatQuery = asyncHandler(async (req, res) => {
   }
 
   // Choose model and format query content
-  const model = 'gemini-2.5-flash-lite';
+  const model = 'gemini-3.1-flash-lite';
   
   if (imageUrl) {
     messagesContext.push({
