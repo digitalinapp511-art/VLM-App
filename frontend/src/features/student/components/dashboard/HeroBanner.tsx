@@ -182,7 +182,7 @@ export default function HeroBanner({
 
         {/* Centered Pagination Dots at the bottom middle */}
         <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5 z-20">
-          {activeBanners.map((_, idx) => (
+          {activeBanners.map((_: any, idx: number) => (
             <button
               key={idx}
               onClick={(e) => {
