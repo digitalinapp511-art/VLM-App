@@ -109,6 +109,11 @@ export const studentApi = {
     return data;
   },
 
+  getStudentSubjects: async () => {
+    const { data } = await apiClient.get("/student/resources/subjects");
+    return data;
+  },
+
   getActiveBanners: async () => {
     const { data } = await apiClient.get("/student/banners");
     return data;

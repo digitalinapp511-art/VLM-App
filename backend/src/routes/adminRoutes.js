@@ -2,7 +2,7 @@ import express from 'express';
 import { protect, authorize } from '../middleware/auth.js';
 import { upload, cloudinaryUploadMiddleware } from '../middleware/upload.js';
 import {
-  getBanners, createBanner, updateBanner, deleteBanner
+  getBanners, createBanner, updateBanner, deleteBanner, reorderBanners
 } from '../controllers/admin/adminBannerController.js';
 import {
   getOnboardingSlidesAdmin, createOnboardingSlide, updateOnboardingSlide, deleteOnboardingSlide
@@ -70,7 +70,7 @@ import {
   // Support
   getTickets, createTicket, updateTicket, deleteTicket, getFeedback,
   // Resources
-  getResources, createResource, updateResource, deleteResource,
+  getResources, createResource, updateResource, deleteResource, getSubjectsByClass,
   // Spin Wheel
   getSpinSettings, createSpinSetting, updateSpinSetting, deleteSpinSetting,
   // Settings
@@ -249,8 +249,9 @@ router.delete('/topics/:id', topicsCrud.delete);
 
 // ── RESOURCES ────────────────────────────────────────────────────────────────
 router.get('/resources', getResources);
-router.post('/resources', upload.single('pdf'), cloudinaryUploadMiddleware, createResource);
-router.put('/resources/:id', upload.single('pdf'), cloudinaryUploadMiddleware, updateResource);
+router.get('/resources/subjects', getSubjectsByClass);
+router.post('/resources', upload.fields([{ name: 'pdf', maxCount: 1 }, { name: 'video', maxCount: 1 }, { name: 'file', maxCount: 1 }]), cloudinaryUploadMiddleware, createResource);
+router.put('/resources/:id', upload.fields([{ name: 'pdf', maxCount: 1 }, { name: 'video', maxCount: 1 }, { name: 'file', maxCount: 1 }]), cloudinaryUploadMiddleware, updateResource);
 router.delete('/resources/:id', deleteResource);
 
 // ── MCQ ──────────────────────────────────────────────────────────────────────
@@ -278,6 +279,7 @@ router.delete('/spin-settings/:id', deleteSpinSetting);
 // ── PROMO BANNERS ─────────────────────────────────────────────────────────────
 router.get('/banners', getBanners);
 router.post('/banners', upload.single('image'), cloudinaryUploadMiddleware, createBanner);
+router.put('/banners/reorder', reorderBanners);
 router.put('/banners/:id', upload.single('image'), cloudinaryUploadMiddleware, updateBanner);
 router.delete('/banners/:id', deleteBanner);
 

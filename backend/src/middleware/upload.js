@@ -16,42 +16,82 @@ export const upload = multer({
 });
 
 /**
- * Middleware to upload a parsed file to Cloudflare R2 / S3.
- * Automatically detects folder based on mimetype.
+ * Determines upload folder for a file based on route and mimetype.
  */
-export const cloudinaryUploadMiddleware = async (req, res, next) => {
-  if (!req.file) {
-    return next();
+function resolveFolder(req, file) {
+  const routePath = req.originalUrl || '';
+
+  // Banners → vlm-academy/banners/
+  if (routePath.includes('/banners')) return 'banners';
+
+  // Onboarding slides → vlm-academy/onboarding/student/
+  if (routePath.includes('/onboarding')) return 'onboarding/student';
+
+  // Study resources
+  if (routePath.includes('/resources')) {
+    if (file.mimetype.startsWith('video/')) return 'study-material/videos';
+    return 'study-material/documents';
   }
 
-  try {
-    let folder = 'documents';
+  // Mimetype fallback
+  if (file.mimetype.startsWith('image/')) {
+    const role = req.user?.role || 'user';
+    return `profiles/${role}s`;
+  }
+  if (file.mimetype.startsWith('video/')) return 'videos';
+  if (file.mimetype.startsWith('audio/')) return 'recordings';
+  return 'documents';
+}
 
-    if (req.file.mimetype.startsWith('image/')) {
-      const role = req.user?.role || 'user';
-      folder = `profiles/${role}s`;
-    } else if (req.file.mimetype.startsWith('video/')) {
-      folder = 'videos';
-    } else if (req.file.mimetype.startsWith('audio/')) {
-      folder = 'recordings';
-    } else if (req.file.mimetype === 'application/pdf') {
-      folder = 'documents';
+/**
+ * Uploads a single file object to R2 and enriches it with the public URL.
+ */
+async function uploadFileToR2(req, file) {
+  const folder = resolveFolder(req, file);
+  const publicUrl = await uploadToS3(
+    file.buffer,
+    folder,
+    file.originalname || 'file',
+    file.mimetype
+  );
+  file.filename = publicUrl;
+  file.path = publicUrl;
+  file.cloudinaryUrl = publicUrl;
+  file.s3Url = publicUrl;
+  return publicUrl;
+}
+
+/**
+ * Middleware to upload file(s) to Cloudflare R2.
+ * Handles both upload.single() (req.file) and upload.fields() (req.files).
+ */
+export const cloudinaryUploadMiddleware = async (req, res, next) => {
+  try {
+    // Case 1: single file upload
+    if (req.file) {
+      await uploadFileToR2(req, req.file);
+      return next();
     }
 
-    const publicUrl = await uploadToS3(
-      req.file.buffer,
-      folder,
-      req.file.originalname || 'file',
-      req.file.mimetype
-    );
-    
-    // Assign S3 URL to req.file fields to maintain backward compatibility
-    req.file.filename = publicUrl;
-    req.file.path = publicUrl;
-    req.file.cloudinaryUrl = publicUrl;
-    req.file.s3Url = publicUrl;
-    
-    next();
+    // Case 2: multiple fields (upload.fields())
+    if (req.files && typeof req.files === 'object') {
+      const uploadPromises = [];
+      for (const fieldFiles of Object.values(req.files)) {
+        for (const f of fieldFiles) {
+          uploadPromises.push(uploadFileToR2(req, f));
+        }
+      }
+      await Promise.all(uploadPromises);
+
+      // Flatten to req.file for backward compat — use first file found
+      const allFiles = Object.values(req.files).flat();
+      if (allFiles.length > 0) req.file = allFiles[0];
+
+      return next();
+    }
+
+    // No file uploaded
+    return next();
   } catch (err) {
     console.error('S3/R2 upload error:', err);
     res.status(500).json({ success: false, message: 'File upload failed', error: err.message || err });

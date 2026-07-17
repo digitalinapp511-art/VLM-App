@@ -452,11 +452,31 @@ export const getResources = asyncHandler(async (req, res) => {
   res.json({ success: true, data: mapped });
 });
 
+export const getSubjectsByClass = asyncHandler(async (req, res) => {
+  const { className } = req.query;
+  if (!className) return res.status(400).json({ success: false, message: 'className is required' });
+  // Normalize: accept '10', '10th', 'class-10' all map to the same
+  const classNum = String(className).replace(/\D/g, '');
+  const classVariants = [classNum, `${classNum}th`, `class-${classNum}`];
+  const subjects = await StudyResource.distinct('subject', {
+    className: { $in: classVariants },
+    visibility: 'public',
+    status: 'active'
+  });
+  res.json({ success: true, data: subjects });
+});
+
 export const createResource = asyncHandler(async (req, res) => {
   const resourceData = { ...req.body };
-  if (req.file && req.file.cloudinaryUrl) {
-    resourceData.pdfUrl = req.file.cloudinaryUrl;
-    resourceData.fileUrl = req.file.cloudinaryUrl;
+  if (req.file) {
+    const fileUrl = req.file.filename || req.file.cloudinaryUrl || req.file.path;
+    if (resourceData.type === 'video') {
+      resourceData.videoUrl = fileUrl;
+      resourceData.fileUrl = fileUrl;
+    } else {
+      resourceData.pdfUrl = fileUrl;
+      resourceData.fileUrl = fileUrl;
+    }
   }
   const resource = await StudyResource.create({ ...resourceData, uploadedBy: req.user._id });
   res.status(201).json({ success: true, data: resource });
@@ -464,9 +484,15 @@ export const createResource = asyncHandler(async (req, res) => {
 
 export const updateResource = asyncHandler(async (req, res) => {
   const resourceData = { ...req.body };
-  if (req.file && req.file.cloudinaryUrl) {
-    resourceData.pdfUrl = req.file.cloudinaryUrl;
-    resourceData.fileUrl = req.file.cloudinaryUrl;
+  if (req.file) {
+    const fileUrl = req.file.filename || req.file.cloudinaryUrl || req.file.path;
+    if (resourceData.type === 'video') {
+      resourceData.videoUrl = fileUrl;
+      resourceData.fileUrl = fileUrl;
+    } else {
+      resourceData.pdfUrl = fileUrl;
+      resourceData.fileUrl = fileUrl;
+    }
   }
   const resource = await StudyResource.findByIdAndUpdate(req.params.id, resourceData, { new: true });
   if (!resource) return res.status(404).json({ success: false, message: 'Resource not found' });

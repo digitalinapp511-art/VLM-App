@@ -769,69 +769,67 @@ export const getLeaderboard = asyncHandler(async (req, res) => {
 export const getStudentResources = asyncHandler(async (req, res) => {
   const student = await getOrCreateStudentProfile(req.user._id);
 
-  // Normalize class name to numeric format (e.g. "10th" -> "10")
+  const { default: StudyResource } = await import('../models/StudyResource.js');
+
+  // Normalize class to support "10", "10th" variants
   const classNum = student.class?.replace(/\D/g, '') || '10';
-  const prefix = `vlm-academy/study-material/class-${classNum}/`;
+  const classVariants = [classNum, `${classNum}th`, `class-${classNum}`];
 
-  let objects = [];
-  try {
-    const { listR2Objects } = await import('../config/s3.js');
-    objects = await listR2Objects(prefix);
-  } catch (err) {
-    console.error("Failed to list files from Cloudflare R2:", err);
-  }
+  const query = {
+    className: { $in: classVariants },
+    visibility: 'public',
+    status: 'active'
+  };
 
-  const resources = [];
-  const basePublicUrl = (process.env.R2_PUBLIC_URL || '').replace(/\/$/, '');
-
-  for (const obj of objects) {
-    const key = obj.Key;
-    if (key.endsWith('/')) continue; // Skip folders
-
-    const relativePath = key.substring(prefix.length); // e.g. Mathematics/notes/Quadratic_Equations.pdf
-    const parts = relativePath.split('/');
-    if (parts.length >= 3) {
-      const subject = parts[0];
-      const type = parts[1]; // notes, videos, etc.
-      const filenameWithExt = parts.slice(2).join('/');
-      const extIndex = filenameWithExt.lastIndexOf('.');
-      const filename = extIndex > -1 ? filenameWithExt.substring(0, extIndex) : filenameWithExt;
-      const title = filename.replace(/[-_]+/g, ' ');
-
-      const fileUrl = `${basePublicUrl}/${key}`;
-
-      resources.push({
-        _id: key,
-        title: title,
-        board: student.board || 'CBSE',
-        className: student.class,
-        subject: subject,
-        type: type,
-        resourceType: type.includes('video') ? 'video' : 'note',
-        pdfUrl: fileUrl,
-        fileUrl: fileUrl,
-        thumbnailUrl: type.includes('video') ? '/video-thumbnail.png' : '/pdf-thumbnail.png',
-        createdAt: obj.LastModified || new Date()
-      });
-    }
-  }
-
-  let filtered = resources;
   if (req.query.subject) {
-    const subQuery = req.query.subject.toLowerCase();
-    filtered = filtered.filter(r => r.subject.toLowerCase() === subQuery);
+    query.subject = { $regex: new RegExp(`^${req.query.subject}$`, 'i') };
   }
 
   if (req.query.type) {
-    const typeQuery = req.query.type.toLowerCase();
-    if (typeQuery === 'note' || typeQuery === 'notes' || typeQuery === 'pdf-notes') {
-      filtered = filtered.filter(r => r.type.includes('note'));
-    } else if (typeQuery === 'video' || typeQuery === 'videos') {
-      filtered = filtered.filter(r => r.type.includes('video'));
-    }
+    const t = req.query.type.toLowerCase();
+    if (t === 'note' || t === 'notes' || t === 'pdf-notes') query.type = 'note';
+    else if (t === 'video' || t === 'videos') query.type = 'video';
+    else if (t === 'pyq' || t === 'pyqs') query.type = 'pyq';
+    else query.type = t;
   }
 
-  res.json({ success: true, data: filtered });
+  const resources = await StudyResource.find(query).sort({ createdAt: -1 });
+
+  const mapped = resources.map(r => ({
+    _id: r._id,
+    title: r.title,
+    board: r.board,
+    className: r.className,
+    subject: r.subject,
+    chapterName: r.chapterName,
+    topic: r.topic,
+    description: r.description,
+    type: r.type,
+    resourceType: r.type === 'video' ? 'video' : 'note',
+    pdfUrl: r.pdfUrl || r.fileUrl,
+    videoUrl: r.videoUrl || r.fileUrl,
+    fileUrl: r.fileUrl,
+    thumbnailUrl: r.thumbnailUrl,
+    createdAt: r.createdAt
+  }));
+
+  res.json({ success: true, data: mapped });
+});
+
+export const getStudentSubjects = asyncHandler(async (req, res) => {
+  const student = await getOrCreateStudentProfile(req.user._id);
+  const { default: StudyResource } = await import('../models/StudyResource.js');
+
+  const classNum = student.class?.replace(/\D/g, '') || '10';
+  const classVariants = [classNum, `${classNum}th`, `class-${classNum}`];
+
+  const subjects = await StudyResource.distinct('subject', {
+    className: { $in: classVariants },
+    visibility: 'public',
+    status: 'active'
+  });
+
+  res.json({ success: true, data: subjects });
 });
 
 export const toggleFavoriteTeacher = asyncHandler(async (req, res) => {

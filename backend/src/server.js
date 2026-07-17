@@ -11,16 +11,19 @@ const server = http.createServer(app);
 
 const seedAdmin = async () => {
   try {
-    const adminExists = await User.findOne({ email: 'admin@vlm.com' });
+    const email = process.env.DEFAULT_ADMIN_EMAIL || 'admin@vlm.com';
+    const password = process.env.DEFAULT_ADMIN_PASSWORD || 'AdminPassword123';
+
+    const adminExists = await User.findOne({ email });
     if (!adminExists) {
       await User.create({
-        email: 'admin@vlm.com',
-        password: 'AdminPassword123',
+        email,
+        password,
         role: 'admin',
         activeRole: 'admin',
         isEmailVerified: true
       });
-      console.log('Seeded default admin user: admin@vlm.com / AdminPassword123');
+      console.log(`Seeded default admin user: ${email}`);
     }
   } catch (err) {
     console.error('Failed to seed admin user:', err.message);

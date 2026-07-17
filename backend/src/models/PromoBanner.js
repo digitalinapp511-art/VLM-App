@@ -9,6 +9,7 @@ const promoBannerSchema = new mongoose.Schema(
     buttonText: { type: String, default: 'Explore Now' },
     buttonLink: { type: String, default: '/library' },
     imageUrl: { type: String, default: '/avatar.png' },
+    bgGradient: { type: String, default: 'linear-gradient(135deg, #4f21db 0%, #7e22ce 100%)' },
     isActive: { type: Boolean, default: true },
     isCoupon: { type: Boolean, default: false },
     order: { type: Number, default: 0 }

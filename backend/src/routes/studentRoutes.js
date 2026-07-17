@@ -6,7 +6,7 @@ import {
   getAvailableTeachers, getParentRequests, approveParentRequest, rejectParentRequest,
   getAiChatHistory, submitAiChatQuery, getAiChatSessions, deleteAiChatSession, clearAllAiChatHistory,
   getStudentStats, submitUsageHeartbeat, cancelDoubtRequest, deductSessionCredits, getStudentResources, getActiveBanners,
-  getOnboardingSlides
+  getOnboardingSlides, getStudentSubjects
 } from '../controllers/studentController.js';
 import {
   getSessionHistory, getSessionMessages, sendMessage, resolveSession,
@@ -63,6 +63,7 @@ router.get('/mcq/history', getMcqHistory);
 router.post('/mcq/submit', submitMcq);
 router.get('/leaderboard', getLeaderboard);
 router.get('/resources', getStudentResources);
+router.get('/resources/subjects', getStudentSubjects);
 router.get('/banners', getActiveBanners);
 router.get('/onboarding-slides', getOnboardingSlides);
 router.post('/favorite-teacher', toggleFavoriteTeacher);
