@@ -238,12 +238,69 @@ export const getVideos = asyncHandler(async (req, res) => {
   const skip = (page - 1) * limit;
 
   const [videos, total] = await Promise.all([
-    ShortVideo.find(filter).sort({ createdAt: -1 }).skip(skip).limit(Number(limit))
-      .populate('uploaderId', 'name email'),
+    ShortVideo.find(filter)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(Number(limit))
+      .populate('uploaderId', 'firstName lastName email mobile role username')
+      .lean(),
     ShortVideo.countDocuments(filter),
   ]);
 
-  res.json({ success: true, data: videos, pagination: { total, page: Number(page), limit: Number(limit) } });
+  const Student = (await import('../../models/Student.js')).default;
+  const Teacher = (await import('../../models/Teacher.js')).default;
+  const Follow = (await import('../../models/Follow.js')).default;
+
+  const detailedVideos = await Promise.all(
+    videos.map(async (video) => {
+      const uploader = video.uploaderId || {};
+      let uploaderProfile = {
+        name: uploader.firstName ? `${uploader.firstName} ${uploader.lastName || ''}`.trim() : 'Unknown',
+        username: uploader.username || '',
+        email: uploader.email || 'N/A',
+        mobile: uploader.mobile || 'N/A',
+        role: video.uploaderRole || uploader.role || 'student'
+      };
+
+      const [followersCount, followingCount] = await Promise.all([
+        uploader._id ? Follow.countDocuments({ followingId: uploader._id }) : 0,
+        uploader._id ? Follow.countDocuments({ followerId: uploader._id }) : 0
+      ]);
+      uploaderProfile.followersCount = followersCount;
+      uploaderProfile.followingCount = followingCount;
+
+      if (uploaderProfile.role === 'student') {
+        const student = await Student.findOne({ userId: uploader._id }).lean();
+        if (student) {
+          uploaderProfile.name = student.firstName ? `${student.firstName} ${student.lastName || ''}`.trim() : uploaderProfile.name;
+          uploaderProfile.nickname = student.nickname || '';
+          uploaderProfile.email = student.email || uploaderProfile.email;
+          uploaderProfile.mobile = student.mobile || uploaderProfile.mobile;
+          uploaderProfile.class = student.class;
+          uploaderProfile.board = student.board;
+        }
+      } else if (uploaderProfile.role === 'teacher') {
+        const teacher = await Teacher.findOne({ userId: uploader._id }).lean();
+        if (teacher) {
+          uploaderProfile.name = teacher.firstName ? `${teacher.firstName} ${teacher.lastName || ''}`.trim() : uploaderProfile.name;
+          uploaderProfile.email = teacher.email || uploaderProfile.email;
+          uploaderProfile.mobile = teacher.mobile || uploaderProfile.mobile;
+          uploaderProfile.subjects = teacher.subjects || [];
+        }
+      }
+
+      return {
+        ...video,
+        uploader: uploaderProfile
+      };
+    })
+  );
+
+  res.json({
+    success: true,
+    data: detailedVideos,
+    pagination: { total, page: Number(page), limit: Number(limit) }
+  });
 });
 
 export const createVideo = asyncHandler(async (req, res) => {
@@ -483,17 +540,52 @@ export const createResource = asyncHandler(async (req, res) => {
 });
 
 export const updateResource = asyncHandler(async (req, res) => {
-  const resourceData = { ...req.body };
-  if (req.file) {
-    const fileUrl = req.file.filename || req.file.cloudinaryUrl || req.file.path;
-    if (resourceData.type === 'video') {
-      resourceData.videoUrl = fileUrl;
-      resourceData.fileUrl = fileUrl;
-    } else {
-      resourceData.pdfUrl = fileUrl;
-      resourceData.fileUrl = fileUrl;
-    }
+  const { title, content, description, link, fileUrl, pdfUrl, resourceType, board, visibility, status } = req.body;
+  
+  const resourceData = {};
+  if (title !== undefined) resourceData.title = title;
+  
+  const finalDescription = content || description;
+  if (finalDescription !== undefined) resourceData.description = finalDescription;
+  
+  if (board !== undefined) resourceData.board = board;
+  if (visibility !== undefined) resourceData.visibility = visibility;
+  if (status !== undefined) resourceData.status = status;
+  
+  let finalType;
+  if (resourceType !== undefined) {
+    let type = 'note';
+    if (resourceType === 'videos' || resourceType === 'video') type = 'video';
+    else if (resourceType === 'previous_year_papers' || resourceType === 'pyq') type = 'pyq';
+    resourceData.type = type;
+    finalType = type;
   }
+
+  const finalLink = link || pdfUrl || fileUrl;
+  if (finalLink !== undefined) {
+    const typeToUse = finalType || (await StudyResource.findById(req.params.id))?.type || 'note';
+    if (typeToUse === 'video') {
+      resourceData.videoUrl = finalLink;
+      resourceData.pdfUrl = '';
+    } else {
+      resourceData.pdfUrl = finalLink;
+      resourceData.videoUrl = '';
+    }
+    resourceData.fileUrl = finalLink;
+  }
+
+  // Also support file uploads if any
+  if (req.file) {
+    const fileUrlUploaded = req.file.path || req.file.filename;
+    const typeToUse = finalType || (await StudyResource.findById(req.params.id))?.type || 'note';
+    if (typeToUse === 'video') {
+      resourceData.videoUrl = fileUrlUploaded;
+    } else {
+      resourceData.pdfUrl = fileUrlUploaded;
+    }
+    resourceData.fileUrl = fileUrlUploaded;
+  }
+
   const resource = await StudyResource.findByIdAndUpdate(req.params.id, resourceData, { new: true });
   if (!resource) return res.status(404).json({ success: false, message: 'Resource not found' });
   res.json({ success: true, data: resource });
@@ -508,8 +600,12 @@ export const deleteResource = asyncHandler(async (req, res) => {
 //  SPIN WHEEL SETTINGS
 // ════════════════════════════════════════════════════════════════
 
+
 export const getSpinSettings = asyncHandler(async (req, res) => {
   let settings = await AdminSettings.findOne({ key: 'spin_rewards' });
+  let cooldownSetting = await AdminSettings.findOne({ key: 'spin_cooldown_hours' });
+  let cooldownHours = cooldownSetting ? cooldownSetting.value : 2; // Default to 2 hours
+  
   if (!settings) {
     settings = await AdminSettings.create({
       key: 'spin_rewards', category: 'spin',
@@ -522,28 +618,79 @@ export const getSpinSettings = asyncHandler(async (req, res) => {
       ],
     });
   }
-  res.json({ success: true, data: settings.value });
+  res.json({ 
+    success: true, 
+    data: settings.value,
+    cooldownHours: Number(cooldownHours) || 2
+  });
 });
 
 export const createSpinSetting = asyncHandler(async (req, res) => {
-  const { rewards } = req.body;
-  if (!Array.isArray(rewards))
+  const { rewards, cooldownHours } = req.body;
+  console.log("createSpinSetting rewards payload:", JSON.stringify(rewards, null, 2));
+  if (rewards && !Array.isArray(rewards))
     return res.status(400).json({ success: false, message: 'rewards array is required' });
 
-  let settings = await AdminSettings.findOne({ key: 'spin_rewards' });
-  if (!settings) settings = new AdminSettings({ key: 'spin_rewards', category: 'spin' });
-  settings.value = rewards;
-  await settings.save();
-  res.json({ success: true, data: settings.value });
+  let settings;
+  if (rewards) {
+    settings = await AdminSettings.findOneAndUpdate(
+      { key: 'spin_rewards' },
+      { $set: { value: rewards, category: 'spin', description: 'Spin wheel rewards configuration' } },
+      { upsert: true, new: true }
+    );
+  } else {
+    settings = await AdminSettings.findOne({ key: 'spin_rewards' });
+  }
+
+  let cooldownSetting;
+  if (cooldownHours !== undefined) {
+    cooldownSetting = await AdminSettings.findOneAndUpdate(
+      { key: 'spin_cooldown_hours' },
+      { $set: { value: Number(cooldownHours) || 2, category: 'spin', description: 'Cooldown period (in hours) for student spin wheel' } },
+      { upsert: true, new: true }
+    );
+  } else {
+    cooldownSetting = await AdminSettings.findOne({ key: 'spin_cooldown_hours' });
+  }
+
+  res.json({ 
+    success: true, 
+    data: settings ? settings.value : [],
+    cooldownHours: cooldownSetting ? cooldownSetting.value : 2
+  });
 });
 
 export const updateSpinSetting = asyncHandler(async (req, res) => {
-  const { rewards } = req.body;
-  let settings = await AdminSettings.findOne({ key: 'spin_rewards' });
-  if (!settings) return res.status(404).json({ success: false, message: 'Spin settings not found' });
-  settings.value = rewards || settings.value;
-  await settings.save();
-  res.json({ success: true, data: settings.value });
+  const { rewards, cooldownHours } = req.body;
+  console.log("updateSpinSetting rewards payload:", JSON.stringify(rewards, null, 2));
+  
+  let settings;
+  if (rewards) {
+    settings = await AdminSettings.findOneAndUpdate(
+      { key: 'spin_rewards' },
+      { $set: { value: rewards } },
+      { upsert: true, new: true }
+    );
+  } else {
+    settings = await AdminSettings.findOne({ key: 'spin_rewards' });
+  }
+
+  let cooldownSetting;
+  if (cooldownHours !== undefined) {
+    cooldownSetting = await AdminSettings.findOneAndUpdate(
+      { key: 'spin_cooldown_hours' },
+      { $set: { value: Number(cooldownHours) || 2 } },
+      { upsert: true, new: true }
+    );
+  } else {
+    cooldownSetting = await AdminSettings.findOne({ key: 'spin_cooldown_hours' });
+  }
+
+  res.json({ 
+    success: true, 
+    data: settings ? settings.value : [],
+    cooldownHours: cooldownSetting ? cooldownSetting.value : 2
+  });
 });
 
 export const deleteSpinSetting = asyncHandler(async (req, res) => {

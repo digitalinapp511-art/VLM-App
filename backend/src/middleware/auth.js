@@ -85,5 +85,29 @@ export const authorize = (...roles) => async (req, res, next) => {
   next();
 };
 
+// ── Permission Guard ─────────────────────────────────────────────────────────
+
+export const checkPermission = (requiredPermission) => (req, res, next) => {
+  if (!req.user) {
+    return res.status(401).json({ success: false, message: 'Not authenticated' });
+  }
+
+  // Super admins bypass all permission gates
+  if (req.user.isSuperAdmin === true) {
+    return next();
+  }
+
+  // Check if specific permission is present in their permissions array
+  const hasPermission = req.user.permissions && req.user.permissions.includes(requiredPermission);
+  if (!hasPermission) {
+    return res.status(403).json({
+      success: false,
+      message: `Access denied. You do not have the required permission: ${requiredPermission}`
+    });
+  }
+
+  next();
+};
+
 // ── Legacy alias (keeps compatibility with any file still using generateToken) ─
 export const generateToken = generateAccessToken;

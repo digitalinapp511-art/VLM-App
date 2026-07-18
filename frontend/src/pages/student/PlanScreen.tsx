@@ -3,105 +3,106 @@ import { useNavigate } from "react-router-dom";
 import { PATHS } from "@/routes/paths";
 import { 
   ChevronLeft, 
-  BookOpen, 
-  Video, 
-  MessageSquare, 
-  PhoneCall, 
-  PlayCircle, 
-  ClipboardList, 
-  Trophy, 
-  Users, 
   Video as VideoIcon
 } from "lucide-react";
+import * as LucideIcons from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useActivateTrial, useStudentProfile } from "@/hooks/use-student";
 import DashboardLoading from "@/components/basic/DashboardLoading";
 import { Button } from "@/components/ui/button";
+import { useQuery } from "@tanstack/react-query";
+import studentApi from "@/lib/student-api";
 
 export default function PlanScreen() {
   const navigate = useNavigate();
   const { data: profile, isLoading } = useStudentProfile();
   const activateTrial = useActivateTrial();
 
-  if (isLoading) return <DashboardLoading />;
-
   // Parse student class range
   const profileData = (profile as any)?.data ?? profile;
   const studentClassStr = profileData?.class || profileData?.className || "10";
   const classNum = parseInt(String(studentClassStr).replace(/\D/g, ""), 10) || 10;
 
-  let classRangeText = "Classes 9–10";
-  let priceVal = 79;
-  let aiCreditsText = "2000 AI CHAT CREDITS";
-  let extraPriceText = "₹4/min";
+  const { data: plansResponse } = useQuery({
+    queryKey: ["studentPlans", studentClassStr],
+    queryFn: () => studentApi.getPlans(String(classNum)),
+    enabled: !!studentClassStr
+  });
 
-  if (classNum >= 1 && classNum <= 8) {
-    classRangeText = "Classes 1–8";
-    priceVal = 59;
-    aiCreditsText = "1000 AI CHAT CREDITS";
-    extraPriceText = "₹3/min";
-  } else if (classNum >= 9 && classNum <= 10) {
-    classRangeText = "Classes 9–10";
-    priceVal = 79;
-    aiCreditsText = "2000 AI CHAT CREDITS";
-    extraPriceText = "₹4/min";
-  } else if (classNum >= 11 && classNum <= 12) {
-    classRangeText = "Classes 11–12";
-    priceVal = 99;
-    aiCreditsText = "3000 AI CHAT CREDITS";
-    extraPriceText = "₹5/min";
-  }
+  if (isLoading) return <DashboardLoading />;
+
+  const plans = (plansResponse as any)?.data ?? [];
+  const activePlan = plans.find((p: any) => p.duration === "monthly") || plans[0];
+
+  let classRangeText = `Class ${classNum}`;
+  if (classNum >= 1 && classNum <= 8) classRangeText = "Classes 1–8";
+  else if (classNum >= 9 && classNum <= 10) classRangeText = "Classes 9–10";
+  else if (classNum >= 11 && classNum <= 12) classRangeText = "Classes 11–12";
+
+  let priceVal = activePlan ? activePlan.price : (classNum >= 1 && classNum <= 8 ? 59 : classNum >= 11 ? 99 : 79);
+  let mrpVal = activePlan ? activePlan.mrp : Math.round(priceVal * 2.5);
+  let aiCreditsText = activePlan ? `${activePlan.benefits?.aiCredits || 2000} AI CHAT CREDITS` : `${classNum >= 1 && classNum <= 8 ? 1000 : classNum >= 11 ? 3000 : 2000} AI CHAT CREDITS`;
+  let extraPriceText = activePlan && activePlan.callRate !== undefined ? `₹${activePlan.callRate}/min` : (classNum >= 1 && classNum <= 8 ? "₹3/min" : classNum >= 11 ? "₹5/min" : "₹4/min");
+  let trialPriceVal = activePlan ? (activePlan.trialPrice ?? 1) : 1;
+  let trialDaysVal = activePlan ? (activePlan.trialDays ?? 3) : 3;
+  let durationText = activePlan ? (activePlan.duration === "monthly" ? "Monthly Subscription" : activePlan.duration === "yearly" ? "Annual Subscription" : "Quarterly Subscription") : "Monthly Subscription";
 
   const handleStartTrial = () => {
     // Call activate trial API
-    activateTrial.mutate("mock-annual-plan", {
+    activateTrial.mutate(activePlan?._id || "mock-annual-plan", {
       onSuccess: () => navigate(PATHS.STUDENT_DASHBOARD),
       onError: () => navigate(PATHS.STUDENT_DASHBOARD),
     });
   };
 
-  const features = [
-    { 
-      icon: BookOpen, 
-      title: "COMPLETE STUDY MATERIAL", 
-      desc: "NCERT & CBSE Solutions, Reference Book Solutions, Downloadable PDFs." 
-    },
-    { 
-      icon: Video, 
-      title: "CHAPTER-WISE VIDEO LESSONS", 
-      desc: "Engaging tutorials by expert teachers." 
-    },
-    { 
-      icon: MessageSquare, 
-      title: `${aiCreditsText} (24x7)`, 
-      desc: "Doubts solved instantly, anytime." 
-    },
-    { 
-      icon: PhoneCall, 
-      title: "24x7 WHATSAPP AI TUTOR", 
-      desc: "Instant tutoring support on WhatsApp." 
-    },
-    { 
-      icon: PlayCircle, 
-      title: "ENGAGING SHORT VIDEOS", 
-      desc: "Key concepts explained in bite-sized videos." 
-    },
-    { 
-      icon: ClipboardList, 
-      title: "DAILY TASK TRACKING", 
-      desc: "Organized daily study plans." 
-    },
-    { 
-      icon: Trophy, 
-      title: "DAILY MCQ PRACTICE & QUIZZES", 
-      desc: "Master each chapter with regular tests." 
-    },
-    { 
-      icon: Users, 
-      title: "PARENTS ACCESS & PROGRESS REPORTS", 
-      desc: "Track learning performance and goals." 
-    }
-  ];
+  const features = activePlan && Array.isArray(activePlan.customBenefits) && activePlan.customBenefits.length > 0
+    ? activePlan.customBenefits.map((b: any) => ({
+        icon: (LucideIcons as any)[b.icon] || LucideIcons.Check,
+        title: b.title,
+        desc: b.desc
+      }))
+    : [
+        { 
+          icon: LucideIcons.BookOpen, 
+          title: "COMPLETE STUDY MATERIAL", 
+          desc: "NCERT & CBSE Solutions, Reference Book Solutions, Downloadable PDFs." 
+        },
+        { 
+          icon: LucideIcons.Video, 
+          title: "CHAPTER-WISE VIDEO LESSONS", 
+          desc: "Engaging tutorials by expert teachers." 
+        },
+        { 
+          icon: LucideIcons.MessageSquare, 
+          title: `${aiCreditsText} (24x7)`, 
+          desc: "Doubts solved instantly, anytime." 
+        },
+        { 
+          icon: LucideIcons.PhoneCall, 
+          title: "24x7 WHATSAPP AI TUTOR", 
+          desc: "Instant tutoring support on WhatsApp." 
+        },
+        { 
+          icon: LucideIcons.PlayCircle, 
+          title: "ENGAGING SHORT VIDEOS", 
+          desc: "Key concepts explained in bite-sized videos." 
+        },
+        { 
+          icon: LucideIcons.ClipboardList, 
+          title: "DAILY TASK TRACKING", 
+          desc: "Organized daily study plans." 
+        },
+        { 
+          icon: LucideIcons.Trophy, 
+          title: "DAILY MCQ PRACTICE & QUIZZES", 
+          desc: "Master each chapter with regular tests." 
+        },
+        { 
+          icon: LucideIcons.Users, 
+          title: "PARENTS ACCESS & PROGRESS REPORTS", 
+          desc: "Track learning performance and goals." 
+        }
+      ];
 
   return (
     <div className="min-h-screen w-full bg-[#d6ebff] text-slate-800 flex flex-col items-center pb-32 overflow-x-hidden font-sans relative">
@@ -144,18 +145,26 @@ export default function PlanScreen() {
 
           {/* Pricing Display */}
           <div className="text-center mb-6">
+            {mrpVal && mrpVal > priceVal && (
+              <div className="flex items-center justify-center gap-1.5 mb-1.5 select-none">
+                <span className="text-xs font-bold text-slate-400 line-through">₹{mrpVal}</span>
+                <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full uppercase tracking-wider">
+                  Save {Math.round(((mrpVal - priceVal) / mrpVal) * 100)}%
+                </span>
+              </div>
+            )}
             <div className="flex items-baseline justify-center gap-1">
               <span className="text-5xl font-black text-[#d5a848] tracking-tight">₹{priceVal}</span>
               <span className="text-xl font-black text-[#d5a848]">only</span>
             </div>
             <p className="text-[11px] font-bold text-slate-600 uppercase tracking-widest mt-1">
-              Annual Subscription
+              {durationText}
             </p>
           </div>
 
           {/* Feature List */}
           <div className="w-full space-y-4 pt-4 border-t border-slate-100">
-            {features.map((feat, idx) => (
+            {features.map((feat: any, idx: number) => (
               <div key={idx} className="flex gap-3.5 items-start">
                 <div className="w-6 h-6 rounded-lg bg-blue-550/10 flex items-center justify-center shrink-0 mt-0.5 text-blue-900">
                   <feat.icon size={16} strokeWidth={2.5} />
@@ -202,7 +211,7 @@ export default function PlanScreen() {
       {/* Sticky Action Footer */}
       <footer className="fixed bottom-0 left-0 w-full px-4 pb-6 pt-4 bg-gradient-to-t from-[#d6ebff] via-[#d6ebff]/95 to-transparent flex flex-col items-center gap-2 z-50">
         <p className="text-slate-600 text-[11px] font-bold uppercase tracking-wider">
-          Activate trial for <span className="text-blue-900 font-black">₹1</span>
+          Activate trial for <span className="text-blue-900 font-black">₹{trialPriceVal}</span>
         </p>
         <div className="w-full max-w-md relative">
           <Button
@@ -214,7 +223,7 @@ export default function PlanScreen() {
               "border border-blue-800"
             )}
           >
-            {activateTrial.isPending ? "ACTIVATING..." : "START 3-DAY TRIAL"}
+            {activateTrial.isPending ? "ACTIVATING..." : `START ${trialDaysVal}-DAY TRIAL`}
           </Button>
         </div>
       </footer>

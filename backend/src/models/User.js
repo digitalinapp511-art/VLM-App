@@ -4,11 +4,15 @@ import { ROLES } from '../config/constants.js';
 
 const userSchema = new mongoose.Schema(
   {
+    username: { type: String, unique: true, sparse: true, lowercase: true, trim: true },
     mobile: { type: String, sparse: true },
     email: { type: String, sparse: true },
     password: { type: String, select: false },
+    name: String,
     role: { type: String, enum: Object.values(ROLES), required: true },
     activeRole: { type: String, enum: Object.values(ROLES) },
+    isSuperAdmin: { type: Boolean, default: false },
+    permissions: { type: [String], default: [] },
     isMobileVerified: { type: Boolean, default: false },
     isEmailVerified: { type: Boolean, default: false },
     googleId: { type: String, sparse: true },
@@ -36,8 +40,20 @@ userSchema.virtual('roles').get(function() {
 });
 
 // Compound Indexes for role-scoped uniqueness
-userSchema.index({ mobile: 1, role: 1 }, { unique: true, sparse: true });
-userSchema.index({ email: 1, role: 1 }, { unique: true, sparse: true });
+userSchema.index(
+  { mobile: 1, role: 1 },
+  { 
+    unique: true, 
+    partialFilterExpression: { mobile: { $type: "string" } } 
+  }
+);
+userSchema.index(
+  { email: 1, role: 1 },
+  { 
+    unique: true, 
+    partialFilterExpression: { email: { $type: "string" } } 
+  }
+);
 
 userSchema.pre('save', async function (next) {
   if (!this.isModified('password') || !this.password) return next();

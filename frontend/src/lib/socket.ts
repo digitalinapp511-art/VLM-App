@@ -37,6 +37,8 @@ export const getSocket = (): Socket => {
 };
 
 export const connectSocket = () => {
+  const token = localStorage.getItem("vlm_token");
+  if (!token) return; // Prevent connecting without an auth token to avoid connection loops
   const socket = getSocket();
   if (!socket.connected) {
     socket.connect();

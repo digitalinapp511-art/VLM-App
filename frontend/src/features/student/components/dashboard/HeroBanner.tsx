@@ -6,6 +6,7 @@ import { Flame, Star, Shield, TrendingUp } from "lucide-react";
 import { studentApi } from "@/lib/student-api";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface HeroBannerProps {
   nickname: string;
@@ -23,12 +24,8 @@ export default function HeroBanner({
   level,
 }: HeroBannerProps) {
   const navigate = useNavigate();
-
-  // slideIndex is the "target" — what we WANT to show
-  // displayIndex is what we ACTUALLY show (only advances after image loads)
-  const [slideIndex, setSlideIndex] = useState(0);
-  const [displayIndex, setDisplayIndex] = useState(0);
-  const [imageReady, setImageReady] = useState(true);
+  const [activeSlideIndex, setActiveSlideIndex] = useState(0);
+  const [targetIndex, setTargetIndex] = useState(0);
 
   // Touch Swipe States
   const [touchStart, setTouchStart] = useState<number | null>(null);
@@ -67,46 +64,44 @@ export default function HeroBanner({
     });
   }, [activeBanners.length]);
 
-  // Auto-play: advance slideIndex every 6 seconds
+  // Auto-play: advance targetIndex dynamically (defaults to 6 seconds)
+  const rotationTimeSec = (bannersResponse as any)?.rotationTime || 6;
   useEffect(() => {
     if (activeBanners.length <= 1) return;
     const timer = setInterval(() => {
-      setSlideIndex((prev) => (prev + 1) % activeBanners.length);
-    }, 6000);
+      setTargetIndex((prev) => (prev + 1) % activeBanners.length);
+    }, rotationTimeSec * 1000);
     return () => clearInterval(timer);
-  }, [activeBanners.length]);
+  }, [activeBanners.length, rotationTimeSec]);
 
-  // When slideIndex changes, preload the new image then sync displayIndex
+  // Core Sync: When targetIndex updates, preload its image BEFORE updating the active index
   useEffect(() => {
-    if (slideIndex === displayIndex) return;
+    if (targetIndex === activeSlideIndex) return;
 
-    const banner = activeBanners[slideIndex];
-    const url = banner?.imageUrl;
+    const nextBanner = activeBanners[targetIndex];
+    const url = nextBanner?.imageUrl;
 
     if (!url || preloadedRef.current.has(url)) {
-      // Already cached — switch instantly
-      setDisplayIndex(slideIndex);
-      setImageReady(true);
+      // Already cached — transition instantly
+      setActiveSlideIndex(targetIndex);
       return;
     }
 
-    // Not yet cached — load it, then reveal
-    setImageReady(false);
+    // Preload it, then transition
     const img = new Image();
     img.onload = () => {
       preloadedRef.current.add(url);
-      setDisplayIndex(slideIndex);
-      setImageReady(true);
+      setActiveSlideIndex(targetIndex);
     };
     img.onerror = () => {
-      // Fallback: show anyway even on error
-      setDisplayIndex(slideIndex);
-      setImageReady(true);
+      // Transition anyway on error
+      setActiveSlideIndex(targetIndex);
     };
     img.src = url;
-  }, [slideIndex]);
+  }, [targetIndex, activeBanners, activeSlideIndex]);
 
-  const currentBanner = activeBanners[displayIndex] || defaultBanners[0];
+  // Current active banner
+  const currentBanner = activeBanners[activeSlideIndex] || activeBanners[0] || defaultBanners[0];
 
   const renderTitle = (title: string, highlight?: string, isCoupon?: boolean) => {
     if (!highlight) return title;
@@ -137,12 +132,12 @@ export default function HeroBanner({
     });
   };
 
-  const handleActionClick = () => {
-    if (currentBanner.isCoupon && currentBanner.highlightWord) {
-      navigator.clipboard.writeText(currentBanner.highlightWord);
-      toast.success(`Coupon Code "${currentBanner.highlightWord}" copied to clipboard!`);
+  const handleActionClick = (banner: any) => {
+    if (banner.isCoupon && banner.highlightWord) {
+      navigator.clipboard.writeText(banner.highlightWord);
+      toast.success(`Coupon Code "${banner.highlightWord}" copied to clipboard!`);
     }
-    const link = currentBanner.buttonLink || '/library';
+    const link = banner.buttonLink || '/library';
     if (link.startsWith('http')) window.open(link, '_blank');
     else navigate(link);
   };
@@ -155,8 +150,8 @@ export default function HeroBanner({
   const handleTouchEnd = () => {
     if (!touchStart || !touchEnd) return;
     const distance = touchStart - touchEnd;
-    if (distance > minSwipeDistance) setSlideIndex((p) => (p + 1) % activeBanners.length);
-    else if (distance < -minSwipeDistance) setSlideIndex((p) => (p - 1 + activeBanners.length) % activeBanners.length);
+    if (distance > minSwipeDistance) setTargetIndex((p) => (p + 1) % activeBanners.length);
+    else if (distance < -minSwipeDistance) setTargetIndex((p) => (p - 1 + activeBanners.length) % activeBanners.length);
   };
 
   return (
@@ -176,68 +171,82 @@ export default function HeroBanner({
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
-        className="relative rounded-[1.8rem] overflow-hidden w-full p-4 sm:p-5 text-left flex flex-col justify-between cursor-grab active:cursor-grabbing"
+        className="relative rounded-[1.8rem] overflow-hidden w-full shadow-lg select-none"
         style={{
           background: currentBanner.bgGradient || "linear-gradient(135deg, #4f21db 0%, #7e22ce 100%)",
           height: "148px",
-          transition: "background 0.5s ease",
+          transition: "background 0.6s ease-in-out",
         }}
       >
         {/* Background decorative circles */}
         <div className="absolute top-[-30px] right-[-30px] w-40 h-40 rounded-full bg-white/5 blur-xl pointer-events-none" />
         <div className="absolute bottom-[-30px] left-[-30px] w-28 h-28 rounded-full bg-white/5 blur-xl pointer-events-none" />
 
-        {/* Content — fades in when imageReady */}
-        <div
-          className="relative z-10 flex flex-col justify-between h-full max-w-[62%] gap-2 pb-2 transition-opacity duration-300"
-          style={{ opacity: imageReady ? 1 : 0 }}
-        >
-          <div className="bg-yellow-400 text-black text-[8px] font-black tracking-widest uppercase px-2.5 py-0.5 rounded-full w-fit">
-            {currentBanner.tag || 'NEW'}
-          </div>
+        <AnimatePresence initial={false}>
+          {activeBanners.map((banner: any, idx: number) => {
+            if (idx !== activeSlideIndex) return null;
+            return (
+              <motion.div
+                key={idx}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.35, ease: "easeInOut" }}
+                className="absolute inset-0 p-4 sm:p-5 flex flex-col justify-between text-left"
+              >
+                {/* Content */}
+                <div className="relative z-10 flex flex-col justify-between h-full max-w-[62%] gap-2 pb-2">
+                  <div className="bg-yellow-400 text-black text-[8px] font-black tracking-widest uppercase px-2.5 py-0.5 rounded-full w-fit">
+                    {banner.tag || 'NEW'}
+                  </div>
 
-          <h3 className="text-sm sm:text-base font-black tracking-tight text-white leading-none mt-1">
-            {renderTitle(currentBanner.title, currentBanner.highlightWord, currentBanner.isCoupon)}
-          </h3>
+                  <h3 className="text-sm sm:text-base font-black tracking-tight text-white leading-none mt-1">
+                    {renderTitle(banner.title, banner.highlightWord, banner.isCoupon)}
+                  </h3>
 
-          <p className="text-[9px] sm:text-[10px] text-white/80 font-bold leading-tight">
-            {currentBanner.description}
-          </p>
+                  <p className="text-[9px] sm:text-[10px] text-white/80 font-bold leading-tight">
+                    {banner.description}
+                  </p>
 
-          <button
-            onClick={handleActionClick}
-            className="flex items-center justify-center gap-1 bg-white hover:bg-slate-50 text-slate-900 font-black text-[9px] uppercase tracking-wider px-4 py-2 rounded-full transition-transform active:scale-95 w-fit border-none cursor-pointer shadow-md mt-1"
-          >
-            <span>{currentBanner.buttonText || 'Explore Now'}</span>
-            <span className="text-[10px]">→</span>
-          </button>
-        </div>
+                  <button
+                    onClick={() => handleActionClick(banner)}
+                    className="flex items-center justify-center gap-1 bg-white hover:bg-slate-50 text-slate-900 font-black text-[9px] uppercase tracking-wider px-4 py-2 rounded-full transition-transform active:scale-95 w-fit border-none cursor-pointer shadow-md mt-1"
+                  >
+                    <span>
+                      {banner.isCoupon 
+                        ? `Copy Code: ${banner.highlightWord || 'COUPON'}` 
+                        : (banner.buttonText || 'Explore Now')}
+                    </span>
+                    <span className="text-[10px]">→</span>
+                  </button>
+                </div>
+
+                {/* Banner Image */}
+                <div className="absolute right-2 bottom-0 top-0 w-[35%] flex items-end justify-center select-none pointer-events-none overflow-hidden">
+                  <img
+                    src={banner.imageUrl || '/avatar.png'}
+                    alt="Banner Graphic"
+                    className="h-[105%] w-auto object-contain object-bottom"
+                  />
+                </div>
+              </motion.div>
+            );
+          })}
+        </AnimatePresence>
 
         {/* Pagination Dots */}
         <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5 z-20">
           {activeBanners.map((_: any, idx: number) => (
             <button
               key={idx}
-              onClick={(e) => { e.stopPropagation(); setSlideIndex(idx); }}
+              onClick={(e) => { e.stopPropagation(); setTargetIndex(idx); }}
               className={cn(
                 "h-1.5 w-1.5 rounded-full transition-all border-none p-0 cursor-pointer",
-                displayIndex === idx ? "bg-white scale-125" : "bg-white/40 hover:bg-white/60"
+                activeSlideIndex === idx ? "bg-white scale-125" : "bg-white/40 hover:bg-white/60"
               )}
               aria-label={`Go to slide ${idx + 1}`}
             />
           ))}
-        </div>
-
-        {/* Banner Image — fades in when ready */}
-        <div
-          className="absolute right-2 bottom-0 top-0 w-[35%] flex items-end justify-center select-none pointer-events-none overflow-hidden transition-opacity duration-300"
-          style={{ opacity: imageReady ? 1 : 0 }}
-        >
-          <img
-            src={currentBanner.imageUrl || '/avatar.png'}
-            alt="Banner Graphic"
-            className="h-[105%] w-auto object-contain object-bottom"
-          />
         </div>
       </div>
 

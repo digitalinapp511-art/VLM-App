@@ -21,7 +21,11 @@ const shortVideoSchema = new mongoose.Schema(
     moderationNotes: String,
     rejectionReason: String,
     views: { type: Number, default: 0 },
+    viewedBy: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
     likes: { type: Number, default: 0 },
+    likedBy: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+    shares: { type: Number, default: 0 },
+    sharedBy: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
     comments: [{
       userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
       text: String,

@@ -242,6 +242,7 @@ export default function App() {
               <Route path={PATHS.VIDEO_CALL_SESSION} element={<VideoCallSession />} />
               <Route path={PATHS.SHORT_LIVE_SESSION} element={<ShortLiveSessions />} />
               <Route path={PATHS.SHORT_VIDEO_FEED} element={<ShortVideoFeed />} />
+              <Route path="/shorts/:id" element={<ShortVideoFeed />} />
               <Route path={PATHS.CREATOR_PROFILE} element={<CreatorProfile />} />
               <Route path={PATHS.LIBRARY} element={<Library />} />
               <Route path={PATHS.USE_SUBSCRIPTION} element={<UseSubscription />} />

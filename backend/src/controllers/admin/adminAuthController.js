@@ -34,7 +34,14 @@ export const adminLogin = asyncHandler(async (req, res) => {
   res.json({
     success: true,
     accessToken,
-    user: { id: user._id, email: user.email, name: user.name, roles: user.roles },
+    user: { 
+      id: user._id, 
+      email: user.email, 
+      name: user.name, 
+      roles: user.roles,
+      isSuperAdmin: user.isSuperAdmin,
+      permissions: user.permissions
+    },
   });
 });
 

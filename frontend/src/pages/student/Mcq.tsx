@@ -11,7 +11,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useStudentProfile } from "@/hooks/use-student";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { PATHS } from "@/routes/paths";
 import {
@@ -51,11 +51,13 @@ export default function Mcq() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [userAnswers, setUserAnswers] = useState<Record<number, string>>({});
   const [isFinished, setIsFinished] = useState(false);
-  const [timeLeft, setTimeLeft] = useState(1200); // 20 minutes in seconds
+  const [timeLeft, setTimeLeft] = useState(1200);
   const [showExitWarning, setShowExitWarning] = useState(false);
   const [showLeaderboardModal, setShowLeaderboardModal] = useState(false);
   const [selectedHistoryTask, setSelectedHistoryTask] = useState<any>(null);
   const [rePracticeTask, setRePracticeTask] = useState<any>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generatedTask, setGeneratedTask] = useState<any>(null);
 
   // Timer Effect
   useEffect(() => {
@@ -81,11 +83,27 @@ export default function Mcq() {
   const hasToken = !!localStorage.getItem("vlm_token");
   const isBypass = localStorage.getItem("dev_bypass_auth") === "true" && !hasToken;
 
-  // Fetch MCQ task data (includes streak, calendar completedDays, leaderboard)
+  // Fetch MCQ task data — only checks if today's task exists, no generation
   const { data: mcqData, isLoading, refetch } = useQuery({
     queryKey: ["dailyMcqData"],
     queryFn: () => studentApi.getDailyMcq(),
     enabled: !isBypass,
+    retry: 1,
+  });
+
+  // On-demand MCQ generation mutation (called when student clicks Start)
+  const generateMutation = useMutation({
+    mutationFn: () => studentApi.generateDailyMcq(),
+    onMutate: () => setIsGenerating(true),
+    onSuccess: (data: any) => {
+      setGeneratedTask(data?.data || null);
+      setIsGenerating(false);
+      setQuizStarted(true);
+    },
+    onError: () => {
+      setIsGenerating(false);
+      toast.error('Could not generate questions. Please try again.');
+    },
   });
 
   // Fetch MCQ history
@@ -113,7 +131,8 @@ export default function Mcq() {
     }))
   };
 
-  const task = isBypass ? mockTask : (mcqData?.data || mcqData?.task || mockTask);
+  // Use generated task if freshly generated this session, else use DB task from today
+  const task = isBypass ? mockTask : (generatedTask || mcqData?.data || null);
 
   // Use rePracticeTask questions if in practice mode, else use today's task questions
   const activeTask = rePracticeTask || task;
@@ -298,13 +317,16 @@ export default function Mcq() {
             {/* ACTION BUTTON */}
             <Button
               onClick={() => {
-                if (questions.length > 0) {
+                if (isAlreadyDone) return;
+                if (task && questions.length > 0) {
+                  // Questions already generated today — start directly
                   setQuizStarted(true);
                 } else {
-                  toast.error("Quiz questions are not loaded yet. Try again in a moment.");
+                  // Trigger AI generation
+                  generateMutation.mutate();
                 }
               }}
-              disabled={isAlreadyDone}
+              disabled={isAlreadyDone || generateMutation.isPending}
               className={cn(
                 "w-full h-14 rounded-2xl text-xs font-black tracking-widest uppercase transition-all shadow-md active:scale-95 cursor-pointer border-none",
                 isAlreadyDone
@@ -312,7 +334,7 @@ export default function Mcq() {
                   : "bg-gradient-to-r from-violet-600 to-fuchsia-500 hover:from-violet-500 hover:to-fuchsia-400 text-white shadow-violet-500/20"
               )}
             >
-              {isAlreadyDone ? "Challenge Completed" : "Start Daily MCQ"}
+              {isAlreadyDone ? "Challenge Completed" : task ? "Start Daily MCQ" : "Daily MCQ"}
             </Button>
 
             {/* PRACTICE HISTORY SECTION */}
@@ -620,7 +642,33 @@ export default function Mcq() {
     );
   }
 
-  if (isLoading) return <div className="min-h-svh bg-[#f4f6ff] dark:bg-[#0b081e] flex items-center justify-center text-slate-500 font-bold">Loading Questions...</div>;
+  if (isLoading) return (
+    <div className="min-h-svh bg-[#f4f6ff] dark:bg-[#0b081e] flex flex-col items-center justify-center gap-4 text-slate-500">
+      <div className="h-10 w-10 rounded-full border-4 border-violet-600 border-t-transparent animate-spin" />
+      <p className="font-bold text-sm">Loading your MCQ data...</p>
+    </div>
+  );
+
+  // Full-screen AI generation animation
+  if (isGenerating) return (
+    <div className="min-h-svh bg-[#0b081e] flex flex-col items-center justify-center gap-6 px-8 text-center">
+      <div className="relative h-24 w-24">
+        <div className="absolute inset-0 rounded-full border-4 border-violet-600/20" />
+        <div className="absolute inset-0 rounded-full border-4 border-t-violet-500 border-r-fuchsia-500 border-b-transparent border-l-transparent animate-spin" />
+        <div className="absolute inset-3 rounded-full border-4 border-t-transparent border-r-transparent border-b-fuchsia-400 border-l-violet-400 animate-spin" style={{animationDirection:'reverse', animationDuration:'1.2s'}} />
+        <div className="absolute inset-0 flex items-center justify-center text-2xl">🤖</div>
+      </div>
+      <div className="space-y-2">
+        <p className="text-white font-black text-lg">AI is generating your questions</p>
+        <p className="text-slate-400 text-xs font-medium max-w-xs leading-relaxed">Personalizing 20 questions based on your class, subjects, and past performance...</p>
+      </div>
+      <div className="flex gap-1.5 mt-2">
+        {[0,1,2].map(i => (
+          <div key={i} className="h-2 w-2 rounded-full bg-violet-500 animate-bounce" style={{animationDelay: `${i * 0.15}s`}} />
+        ))}
+      </div>
+    </div>
+  );
 
   if (!questions.length) {
     return (

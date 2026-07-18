@@ -71,4 +71,7 @@ export const EARNING_TYPES = {
   BONUS: 'bonus',
   PENALTY: 'penalty',
   ADMIN_ADJUSTMENT: 'admin_adjustment',
+  PURCHASE: 'purchase',
+  REDEEM: 'redeem',
+  CASHBACK: 'cashback',
 };

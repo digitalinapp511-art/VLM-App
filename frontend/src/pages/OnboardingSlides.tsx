@@ -19,25 +19,25 @@ const DEFAULT_SLIDES: SlideData[] = [
   {
     title: "Interactive Lessons",
     description: "Learn complex concepts with interactive slides and visual models.",
-    imageUrl: "/onboarding1.png",
+    imageUrl: "/onboarding1.jpg",
     order: 1
   },
   {
     title: "24/7 AI Tutor Support",
     description: "Ask doubts anytime and get step-by-step assistance in real-time.",
-    imageUrl: "/onboarding2.png",
+    imageUrl: "/onboarding2.jpg",
     order: 2
   },
   {
     title: "Daily Streak Rewards",
     description: "Complete daily MCQs and streak targets to earn double XP multipliers.",
-    imageUrl: "/onboarding3.png",
+    imageUrl: "/onboarding3.jpg",
     order: 3
   },
   {
     title: "VLM Premium Plans",
     description: "Unlock full courses, practice test series, and unlimited features.",
-    imageUrl: "/onboarding4.png",
+    imageUrl: "/onboarding4.jpg",
     order: 4
   }
 ];

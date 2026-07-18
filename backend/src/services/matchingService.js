@@ -49,13 +49,18 @@ const getClassMatchValues = (cls) => {
     const hi = parseInt(rangeMatch[2], 10);
     const group = clean; // "11-12"
     const individuals = [];
-    for (let i = lo; i <= hi; i++) individuals.push(String(i));
-    return [group, ...individuals];
+    for (let i = lo; i <= hi; i++) {
+      individuals.push(String(i));
+      individuals.push(`${i}th`);
+      individuals.push(`Class ${i}`);
+      individuals.push(`Class${i}`);
+    }
+    return [group, `Class ${group}`, `Class${group}`, ...individuals];
   }
 
   // Extract numeric class
   const n = parseInt(clean.replace(/\D/g, ''), 10);
-  if (!n) return [];
+  if (!n) return [cls.toString(), `Class ${cls}`, `Class${cls}`];
 
   let group = null;
   if (n >= 1 && n <= 5)  group = '1-5';
@@ -63,8 +68,22 @@ const getClassMatchValues = (cls) => {
   else if (n >= 9 && n <= 10) group = '9-10';
   else if (n >= 11 && n <= 12) group = '11-12';
 
-  // Return the group format AND the raw number as a string (cover both storage styles)
-  return group ? [group, String(n)] : [String(n)];
+  const matches = [
+    String(n),
+    `${n}th`,
+    `Class ${n}`,
+    `Class${n}`
+  ];
+
+  if (group) {
+    matches.push(group);
+    matches.push(`Class ${group}`);
+    matches.push(`Class${group}`);
+    const parts = group.split('-');
+    matches.push(`${parts[0]}th-${parts[1]}th`);
+  }
+
+  return [...new Set(matches)];
 };
 
 /**

@@ -26,8 +26,10 @@ export const generateAgoraToken = asyncHandler(async (req, res) => {
     return res.status(404).json({ success: false, message: 'Session not found' });
   }
 
-  const appId = process.env.AGORA_APP_ID;
-  const appCertificate = process.env.AGORA_APP_CERTIFICATE;
+  const { getIntegrationConfig } = await import('../services/integrationService.js');
+  const agoraConfig = await getIntegrationConfig('integration_agora_rtc');
+  const appId = agoraConfig.AGORA_APP_ID;
+  const appCertificate = agoraConfig.AGORA_APP_CERTIFICATE;
 
   if (!appId || !appCertificate) {
     return res.status(500).json({ success: false, message: 'Agora not configured' });

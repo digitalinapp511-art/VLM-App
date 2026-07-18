@@ -55,6 +55,7 @@ const studentSchema = new mongoose.Schema(
     leaderboardRank: { type: Number, default: 0 },
     totalPoints: { type: Number, default: 0 },
     mcqPoints: { type: Number, default: 0 },
+    bio: { type: String, default: '' },
     onboardingCompleted: { type: Boolean, default: false },
     linkedParents: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Parent' }],
   },

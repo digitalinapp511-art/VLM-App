@@ -17,13 +17,23 @@ const seedAdmin = async () => {
     const adminExists = await User.findOne({ email });
     if (!adminExists) {
       await User.create({
+        name: 'Super Admin',
         email,
         password,
         role: 'admin',
         activeRole: 'admin',
-        isEmailVerified: true
+        isEmailVerified: true,
+        isSuperAdmin: true,
+        permissions: ['*']
       });
       console.log(`Seeded default admin user: ${email}`);
+    } else {
+      if (!adminExists.isSuperAdmin || !adminExists.permissions?.includes('*')) {
+        adminExists.isSuperAdmin = true;
+        adminExists.permissions = ['*'];
+        await adminExists.save();
+        console.log(`Updated existing admin to Super Admin: ${email}`);
+      }
     }
   } catch (err) {
     console.error('Failed to seed admin user:', err.message);

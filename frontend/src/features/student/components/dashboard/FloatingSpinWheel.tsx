@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { PATHS } from "@/routes/paths";
-import { toast } from "sonner";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
+import { useQuery } from "@tanstack/react-query";
+import { studentApi } from "@/lib/student-api";
 
 interface FloatingSpinWheelProps {
   lastSpinDate?: string | null;
@@ -10,39 +11,36 @@ interface FloatingSpinWheelProps {
   onLockedClick?: () => void;
 }
 
-export default function FloatingSpinWheel({ lastSpinDate, activeSecondsSinceLastSpin = 0, onLockedClick }: FloatingSpinWheelProps) {
+export default function FloatingSpinWheel({ lastSpinDate, onLockedClick }: FloatingSpinWheelProps) {
   const navigate = useNavigate();
-  const [secondsLeft, setSecondsLeft] = useState(() => {
-    const cached = sessionStorage.getItem("vlm_spin_seconds_left");
-    return cached ? parseInt(cached) : 7200;
+  const [secondsLeft, setSecondsLeft] = useState(0);
+
+  // 1. Fetch spin settings from DB to get dynamic cooldown hours
+  const { data: spinSettingsResponse } = useQuery({
+    queryKey: ["spinSettings"],
+    queryFn: () => studentApi.getSpinSettings(),
   });
 
-  useEffect(() => {
-    if (activeSecondsSinceLastSpin === 0) {
-      sessionStorage.removeItem("vlm_spin_seconds_left");
-      setSecondsLeft(0);
-      return;
-    }
-    const remSeconds = Math.max(0, 7200 - activeSecondsSinceLastSpin);
-    setSecondsLeft(remSeconds);
-    sessionStorage.setItem("vlm_spin_seconds_left", remSeconds.toString());
-  }, [activeSecondsSinceLastSpin]);
+  const cooldownHours = (spinSettingsResponse as any)?.cooldownHours || 2;
 
+  // ── Sync Timer with Last Spin Date from DB ──
   useEffect(() => {
-    if (secondsLeft > 0) {
-      sessionStorage.setItem("vlm_spin_seconds_left", secondsLeft.toString());
-      const interval = setInterval(() => {
-        setSecondsLeft((prev) => {
-          const val = Math.max(0, prev - 1);
-          sessionStorage.setItem("vlm_spin_seconds_left", val.toString());
-          return val;
-        });
-      }, 1000);
+    if (lastSpinDate) {
+      const calculateSecondsRemaining = () => {
+        const lastSpin = new Date(lastSpinDate).getTime();
+        const diffMs = Date.now() - lastSpin;
+        const cooldownMs = cooldownHours * 3600 * 1000;
+        const remSeconds = Math.max(0, Math.ceil((cooldownMs - diffMs) / 1000));
+        setSecondsLeft(remSeconds);
+      };
+
+      calculateSecondsRemaining();
+      const interval = setInterval(calculateSecondsRemaining, 1000);
       return () => clearInterval(interval);
     } else {
-      sessionStorage.removeItem("vlm_spin_seconds_left");
+      setSecondsLeft(0);
     }
-  }, [secondsLeft]);
+  }, [lastSpinDate, cooldownHours]);
 
   const canSpin = secondsLeft <= 0;
 
@@ -50,7 +48,10 @@ export default function FloatingSpinWheel({ lastSpinDate, activeSecondsSinceLast
     const h = Math.floor(secondsLeft / 3600);
     const m = Math.floor((secondsLeft % 3600) / 60);
     const s = secondsLeft % 60;
-    return `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+    if (h > 0) {
+      return `${h}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+    }
+    return `${m}:${s.toString().padStart(2, "0")}`;
   };
 
   const handleClick = () => {
@@ -65,7 +66,7 @@ export default function FloatingSpinWheel({ lastSpinDate, activeSecondsSinceLast
     <motion.div
       initial={{ scale: 0, opacity: 0 }}
       animate={{ scale: 1, opacity: 1 }}
-      className="fixed bottom-24 right-5 z-[50]"
+      className="fixed right-4 top-[60%] -translate-y-1/2 z-[50]"
     >
       <motion.button
         onClick={handleClick}

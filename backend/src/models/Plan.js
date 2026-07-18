@@ -16,8 +16,18 @@ const planSchema = new mongoose.Schema(
       doubtsPerDay: Number,
       subjects: [String],
     },
+    grantPoints: { type: Number, default: 0 },
+    grantCoins: { type: Number, default: 0 },
+    customBenefits: [
+      {
+        icon: { type: String, default: 'Check' },
+        title: { type: String, required: true },
+        desc: { type: String, required: true }
+      }
+    ],
     trialDays: { type: Number, default: 3 },
     trialPrice: { type: Number, default: 1 },
+    callRate: { type: Number, default: 4 },
     isActive: { type: Boolean, default: true },
     sortOrder: { type: Number, default: 0 },
   },

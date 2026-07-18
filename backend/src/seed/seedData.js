@@ -38,20 +38,17 @@ const seed = async () => {
     /* index may not exist */
   }
 
-  const classes = ['6', '7', '8', '9', '10'];
-  for (const cls of classes) {
-    const plans = [
-      { name: 'Basic', class: cls, duration: 'monthly', mrp: 999, price: 499, sortOrder: 1, benefits: { aiCredits: 50, humanChatCredits: 10, audioMinutes: 60, videoMinutes: 30, liveClassesPerMonth: 2, doubtsPerDay: 5 } },
-      { name: 'Standard', class: cls, duration: 'quarterly', mrp: 2499, price: 1299, sortOrder: 2, benefits: { aiCredits: 200, humanChatCredits: 30, audioMinutes: 180, videoMinutes: 90, liveClassesPerMonth: 8, doubtsPerDay: 15 } },
-      { name: 'Premium', class: cls, duration: 'yearly', mrp: 7999, price: 3999, sortOrder: 3, benefits: { aiCredits: 1000, humanChatCredits: 100, audioMinutes: 600, videoMinutes: 300, liveClassesPerMonth: 24, doubtsPerDay: 50 } },
-    ];
-    for (const p of plans) {
-      await Plan.findOneAndUpdate(
-        { name: p.name, class: p.class, duration: p.duration },
-        { $set: p },
-        { upsert: true, new: true }
-      );
-    }
+  const rangePlans = [
+    { name: 'Plan 1 (Class 1 - 8)', class: '1-8', duration: 'monthly', mrp: 999, price: 599, sortOrder: 1, benefits: { aiCredits: 1000, humanChatCredits: 50, audioMinutes: 300, videoMinutes: 150, liveClassesPerMonth: 12, doubtsPerDay: 10, subjects: ['Maths', 'Science'] } },
+    { name: 'Plan 2 (Class 9 - 10)', class: '9-10', duration: 'monthly', mrp: 1499, price: 899, sortOrder: 2, benefits: { aiCredits: 2000, humanChatCredits: 100, audioMinutes: 600, videoMinutes: 300, liveClassesPerMonth: 24, doubtsPerDay: 20, subjects: ['Maths', 'Science', 'English'] } },
+    { name: 'Plan 3 (Class 11 - 12)', class: '11-12', duration: 'monthly', mrp: 1999, price: 1199, sortOrder: 3, benefits: { aiCredits: 3000, humanChatCredits: 150, audioMinutes: 900, videoMinutes: 450, liveClassesPerMonth: 36, doubtsPerDay: 30, subjects: ['Physics', 'Chemistry', 'Maths'] } }
+  ];
+  for (const p of rangePlans) {
+    await Plan.findOneAndUpdate(
+      { name: p.name, class: p.class, duration: p.duration },
+      { $set: p },
+      { upsert: true, new: true }
+    );
   }
 
   const { default: PromoBanner } = await import('../models/PromoBanner.js');

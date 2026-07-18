@@ -1,12 +1,12 @@
 import { Router } from 'express';
 import {
   createStudentProfile, getStudentProfile, getDashboard, getPlans,
-  activateTrial, submitDoubt, getDailyMcq, submitMcq, getMcqHistory, getLeaderboard, toggleFavoriteTeacher, getSubjects,
+  activateTrial, submitDoubt, getDailyMcq, generateDailyMcq, submitMcq, getMcqHistory, getLeaderboard, toggleFavoriteTeacher, getSubjects,
   getChapters, claimSpinReward, getStudentWalletHistory, rechargeWallet, submitDoubtWithImages, getDoubtById,
   getAvailableTeachers, getParentRequests, approveParentRequest, rejectParentRequest,
   getAiChatHistory, submitAiChatQuery, getAiChatSessions, deleteAiChatSession, clearAllAiChatHistory,
   getStudentStats, submitUsageHeartbeat, cancelDoubtRequest, deductSessionCredits, getStudentResources, getActiveBanners,
-  getOnboardingSlides, getStudentSubjects
+  getOnboardingSlides, getStudentSubjects, getStudentSpinSettings, getActiveCashbackOffers
 } from '../controllers/studentController.js';
 import {
   getSessionHistory, getSessionMessages, sendMessage, resolveSession,
@@ -18,6 +18,12 @@ import { generateAgoraToken } from '../controllers/sessionController.js';
 import { protect, authorize } from '../middleware/auth.js';
 import { upload, cloudinaryUploadMiddleware, getFileUrl } from '../middleware/upload.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
+import {
+  toggleLikeShortVideo, incrementShortVideoView, incrementShortVideoShare,
+  addShortVideoComment, deleteShortVideoComment, getShortVideoComments,
+  getPublicProfile, editPublicProfile, toggleFollowUser,
+  checkUsernameAvailability, createPublicProfileUsername
+} from '../controllers/socialController.js';
 import Student from '../models/Student.js';
 
 const router = Router();
@@ -52,6 +58,7 @@ router.post('/ai-chat', upload.single('image'), cloudinaryUploadMiddleware, subm
 router.get('/plans', getPlans);
 router.post('/trial', activateTrial);
 router.post('/spin', claimSpinReward);
+router.get('/spin-settings', getStudentSpinSettings);
 router.post('/usage-heartbeat', submitUsageHeartbeat);
 router.post('/doubt', submitDoubt);
 router.post('/doubts/upload', upload.single('images'), cloudinaryUploadMiddleware, submitDoubtWithImages);
@@ -59,6 +66,7 @@ router.get('/doubts/:id', getDoubtById);
 router.post('/doubts/:id/cancel', cancelDoubtRequest);
 router.get('/teachers', getAvailableTeachers);
 router.get('/mcq/daily', getDailyMcq);
+router.post('/mcq/generate', generateDailyMcq);
 router.get('/mcq/history', getMcqHistory);
 router.post('/mcq/submit', submitMcq);
 router.get('/leaderboard', getLeaderboard);
@@ -83,9 +91,21 @@ router.get('/live-classes', getLiveClasses);
 router.post('/videos', upload.single('video'), cloudinaryUploadMiddleware, uploadShortVideo);
 router.get('/videos', getShortVideos);
 router.get('/videos/mine', getMyVideos);
+router.post('/videos/:id/like', toggleLikeShortVideo);
+router.post('/videos/:id/view', incrementShortVideoView);
+router.post('/videos/:id/share', incrementShortVideoShare);
+router.post('/videos/:id/comment', addShortVideoComment);
+router.delete('/videos/:id/comment/:commentId', deleteShortVideoComment);
+router.get('/videos/:id/comments', getShortVideoComments);
+router.get('/social/profile/:id', getPublicProfile);
+router.put('/social/profile', editPublicProfile);
+router.post('/social/profile/:id/follow', toggleFollowUser);
+router.get('/social/username/check', checkUsernameAvailability);
+router.post('/social/username', createPublicProfileUsername);
 router.get('/referral', getReferralData);
 router.get('/wallet/history', getStudentWalletHistory);
 router.post('/wallet/recharge', rechargeWallet);
+router.get('/wallet/cashback-offers', getActiveCashbackOffers);
 router.get('/parent-requests', getParentRequests);
 router.post('/parent-requests/:parentId/approve', approveParentRequest);
 router.post('/parent-requests/:parentId/reject', rejectParentRequest);

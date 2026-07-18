@@ -459,13 +459,59 @@ export const getShortVideos = asyncHandler(async (req, res) => {
   const query = { status: 'approved' };
   if (cls) query.class = cls;
   if (subject) query.subject = subject;
+  
   const videos = await ShortVideo.find(query).sort({ createdAt: -1 }).limit(50);
-  res.json({ success: true, data: videos });
+  
+  const Follow = (await import('../models/Follow.js')).default;
+  const { resolveUserProfile } = await import('./socialController.js');
+  const videosWithUploaders = await Promise.all(
+    videos.map(async (v) => {
+      const uploaderProfile = await resolveUserProfile(v.uploaderId);
+      const isFollowing = req.user ? !!(await Follow.exists({ followerId: req.user._id, followingId: v.uploaderId })) : false;
+      
+      const vObj = v.toObject();
+      vObj.uploaderId = {
+        _id: v.uploaderId,
+        userId: v.uploaderId,
+        nickname: uploaderProfile.nickname || uploaderProfile.name || 'Creator',
+        fullName: uploaderProfile.name || 'Creator',
+        profilePhoto: uploaderProfile.photo || '',
+        role: uploaderProfile.role || 'student',
+        username: uploaderProfile.username || '',
+        isFollowing
+      };
+      return vObj;
+    })
+  );
+
+  res.json({ success: true, data: videosWithUploaders });
 });
 
 export const getMyVideos = asyncHandler(async (req, res) => {
   const videos = await ShortVideo.find({ uploaderId: req.user._id }).sort({ createdAt: -1 });
-  res.json({ success: true, data: videos });
+  
+  const Follow = (await import('../models/Follow.js')).default;
+  const { resolveUserProfile } = await import('./socialController.js');
+  const videosWithUploaders = await Promise.all(
+    videos.map(async (v) => {
+      const uploaderProfile = await resolveUserProfile(v.uploaderId);
+      const isFollowing = req.user ? !!(await Follow.exists({ followerId: req.user._id, followingId: v.uploaderId })) : false;
+      
+      const vObj = v.toObject();
+      vObj.uploaderId = {
+        _id: v.uploaderId,
+        userId: v.uploaderId,
+        nickname: uploaderProfile.nickname || uploaderProfile.name || 'Creator',
+        fullName: uploaderProfile.name || 'Creator',
+        profilePhoto: uploaderProfile.photo || '',
+        role: uploaderProfile.role || 'student',
+        username: uploaderProfile.username || '',
+        isFollowing
+      };
+      return vObj;
+    })
+  );
+  res.json({ success: true, data: videosWithUploaders });
 });
 
 export const getReferralData = asyncHandler(async (req, res) => {

@@ -87,6 +87,11 @@ export const studentApi = {
     return data;
   },
 
+  generateDailyMcq: async () => {
+    const { data } = await apiClient.post("/student/mcq/generate");
+    return data;
+  },
+
   getMcqHistory: async () => {
     const { data } = await apiClient.get("/student/mcq/history");
     return data;
@@ -348,12 +353,71 @@ export const studentApi = {
     return data;
   },
 
+  likeVideo: async (id: string) => {
+    const { data } = await apiClient.post(`/student/videos/${id}/like`);
+    return data;
+  },
+
+  viewVideo: async (id: string) => {
+    const { data } = await apiClient.post(`/student/videos/${id}/view`);
+    return data;
+  },
+
+  shareVideo: async (id: string) => {
+    const { data } = await apiClient.post(`/student/videos/${id}/share`);
+    return data;
+  },
+
+  getVideoComments: async (id: string) => {
+    const { data } = await apiClient.get(`/student/videos/${id}/comments`);
+    return data;
+  },
+
+  addVideoComment: async (payload: { id: string; text: string }) => {
+    const { data } = await apiClient.post(`/student/videos/${payload.id}/comment`, { text: payload.text });
+    return data;
+  },
+
+  deleteVideoComment: async (payload: { id: string; commentId: string }) => {
+    const { data } = await apiClient.delete(`/student/videos/${payload.id}/comment/${payload.commentId}`);
+    return data;
+  },
+
+  getPublicProfile: async (id: string) => {
+    const { data } = await apiClient.get(`/student/social/profile/${id}`);
+    return data;
+  },
+
+  editPublicProfile: async (payload: { nickname?: string; bio?: string; profilePhoto?: string }) => {
+    const { data } = await apiClient.put(`/student/social/profile`, payload);
+    return data;
+  },
+
+  followUser: async (id: string) => {
+    const { data } = await apiClient.post(`/student/social/profile/${id}/follow`);
+    return data;
+  },
+
+  checkUsernameAvailability: async (username: string) => {
+    const { data } = await apiClient.get("/student/social/username/check", { params: { username } });
+    return data;
+  },
+
+  createPublicProfileUsername: async (username: string) => {
+    const { data } = await apiClient.post("/student/social/username", { username });
+    return data;
+  },
+
   getReferral: async () => {
     const { data } = await apiClient.get("/student/referral");
     return data;
   },
-  claimSpinReward: async (payload: { rewardType: string; amount: number }) => {
-    const { data } = await apiClient.post("/student/spin", payload);
+  claimSpinReward: async (payload?: { rewardType?: string; amount?: number }) => {
+    const { data } = await apiClient.post("/student/spin", payload || {});
+    return data;
+  },
+  getSpinSettings: async () => {
+    const { data } = await apiClient.get("/student/spin-settings");
     return data;
   },
   submitUsageHeartbeat: async () => {

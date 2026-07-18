@@ -6,8 +6,10 @@
  * @returns {Promise<{success: boolean, reqId?: string, message: string}>}
  */
 export const sendOtpViaWidget = async (identifier) => {
-  const MSG91_AUTH_KEY = process.env.MSG91_AUTH_KEY;
-  const MSG91_WIDGET_ID = process.env.MSG91_WIDGET_ID;
+  const { getIntegrationConfig } = await import('./integrationService.js');
+  const smsConfig = await getIntegrationConfig('integration_msg91_sms');
+  const MSG91_AUTH_KEY = smsConfig.MSG91_AUTH_KEY;
+  const MSG91_WIDGET_ID = smsConfig.MSG91_WIDGET_ID;
 
   try {
     if (!MSG91_AUTH_KEY || !MSG91_WIDGET_ID) {
@@ -63,8 +65,10 @@ export const sendOtpViaWidget = async (identifier) => {
  * @returns {Promise<{success: boolean, message: string}>}
  */
 export const verifyOtpViaWidget = async (reqId, otp) => {
-  const MSG91_AUTH_KEY = process.env.MSG91_AUTH_KEY;
-  const MSG91_WIDGET_ID = process.env.MSG91_WIDGET_ID;
+  const { getIntegrationConfig } = await import('./integrationService.js');
+  const smsConfig = await getIntegrationConfig('integration_msg91_sms');
+  const MSG91_AUTH_KEY = smsConfig.MSG91_AUTH_KEY;
+  const MSG91_WIDGET_ID = smsConfig.MSG91_WIDGET_ID;
 
   try {
     if (!MSG91_AUTH_KEY || !MSG91_WIDGET_ID) {
