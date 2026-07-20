@@ -25,7 +25,7 @@ export const initSocket = (server) => {
         if (process.env.NODE_ENV !== 'production') {
           return callback(null, true);
         }
-        if (!origin || allowedOrigins.some((o) => origin === o || origin.endsWith('.vercel.app'))) {
+        if (!origin || allowedOrigins.includes(origin)) {
           callback(null, true);
         } else {
           callback(null, allowedOrigins[0] || true);

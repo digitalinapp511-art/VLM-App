@@ -34,7 +34,7 @@ export const createApp = () => {
       if (process.env.NODE_ENV !== 'production') {
         return callback(null, true);
       }
-      if (!origin || allowedOrigins.some((o) => origin === o || origin.endsWith('.vercel.app'))) {
+      if (!origin || allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
         callback(null, allowedOrigins[0] || true);
@@ -46,9 +46,7 @@ export const createApp = () => {
   app.use(express.json({ limit: '10mb' }));
   app.use(express.urlencoded({ extended: true }));
 
-  const uploadsPath = process.env.VERCEL
-    ? path.join('/tmp', 'vlm-uploads')
-    : path.join(__dirname, '../uploads');
+  const uploadsPath = path.join(__dirname, '../uploads');
   app.use('/uploads', express.static(uploadsPath));
 
   const rootMessage = (req, res) => {
@@ -64,7 +62,7 @@ export const createApp = () => {
         teacher: '/api/teacher',
         parent: '/api/parent',
       },
-      database: process.env.MONGODB_URI ? 'configured' : 'MONGODB_URI missing — add in Vercel env',
+      database: process.env.MONGODB_URI ? 'configured' : 'MONGODB_URI missing — add in env',
     });
   };
 
@@ -72,7 +70,7 @@ export const createApp = () => {
   app.get('/', rootMessage);
   app.get('/api', rootMessage);
 
-  // Health check — no DB required (for Vercel monitoring)
+  // Health check — no DB required
   app.get('/api/health', (req, res) => {
     res.json({
       success: true,
@@ -81,7 +79,6 @@ export const createApp = () => {
       env: {
         node: process.version,
         hasMongoUri: !!process.env.MONGODB_URI,
-        vercel: !!process.env.VERCEL,
       },
     });
   });
@@ -96,7 +93,7 @@ export const createApp = () => {
       res.status(503).json({
         success: false,
         message: 'Database connection failed',
-        hint: 'Check MONGODB_URI in Vercel Environment Variables',
+        hint: 'Check MONGODB_URI in Environment Variables',
       });
     }
   });
