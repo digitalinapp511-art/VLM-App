@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
 
@@ -113,6 +113,7 @@ const queryClient = new QueryClient({
 
 function SocketInitializer({ setActiveRequest }: { setActiveRequest: (data: any) => void }) {
   const location = useLocation();
+  const navigate = useNavigate();
 
   useEffect(() => {
     const token = localStorage.getItem("vlm_token");
@@ -151,13 +152,23 @@ function SocketInitializer({ setActiveRequest }: { setActiveRequest: (data: any)
         });
       });
 
-
+      socket.on("new_notification", (data: any) => {
+        console.log("[Socket] Received new notification:", data);
+        toast(data.title || "Notification", {
+          description: data.message,
+          action: data.deepLink ? {
+            label: "View",
+            onClick: () => navigate(data.deepLink),
+          } : undefined
+        });
+      });
 
       return () => {
         socket.off("parent_link_request");
+        socket.off("new_notification");
       };
     }
-  }, [location.pathname, setActiveRequest]);
+  }, [location.pathname, setActiveRequest, navigate]);
 
   return null;
 }

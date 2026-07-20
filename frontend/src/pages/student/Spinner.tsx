@@ -58,6 +58,60 @@ const renderSegmentIcon = (iconName: string, label: string, sub: string, size = 
   return <FaGift size={size} className={iconClass} color="#ffffff" />;
 };
 
+const playClickSound = () => {
+  try {
+    const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioContext) return;
+    const ctx = new AudioContext();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(800, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(100, ctx.currentTime + 0.05);
+    
+    gain.gain.setValueAtTime(0.35, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.05);
+    
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    
+    osc.start();
+    osc.stop(ctx.currentTime + 0.05);
+  } catch (e) {
+    console.error(e);
+  }
+};
+
+const playWinSound = () => {
+  try {
+    const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioContext) return;
+    const ctx = new AudioContext();
+    
+    const playNote = (freq: number, start: number, duration: number) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "triangle";
+      osc.frequency.setValueAtTime(freq, ctx.currentTime + start);
+      gain.gain.setValueAtTime(0, ctx.currentTime + start);
+      gain.gain.linearRampToValueAtTime(0.4, ctx.currentTime + start + 0.05);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + start + duration);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(ctx.currentTime + start);
+      osc.stop(ctx.currentTime + start + duration);
+    };
+
+    playNote(261.63, 0, 0.15); // C4
+    playNote(329.63, 0.1, 0.15); // E4
+    playNote(392.00, 0.2, 0.15); // G4
+    playNote(523.25, 0.3, 0.45); // C5
+  } catch (e) {
+    console.error(e);
+  }
+};
+
 export default function SpinnerPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -147,6 +201,20 @@ export default function SpinnerPage() {
     const baseTarget = rotation + 1800; // 5 default spins
     setRotation(baseTarget);
 
+    // Play spinning click ticks loop
+    let tickDelay = 50; // ms
+    const maxTickDelay = 600; // stop ticking when it becomes too slow
+    let spinTimeRemaining = 4300; // ms
+    
+    const playTickLoop = () => {
+      if (spinTimeRemaining <= 0 || tickDelay > maxTickDelay) return;
+      playClickSound();
+      spinTimeRemaining -= tickDelay;
+      tickDelay = tickDelay * 1.08;
+      setTimeout(playTickLoop, tickDelay);
+    };
+    playTickLoop();
+
     try {
       // 1. Roll the prize securely on the backend in the background
       const response = await studentApi.claimSpinReward();
@@ -174,6 +242,7 @@ export default function SpinnerPage() {
       setTimeout(() => {
         setIsSpinning(false);
         setLocalLastSpin(new Date().toISOString());
+        playWinSound();
 
         setWonReward({
           label: response.reward?.label || SEGMENTS[winnerIndex]?.label || "TRY",

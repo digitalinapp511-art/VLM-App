@@ -303,14 +303,53 @@ export const getVideos = asyncHandler(async (req, res) => {
   });
 });
 
+const sanitizeArrayInput = (input) => {
+  if (Array.isArray(input)) {
+    return input.map(item => String(item).trim()).filter(Boolean);
+  }
+  if (typeof input === 'string') {
+    return input.split(',').map(item => item.trim()).filter(Boolean);
+  }
+  return input;
+};
+
 export const createVideo = asyncHandler(async (req, res) => {
-  const video = await ShortVideo.create({ ...req.body, uploaderId: req.user._id, uploaderRole: 'teacher', status: 'approved' });
+  const insertData = { ...req.body };
+  if (insertData.targetClasses !== undefined) {
+    insertData.targetClasses = sanitizeArrayInput(insertData.targetClasses);
+  }
+  const video = await ShortVideo.create({ ...insertData, uploaderId: req.user._id, uploaderRole: 'teacher', status: 'approved' });
   res.status(201).json({ success: true, data: video });
 });
 
 export const updateVideo = asyncHandler(async (req, res) => {
-  const video = await ShortVideo.findByIdAndUpdate(req.params.id, req.body, { new: true });
-  if (!video) return res.status(404).json({ success: false, message: 'Video not found' });
+  const updateData = { ...req.body };
+  if (updateData.targetClasses !== undefined) {
+    updateData.targetClasses = sanitizeArrayInput(updateData.targetClasses);
+  }
+
+  const oldVideo = await ShortVideo.findById(req.params.id);
+  if (!oldVideo) return res.status(404).json({ success: false, message: 'Video not found' });
+
+  const isApproving = updateData.status === 'approved' && oldVideo.status !== 'approved';
+
+  const video = await ShortVideo.findByIdAndUpdate(req.params.id, updateData, { new: true });
+
+  if (isApproving) {
+    try {
+      const { createNotification } = await import('../../services/notificationService.js');
+      await createNotification(
+        video.uploaderId,
+        'short_video_approved',
+        'Your Short Video is Live! 🎥',
+        `Your video "${video.title}" has been approved and is now live for targeted students.`,
+        { videoId: video._id.toString() }
+      );
+    } catch (err) {
+      console.error('[Admin updateVideo approve notification error]', err.message);
+    }
+  }
+
   res.json({ success: true, data: video });
 });
 
@@ -320,8 +359,26 @@ export const deleteVideo = asyncHandler(async (req, res) => {
 });
 
 export const approveVideo = asyncHandler(async (req, res) => {
-  const video = await ShortVideo.findByIdAndUpdate(req.params.id, { status: 'approved' }, { new: true });
+  const video = await ShortVideo.findById(req.params.id);
   if (!video) return res.status(404).json({ success: false, message: 'Video not found' });
+  
+  video.status = 'approved';
+  await video.save();
+
+  // Send notification to the uploader
+  try {
+    const { createNotification } = await import('../../services/notificationService.js');
+    await createNotification(
+      video.uploaderId,
+      'short_video_approved',
+      'Your Short Video is Live! 🎥',
+      `Your video "${video.title}" has been approved and is now live for targeted students.`,
+      { videoId: video._id.toString() }
+    );
+  } catch (err) {
+    console.error('[ApproveVideo notification error]', err.message);
+  }
+
   res.json({ success: true, message: 'Video approved', data: video });
 });
 

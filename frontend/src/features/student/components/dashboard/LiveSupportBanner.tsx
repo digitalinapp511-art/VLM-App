@@ -34,18 +34,20 @@ export default function LiveSupportBanner({
         </p>
         <div className="flex items-center gap-1.5 mt-1 sm:mt-1.5">
           {/* Tiny avatar stack */}
-          <div className="flex -space-x-1.5">
-            {["🧑‍🏫", "👩‍🏫", "🧑‍🏫"].map((e, i) => (
-              <div
-                key={i}
-                className="h-4.5 w-4.5 sm:h-5 sm:w-5 rounded-full bg-green-100 border-2 border-white flex items-center justify-center text-[8px] sm:text-[9px]"
-              >
-                {e}
-              </div>
-            ))}
-          </div>
+          {activeTeachersCount > 0 && (
+            <div className="flex -space-x-1.5">
+              {["🧑‍🏫", "👩‍🏫", "🧑‍🏫"].slice(0, Math.min(activeTeachersCount, 3)).map((e, i) => (
+                <div
+                  key={i}
+                  className="h-4.5 w-4.5 sm:h-5 sm:w-5 rounded-full bg-green-100 border-2 border-white flex items-center justify-center text-[8px] sm:text-[9px]"
+                >
+                  {e}
+                </div>
+              ))}
+            </div>
+          )}
           <span className="text-[8px] sm:text-[10px] text-green-600 font-bold">
-            ● {activeTeachersCount > 0 ? (activeTeachersCount < 5 ? `${activeTeachersCount} Teacher${activeTeachersCount > 1 ? 's' : ''} Online` : `${activeTeachersCount}+ Teachers Online`) : "No Teachers Online"}
+            ● {activeTeachersCount > 0 ? `${activeTeachersCount} Teacher${activeTeachersCount > 1 ? 's' : ''} Online` : "No Teachers Online"}
           </span>
         </div>
       </div>

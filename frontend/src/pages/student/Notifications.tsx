@@ -16,6 +16,7 @@ import { toast } from "sonner";
 
 type Notification = {
   id: string;
+  _id?: string;
   title: string;
   message: string;
   type: string; 
@@ -153,9 +154,10 @@ export default function StudentNotifications() {
           ) : (
             notifications.map((notif) => (
               <Card 
-                key={notif.id}
+                key={notif._id || notif.id}
                 onClick={() => {
-                  if (!notif.isRead) markRead.mutate(notif.id);
+                  const targetId = notif._id || notif.id;
+                  if (!notif.isRead && targetId) markRead.mutate(targetId);
                 }}
                 className={cn(
                   "border rounded-2xl transition-all cursor-pointer text-left shadow-sm",
@@ -173,7 +175,7 @@ export default function StudentNotifications() {
                   )}>
                     <Bell className="h-5 w-5" />
                   </div>
-                  <div className="space-y-1 w-full">
+                  <div className="space-y-1 w-full min-w-0">
                     <div className="flex justify-between items-start w-full gap-2">
                       <div className="flex items-center gap-1.5 min-w-0">
                         {!notif.isRead && (

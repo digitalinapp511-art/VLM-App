@@ -99,6 +99,18 @@ router.delete('/videos/:id/comment/:commentId', deleteShortVideoComment);
 router.get('/videos/:id/comments', getShortVideoComments);
 router.get('/social/profile/:id', getPublicProfile);
 router.put('/social/profile', editPublicProfile);
+router.post('/social/profile/photo', upload.single('photo'), cloudinaryUploadMiddleware, asyncHandler(async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ success: false, message: 'No file uploaded' });
+  }
+  const photoUrl = getFileUrl(req.file.filename, 'profiles');
+  const student = await Student.findOne({ userId: req.user._id });
+  if (student) {
+    student.publicProfilePhoto = photoUrl;
+    await student.save();
+  }
+  res.json({ success: true, url: photoUrl });
+}));
 router.post('/social/profile/:id/follow', toggleFollowUser);
 router.get('/social/username/check', checkUsernameAvailability);
 router.post('/social/username', createPublicProfileUsername);

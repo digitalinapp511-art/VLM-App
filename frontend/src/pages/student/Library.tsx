@@ -300,32 +300,21 @@ export default function Library() {
                         {r.type === 'video' ? (
                           <Button
                             size="sm"
-                            onClick={() => window.open(r.videoUrl || r.fileUrl, '_blank')}
-                            className="h-9 px-4 rounded-xl bg-green-600 text-white font-black text-[10px] uppercase tracking-wider flex items-center gap-1.5 hover:bg-green-700 transition-all active:scale-95 border-none"
+                            onClick={() => setReadingFile({ title: r.title, url: r.videoUrl || r.fileUrl, isVideo: true })}
+                            className="h-9 w-full rounded-xl bg-violet-600 text-white font-black text-[10px] uppercase tracking-wider flex items-center justify-center gap-1.5 hover:bg-violet-700 transition-all active:scale-95 border-none"
                           >
                             <PlayCircle size={12} />
                             Watch Video
                           </Button>
                         ) : (
-                          <>
-                            <Button
-                              size="sm"
-                              onClick={() => window.open(r.pdfUrl || r.fileUrl, '_blank')}
-                              className="h-9 px-4 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 font-black text-[10px] uppercase tracking-wider flex items-center gap-1.5 transition-all active:scale-95"
-                            >
-                              <Download size={12} />
-                              Open Link
-                            </Button>
-
-                            <Button
-                              size="sm"
-                              onClick={() => setReadingFile({ title: r.title, url: r.pdfUrl || r.fileUrl })}
-                              className="h-9 px-4 rounded-xl bg-violet-600 text-white font-black text-[10px] uppercase tracking-wider flex items-center gap-1.5 hover:bg-violet-700 transition-all active:scale-95 border-none"
-                            >
-                              <Eye size={12} />
-                              Read
-                            </Button>
-                          </>
+                          <Button
+                            size="sm"
+                            onClick={() => setReadingFile({ title: r.title, url: (r.pdfUrl || r.fileUrl) + '#toolbar=0' })}
+                            className="h-9 w-full rounded-xl bg-violet-600 text-white font-black text-[10px] uppercase tracking-wider flex items-center justify-center gap-1.5 hover:bg-violet-700 transition-all active:scale-95 border-none"
+                          >
+                            <Eye size={12} />
+                            Read
+                          </Button>
                         )}
                       </div>
                     </div>
@@ -349,18 +338,29 @@ export default function Library() {
                 <X size={18} />
               </Button>
               <div className="text-center flex-1 px-3">
-                <span className="text-[9px] font-black tracking-widest text-violet-400 uppercase">Document Reader</span>
+                <span className="text-[9px] font-black tracking-widest text-violet-400 uppercase">
+                  {readingFile.isVideo ? "Video Player" : "Document Reader"}
+                </span>
                 <h3 className="text-sm font-bold text-white truncate max-w-[200px]">{readingFile.title}</h3>
               </div>
               <div className="w-9 h-9" /> {/* Spacer */}
             </header>
 
-            <div className="flex-1 w-full bg-slate-950 overflow-hidden relative">
-              <iframe
-                src={readingFile.url}
-                className="w-full h-full border-none"
-                title="Document View"
-              />
+            <div className="flex-1 w-full bg-slate-950 overflow-hidden relative flex items-center justify-center">
+              {readingFile.isVideo ? (
+                <video
+                  src={readingFile.url}
+                  controls
+                  className="max-w-full max-h-full object-contain"
+                  controlsList="nodownload"
+                />
+              ) : (
+                <iframe
+                  src={readingFile.url}
+                  className="w-full h-full border-none"
+                  title="Document View"
+                />
+              )}
             </div>
           </div>
         )}

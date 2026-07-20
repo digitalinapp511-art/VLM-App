@@ -68,9 +68,43 @@ export const createTeacher = asyncHandler(async (req, res) => {
 // ─────────────────────────────────────────────────────────────────────────────
 // PUT /api/admin/teachers/:id
 // ─────────────────────────────────────────────────────────────────────────────
+const sanitizeArrayInput = (input) => {
+  if (Array.isArray(input)) {
+    return input.map(item => String(item).trim()).filter(Boolean);
+  }
+  if (typeof input === 'string') {
+    return input.split(',').map(item => item.trim()).filter(Boolean);
+  }
+  return input;
+};
+
 export const updateTeacher = asyncHandler(async (req, res) => {
-  const teacher = await Teacher.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
+  const updateData = { ...req.body };
+  const arrayKeys = ['subjects', 'classes', 'boards', 'languages'];
+  arrayKeys.forEach((key) => {
+    if (updateData[key] !== undefined) {
+      updateData[key] = sanitizeArrayInput(updateData[key]);
+    }
+  });
+
+  const teacher = await Teacher.findByIdAndUpdate(req.params.id, updateData, { new: true, runValidators: true });
   if (!teacher) return res.status(404).json({ success: false, message: 'Teacher not found' });
+
+  // Sync Redis presence if availability status is modified
+  if (updateData.availabilityStatus !== undefined) {
+    try {
+      const { setTeacherState, TEACHER_PRESENCE } = await import('../../services/presenceService.js');
+      const presenceStatus = updateData.availabilityStatus === 'online'
+        ? TEACHER_PRESENCE.ONLINE
+        : updateData.availabilityStatus === 'busy'
+          ? TEACHER_PRESENCE.BUSY
+          : TEACHER_PRESENCE.OFFLINE;
+      await setTeacherState(teacher._id, presenceStatus);
+    } catch (e) {
+      console.error('[Admin updateTeacher Redis sync error]', e.message);
+    }
+  }
+
   res.json({ success: true, message: 'Teacher updated', data: teacher });
 });
 

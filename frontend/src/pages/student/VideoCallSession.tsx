@@ -562,7 +562,7 @@ export default function VideoCallSession() {
               onClick={() => navigate(PATHS.WALLET)}
               className="flex items-center gap-1 px-2 py-1 rounded-lg bg-violet-50 dark:bg-violet-950/20 border border-violet-100 dark:border-violet-900/40 text-violet-600 dark:text-violet-400 cursor-pointer hover:scale-105 active:scale-95 transition-all shadow-xs font-bold"
             >
-              <span className="text-[8px] uppercase tracking-wider">Credits:</span>
+              <span className="text-[8px] uppercase tracking-wider">Doubt Credit:</span>
               <span className="text-[10px]">{student?.wallet?.humanChatCredits ?? 0}</span>
               <div className="w-3.5 h-3.5 rounded-full bg-violet-600 text-white flex items-center justify-center">
                 <Plus size={8} className="stroke-[3]" />

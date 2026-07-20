@@ -5,7 +5,7 @@ import { ChevronLeft, Wallet, ArrowUpRight, ArrowDownLeft, Plus, Zap, MessageSqu
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useStudentProfile, useStudentWalletHistory } from "@/hooks/use-student";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { studentApi } from "@/lib/student-api";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -23,6 +23,13 @@ export default function StudentWallet() {
 
   const { data: profile, isLoading: isProfileLoading } = useStudentProfile();
   const { data: walletHistory, isLoading: isHistoryLoading } = useStudentWalletHistory();
+
+  const { data: cashbackResponse } = useQuery({
+    queryKey: ["activeCashbackOffers"],
+    queryFn: studentApi.getActiveCashbackOffers,
+  });
+
+  const cashbackOffers = cashbackResponse?.data || [];
 
   const student = (profile as any)?.data || profile;
 
@@ -266,6 +273,50 @@ export default function StudentWallet() {
             <h2 className="text-md font-black uppercase tracking-tight flex items-center justify-center gap-2">
               Recharge Balance
             </h2>
+
+            {/* Active Cashback Offers */}
+            {cashbackOffers.length > 0 && (
+              <div className="flex flex-col gap-1.5 text-left bg-violet-600/5 dark:bg-violet-600/10 border border-violet-100 dark:border-violet-800/60 rounded-2xl p-3 shrink-0">
+                <span className="text-[9px] font-black uppercase tracking-wider text-violet-600 dark:text-violet-400">
+                  🎁 Active Cashback Offers
+                </span>
+                <div className="flex gap-2 overflow-x-auto no-scrollbar py-0.5">
+                  {cashbackOffers.map((offer: any) => (
+                    <div
+                      key={offer._id}
+                      onClick={() => {
+                        setRechargeAmount(offer.minRechargeAmount);
+                        setCustomAmountInput(String(offer.minRechargeAmount));
+                      }}
+                      className={cn(
+                        "flex-shrink-0 w-36 rounded-xl border p-2 cursor-pointer transition-all active:scale-95 text-left",
+                        rechargeAmount === offer.minRechargeAmount
+                          ? "bg-violet-600 border-violet-600 text-white shadow-md shadow-violet-600/20"
+                          : "bg-slate-50 dark:bg-[#1b173c] border-slate-100 dark:border-slate-800 text-slate-800 dark:text-slate-200"
+                      )}
+                    >
+                      <div className="flex items-center justify-between gap-1 mb-1">
+                        <span className="text-[9px] font-black truncate">{offer.title}</span>
+                        {offer.recommendedText && (
+                          <span className="text-[6px] font-black bg-amber-500 text-white px-1.5 py-0.5 rounded-sm uppercase scale-90 origin-right shrink-0">
+                            {offer.recommendedText}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[8px] opacity-85 leading-tight line-clamp-2 mb-1.5 min-h-[20px]">
+                        {offer.description || `Recharge ₹${offer.minRechargeAmount} and get cashback!`}
+                      </p>
+                      <div className={cn(
+                        "text-[8px] font-black text-right",
+                        rechargeAmount === offer.minRechargeAmount ? "text-white" : "text-violet-600 dark:text-violet-400"
+                      )}>
+                        {offer.cashbackPercent > 0 ? `${offer.cashbackPercent}% Back` : `₹${offer.cashbackAmount} Back`}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Sub-tabs inside popup */}
             <div className="flex border border-slate-200 dark:border-[#221c4e] rounded-xl p-1 bg-slate-50/50 dark:bg-slate-900/40">

@@ -17,7 +17,7 @@ export const resolveUserProfile = async (userId) => {
       userId,
       name: usernameDisplay || student?.nickname || student?.firstName || fullName || 'Student',
       nickname: usernameDisplay || student?.nickname || student?.firstName || 'Student',
-      photo: student?.profilePhoto || '',
+      photo: student?.publicProfilePhoto || student?.profilePhoto || '',
       role: 'student',
       username: user.username || ''
     };
@@ -28,7 +28,7 @@ export const resolveUserProfile = async (userId) => {
       userId,
       name: usernameDisplay || fullName,
       nickname: usernameDisplay || teacher?.firstName || fullName,
-      photo: teacher?.profilePhoto || '',
+      photo: teacher?.publicProfilePhoto || teacher?.profilePhoto || '',
       role: 'teacher',
       username: user.username || ''
     };
@@ -236,7 +236,7 @@ export const getPublicProfile = asyncHandler(async (req, res) => {
       fullName,
       nickname: targetUser.username ? `@${targetUser.username}` : (student?.nickname || student?.firstName || 'Student'),
       username: targetUser.username || '',
-      profilePhoto: student?.profilePhoto || '',
+      profilePhoto: student?.publicProfilePhoto || student?.profilePhoto || '',
       bio: student?.bio || student?.learningGoals || '',
       class: student?.class || '',
       board: student?.board || '',
@@ -249,7 +249,7 @@ export const getPublicProfile = asyncHandler(async (req, res) => {
       fullName,
       nickname: targetUser.username ? `@${targetUser.username}` : (teacher?.firstName || fullName),
       username: targetUser.username || '',
-      profilePhoto: teacher?.profilePhoto || '',
+      profilePhoto: teacher?.publicProfilePhoto || teacher?.profilePhoto || '',
       bio: teacher?.bio || teacher?.teachingStyle || '',
       subjects: teacher?.subjects || [],
       role: 'teacher'
@@ -292,7 +292,10 @@ export const editPublicProfile = asyncHandler(async (req, res) => {
   const Student = (await import('../models/Student.js')).default;
   const Teacher = (await import('../models/Teacher.js')).default;
 
-  const { nickname, bio, profilePhoto } = req.body;
+  const { nickname, bio, profilePhoto, publicProfilePhoto } = req.body;
+  if (bio && bio.length > 160) {
+    return res.status(400).json({ success: false, message: 'Bio exceeds maximum limit of 160 characters' });
+  }
   const userId = req.user._id;
 
   let updatedProfile = null;
@@ -301,6 +304,7 @@ export const editPublicProfile = asyncHandler(async (req, res) => {
     if (nickname !== undefined) updateFields.nickname = nickname;
     if (bio !== undefined) updateFields.bio = bio;
     if (profilePhoto !== undefined) updateFields.profilePhoto = profilePhoto;
+    if (publicProfilePhoto !== undefined) updateFields.publicProfilePhoto = publicProfilePhoto;
 
     updatedProfile = await Student.findOneAndUpdate(
       { userId },
@@ -309,8 +313,10 @@ export const editPublicProfile = asyncHandler(async (req, res) => {
     );
   } else if (req.user.role === 'teacher') {
     const updateFields = {};
+    if (nickname !== undefined) updateFields.nickname = nickname;
     if (bio !== undefined) updateFields.bio = bio;
     if (profilePhoto !== undefined) updateFields.profilePhoto = profilePhoto;
+    if (publicProfilePhoto !== undefined) updateFields.publicProfilePhoto = publicProfilePhoto;
 
     updatedProfile = await Teacher.findOneAndUpdate(
       { userId },

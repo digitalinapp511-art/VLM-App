@@ -66,6 +66,7 @@ export default function StudentDashboard() {
     level,
     lastSpinDate,
     activeSecondsSinceLastSpin,
+    spinCooldownHours,
     mcqCompleted,
     mcqTotal,
     activeTeachersCount,
@@ -76,37 +77,25 @@ export default function StudentDashboard() {
   const unreadCount = unreadNotificationCount;
 
   const [showLockedModal, setShowLockedModal] = useState(false);
-  const [secondsLeft, setSecondsLeft] = useState(() => {
-    const cached = sessionStorage.getItem("vlm_spin_seconds_left");
-    return cached ? parseInt(cached) : 0;
-  });
+  const [secondsLeft, setSecondsLeft] = useState(0);
 
   useEffect(() => {
-    if (activeSecondsSinceLastSpin === 0) {
-      sessionStorage.removeItem("vlm_spin_seconds_left");
-      setSecondsLeft(0);
-      return;
-    }
-    const remSeconds = Math.max(0, 7200 - (activeSecondsSinceLastSpin || 0));
-    setSecondsLeft(remSeconds);
-    sessionStorage.setItem("vlm_spin_seconds_left", remSeconds.toString());
-  }, [activeSecondsSinceLastSpin]);
+    if (lastSpinDate) {
+      const calculateSecondsRemaining = () => {
+        const lastSpin = new Date(lastSpinDate).getTime();
+        const diffMs = Date.now() - lastSpin;
+        const cooldownMs = (spinCooldownHours || 2) * 3600 * 1000;
+        const remSeconds = Math.max(0, Math.ceil((cooldownMs - diffMs) / 1000));
+        setSecondsLeft(remSeconds);
+      };
 
-  useEffect(() => {
-    if (secondsLeft > 0) {
-      sessionStorage.setItem("vlm_spin_seconds_left", secondsLeft.toString());
-      const interval = setInterval(() => {
-        setSecondsLeft((prev) => {
-          const val = Math.max(0, prev - 1);
-          sessionStorage.setItem("vlm_spin_seconds_left", val.toString());
-          return val;
-        });
-      }, 1000);
+      calculateSecondsRemaining();
+      const interval = setInterval(calculateSecondsRemaining, 1000);
       return () => clearInterval(interval);
     } else {
-      sessionStorage.removeItem("vlm_spin_seconds_left");
+      setSecondsLeft(0);
     }
-  }, [secondsLeft]);
+  }, [lastSpinDate, spinCooldownHours]);
 
   const formatTime = (totalSeconds: number) => {
     const h = Math.floor(totalSeconds / 3600).toString().padStart(2, "0");
@@ -311,7 +300,7 @@ export default function StudentDashboard() {
         <SubjectProgress />
 
         {/* 5. Rewards Banner */}
-        <RewardsBanner lastSpinDate={lastSpinDate} activeSecondsSinceLastSpin={activeSecondsSinceLastSpin} onLockedClick={() => setShowLockedModal(true)} />
+         <RewardsBanner lastSpinDate={lastSpinDate} spinCooldownHours={spinCooldownHours} onLockedClick={() => setShowLockedModal(true)} />
 
         {/* 6. Mini Cards (Daily Goal / Upcoming Test / AI Tutor) */}
         <MiniCards mcqCompleted={mcqCompleted} mcqTotal={mcqTotal} />
@@ -429,16 +418,28 @@ export default function StudentDashboard() {
                   Wheel Locked!
                 </h2>
                 <p className="text-slate-500 dark:text-white/60 text-xs tracking-wide">
-                  Complete 2 hours of active learning to spin.
+                  Complete {(() => {
+                    const hrs = spinCooldownHours || 2;
+                    if (hrs < 1) {
+                      const totalSecs = Math.round(hrs * 3600);
+                      const mins = Math.floor(totalSecs / 60);
+                      const secs = totalSecs % 60;
+                      if (mins > 0) {
+                        return `${mins} min${mins > 1 ? 's' : ''}${secs > 0 ? ` ${secs} sec${secs > 1 ? 's' : ''}` : ''}`;
+                      }
+                      return `${secs} sec${secs > 1 ? 's' : ''}`;
+                    }
+                    return `${hrs} hour${hrs === 1 ? '' : 's'}`;
+                  })()} cooldown to spin.
                 </p>
                 <div className="py-3 px-4 bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/10 rounded-2xl inline-block mt-2">
-                  <p className="text-[10px] text-slate-400 dark:text-white/40 uppercase font-black tracking-widest">Study time remaining:</p>
+                  <p className="text-[10px] text-slate-400 dark:text-white/40 uppercase font-black tracking-widest">Cooldown time remaining:</p>
                   <p className="text-lg font-bold text-violet-600 dark:text-violet-400 font-mono mt-1">
-                    {parseInt(h)}h {parseInt(m)}m
+                    {parseInt(h)}h {parseInt(m)}m {parseInt(s)}s
                   </p>
                 </div>
                 <p className="text-[11px] text-violet-500 dark:text-violet-300/80 font-medium mt-3">
-                  Use the app for {parseInt(h) > 0 ? `${parseInt(h)}h ` : ""}{parseInt(m)}m more to win exciting rewards!
+                  Please wait {parseInt(h) > 0 ? `${parseInt(h)}h ` : ""}{parseInt(m) > 0 ? `${parseInt(m)}m ` : ""}{parseInt(s)}s more to win exciting rewards!
                 </p>
               </div>
 

@@ -4,43 +4,31 @@ import { PATHS } from "@/routes/paths";
 
 interface RewardsBannerProps {
   lastSpinDate?: string | null;
-  activeSecondsSinceLastSpin?: number;
+  spinCooldownHours?: number;
   onLockedClick?: () => void;
 }
 
-export default function RewardsBanner({ activeSecondsSinceLastSpin = 0, onLockedClick }: RewardsBannerProps) {
+export default function RewardsBanner({ lastSpinDate, spinCooldownHours = 2, onLockedClick }: RewardsBannerProps) {
   const navigate = useNavigate();
-  const [secondsLeft, setSecondsLeft] = useState(() => {
-    const cached = sessionStorage.getItem("vlm_spin_seconds_left");
-    return cached ? parseInt(cached) : 7200;
-  });
+  const [secondsLeft, setSecondsLeft] = useState(0);
 
   useEffect(() => {
-    if (activeSecondsSinceLastSpin === 0) {
-      sessionStorage.removeItem("vlm_spin_seconds_left");
-      setSecondsLeft(0);
-      return;
-    }
-    const remSeconds = Math.max(0, 7200 - activeSecondsSinceLastSpin);
-    setSecondsLeft(remSeconds);
-    sessionStorage.setItem("vlm_spin_seconds_left", remSeconds.toString());
-  }, [activeSecondsSinceLastSpin]);
+    if (lastSpinDate) {
+      const calculateSecondsRemaining = () => {
+        const lastSpin = new Date(lastSpinDate).getTime();
+        const diffMs = Date.now() - lastSpin;
+        const cooldownMs = (spinCooldownHours || 2) * 3600 * 1000;
+        const remSeconds = Math.max(0, Math.ceil((cooldownMs - diffMs) / 1000));
+        setSecondsLeft(remSeconds);
+      };
 
-  useEffect(() => {
-    if (secondsLeft > 0) {
-      sessionStorage.setItem("vlm_spin_seconds_left", secondsLeft.toString());
-      const interval = setInterval(() => {
-        setSecondsLeft((prev) => {
-          const val = Math.max(0, prev - 1);
-          sessionStorage.setItem("vlm_spin_seconds_left", val.toString());
-          return val;
-        });
-      }, 1000);
+      calculateSecondsRemaining();
+      const interval = setInterval(calculateSecondsRemaining, 1000);
       return () => clearInterval(interval);
     } else {
-      sessionStorage.removeItem("vlm_spin_seconds_left");
+      setSecondsLeft(0);
     }
-  }, [secondsLeft]);
+  }, [lastSpinDate, spinCooldownHours]);
 
   const canSpin = secondsLeft <= 0;
 

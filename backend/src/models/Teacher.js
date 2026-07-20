@@ -10,6 +10,7 @@ const teacherSchema = new mongoose.Schema(
     middleName: String,
     lastName: { type: String, required: true },
     profilePhoto: String,
+    publicProfilePhoto: String,
     gender: { type: String, enum: ['male', 'female', 'other'] },
     dateOfBirth: Date,
     bio: String,

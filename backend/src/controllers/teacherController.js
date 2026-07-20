@@ -280,14 +280,29 @@ export const updateProfile = asyncHandler(async (req, res) => {
     });
   }
 
+  const sanitizeArrayInput = (input) => {
+    if (Array.isArray(input)) {
+      return input.map(item => String(item).trim()).filter(Boolean);
+    }
+    if (typeof input === 'string') {
+      return input.split(',').map(item => item.trim()).filter(Boolean);
+    }
+    return input;
+  };
+
   const allowed = [
     'firstName', 'middleName', 'lastName', 'bio', 'teachingStyle', 'bankDetails', 'profilePhoto', 
     'address', 'city', 'state', 'pincode', 'gender',
     'subjects', 'classes', 'boards', 'languages'
   ];
+  const arrayKeys = ['subjects', 'classes', 'boards', 'languages'];
   allowed.forEach((key) => {
     if (req.body[key] !== undefined) {
-      teacher[key] = req.body[key];
+      if (arrayKeys.includes(key)) {
+        teacher[key] = sanitizeArrayInput(req.body[key]);
+      } else {
+        teacher[key] = req.body[key];
+      }
     }
   });
 

@@ -156,16 +156,21 @@ export const getStudentProfile = asyncHandler(async (req, res) => {
   // Lightweight parallel calls
   const { default: Notification } = await import('../models/Notification.js');
   const { default: ParentChildRequest } = await import('../models/ParentChildRequest.js');
+  const { default: AdminSettings } = await import('../models/AdminSettings.js');
 
   const [
     totalActiveSeconds,
     unreadNotificationCount,
-    pendingParentRequestCount
+    pendingParentRequestCount,
+    cooldownSetting
   ] = await Promise.all([
     getAccumulatedActiveSeconds(student._id),
     Notification.countDocuments({ userId: req.user._id, isRead: false }),
-    ParentChildRequest.countDocuments({ studentId: student._id, status: 'pending' })
+    ParentChildRequest.countDocuments({ studentId: student._id, status: 'pending' }),
+    AdminSettings.findOne({ key: 'spin_cooldown_hours' })
   ]);
+
+  const cooldownHours = cooldownSetting ? Number(cooldownSetting.value) || 2 : 2;
 
   let activeTeachersCount = 0;
   try {
@@ -190,6 +195,7 @@ export const getStudentProfile = asyncHandler(async (req, res) => {
         mcqPoints: student.mcqPoints || 0,
         activeSecondsSinceLastSpin,
         lastSpinDate: student.lastSpinDate,
+        spinCooldownHours: cooldownHours,
         class: student.class,
         board: student.board,
       },

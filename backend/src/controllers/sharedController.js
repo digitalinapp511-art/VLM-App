@@ -433,14 +433,37 @@ export const getLiveClasses = asyncHandler(async (req, res) => {
   res.json({ success: true, data: classes });
 });
 
+const sanitizeArrayInput = (input) => {
+  if (Array.isArray(input)) {
+    return input.map(item => String(item).trim()).filter(Boolean);
+  }
+  if (typeof input === 'string') {
+    return input.split(',').map(item => item.trim()).filter(Boolean);
+  }
+  return input;
+};
+
 export const uploadShortVideo = asyncHandler(async (req, res) => {
   const maxDuration = req.user.activeRole === 'teacher' ? 180 : 90;
+  const { title, description } = req.body;
+  if (title && title.length > 80) {
+    return res.status(400).json({ success: false, message: 'Title exceeds maximum limit of 80 characters' });
+  }
+  if (description && description.length > 250) {
+    return res.status(400).json({ success: false, message: 'Description exceeds maximum limit of 250 characters' });
+  }
+
+  const insertData = { ...req.body };
+  if (insertData.targetClasses !== undefined) {
+    insertData.targetClasses = sanitizeArrayInput(insertData.targetClasses);
+  }
+
   const video = await ShortVideo.create({
     uploaderId: req.user._id,
     uploaderRole: req.user.activeRole,
     videoUrl: req.body.videoUrl || (req.file ? getFileUrl(req.file.filename, 'videos') : ''),
     duration: req.body.duration,
-    ...req.body,
+    ...insertData,
     status: 'pending',
   });
 
@@ -455,9 +478,39 @@ export const uploadShortVideo = asyncHandler(async (req, res) => {
 });
 
 export const getShortVideos = asyncHandler(async (req, res) => {
-  const { class: cls, subject } = req.query;
+  const { subject } = req.query;
   const query = { status: 'approved' };
-  if (cls) query.class = cls;
+
+  if (req.user && req.user.activeRole === 'student') {
+    let studentClass = req.query.class;
+    if (!studentClass) {
+      const Student = (await import('../models/Student.js')).default;
+      const student = await Student.findOne({ userId: req.user._id });
+      if (student) {
+        studentClass = student.class;
+      }
+    }
+
+    if (studentClass) {
+      query.$or = [
+        { targetClasses: { $in: [studentClass] } },
+        { targetClasses: { $size: 0 } },
+        { targetClasses: { $exists: false } },
+        { class: studentClass }
+      ];
+    }
+  } else {
+    // If the user is a teacher (or admin), only filter by class if they explicitly request it
+    if (req.query.class) {
+      query.$or = [
+        { targetClasses: { $in: [req.query.class] } },
+        { targetClasses: { $size: 0 } },
+        { targetClasses: { $exists: false } },
+        { class: req.query.class }
+      ];
+    }
+  }
+
   if (subject) query.subject = subject;
   
   const videos = await ShortVideo.find(query).sort({ createdAt: -1 }).limit(50);

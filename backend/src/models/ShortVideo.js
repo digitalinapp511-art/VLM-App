@@ -10,6 +10,7 @@ const shortVideoSchema = new mongoose.Schema(
     thumbnailUrl: String,
     duration: Number,
     class: String,
+    targetClasses: [String],
     subject: String,
     topic: String,
     language: String,

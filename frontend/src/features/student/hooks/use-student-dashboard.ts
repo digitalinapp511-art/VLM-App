@@ -87,6 +87,9 @@ export function useStudentDashboard() {
   const activeSecondsSinceLastSpin = isBypass
     ? 2700 // 45 minutes in seconds
     : (studentData?.activeSecondsSinceLastSpin ?? dashboardData?.activeSecondsSinceLastSpin ?? 0);
+  const spinCooldownHours = isBypass
+    ? 2
+    : (studentData?.spinCooldownHours ?? dashboardData?.spinCooldownHours ?? 2);
 
   // MCQ progress
   const mcqCompleted = dashboardData?.mcq?.completed ?? (mcq?.status === 'completed' ? (mcq?.questions?.length || 15) : 0);
@@ -117,6 +120,7 @@ export function useStudentDashboard() {
     level,
     lastSpinDate,
     activeSecondsSinceLastSpin,
+    spinCooldownHours,
     mcqCompleted,
     mcqTotal,
     liveClass,

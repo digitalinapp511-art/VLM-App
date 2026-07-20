@@ -3,7 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { PATHS } from "@/routes/paths";
 import { 
   ChevronLeft, Heart, MessageSquare, Share2, 
-  UserPlus, UserMinus, Play, Volume2, VolumeX, Eye, Upload, X, Send, Trash2, UserCheck
+  UserPlus, UserMinus, Play, Volume2, VolumeX, Eye, Upload, X, Send, Trash2, UserCheck, Settings
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -44,7 +44,14 @@ function VideoPlayer({ src, isActive, isMuted, isPaused }: VideoPlayerProps) {
     video.muted = isMuted;
 
     if (isActive && !isPaused) {
-      video.play().catch((err) => console.log("Play call interrupted:", err));
+      video.play().catch((err) => {
+        console.log("Play call interrupted or blocked:", err);
+        // If autoplay unmuted is blocked by browser gesture policies, fall back to muted play
+        if (err.name === "NotAllowedError") {
+          video.muted = true;
+          video.play().catch((e) => console.log("Muted autoplay failed:", e));
+        }
+      });
     } else {
       video.pause();
     }
@@ -88,12 +95,13 @@ export default function ShortVideoFeed() {
   const { id: sharedShortId } = useParams();
   const queryClient = useQueryClient();
   
-  const [isMuted, setIsMuted] = useState(true);
+  const [isMuted, setIsMuted] = useState(false);
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [caption, setCaption] = useState("");
   const [title, setTitle] = useState("");
   const [classNameVal, setClassNameVal] = useState("10");
+  const [targetClasses, setTargetClasses] = useState<string[]>([]);
 
   // Active Video Tracking
   const [activeReelId, setActiveReelId] = useState<string | null>(null);
@@ -115,8 +123,19 @@ export default function ShortVideoFeed() {
     message: string;
   } | null>(null);
   const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
+  const [activeCommentsVideoId, setActiveCommentsVideoId] = useState<string | null>(null);
+  const [newComment, setNewComment] = useState("");
+  const [activeVideoIndex, setActiveVideoIndex] = useState(0);
 
-  const isAnyDialogOpen = isUploadOpen || isUsernameModalOpen || isCommentsOpen || isProfileOpen;
+  // Settings states for public profile edit
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [editNickname, setEditNickname] = useState("");
+  const [editBio, setEditBio] = useState("");
+  const [editAvatarUrl, setEditAvatarUrl] = useState("");
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
+
+  // Keyboard navigation & Dialog overlay interaction helper
+  const isAnyDialogOpen = isUploadOpen || isUsernameModalOpen || isCommentsOpen || isProfileOpen || isSettingsOpen;
 
   // Touch Swipe States
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
@@ -205,6 +224,7 @@ export default function ShortVideoFeed() {
       setVideoFile(null);
       setCaption("");
       setTitle("");
+      setTargetClasses([]);
       queryClient.invalidateQueries({ queryKey: ["shortVideos"] });
     },
     onError: (err: any) => {
@@ -278,6 +298,45 @@ export default function ShortVideoFeed() {
   });
 
   const publicProfileData = profileResponse?.data;
+
+  useEffect(() => {
+    if (isProfileOpen && activeProfileUserId === currentUserId && publicProfileData) {
+      setEditNickname(publicProfileData.nickname || publicProfileData.fullName || "");
+      setEditBio(publicProfileData.bio || "");
+      setEditAvatarUrl(publicProfileData.profilePhoto || "");
+    }
+  }, [isProfileOpen, activeProfileUserId, currentUserId, publicProfileData]);
+
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files?.[0]) return;
+    const file = e.target.files[0];
+    try {
+      toast.loading("Uploading image...", { id: "upload-avatar" });
+      const res = await studentApi.uploadPublicProfilePhoto(file);
+      setEditAvatarUrl(res.url);
+      toast.success("Image uploaded successfully!", { id: "upload-avatar" });
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || "Failed to upload image", { id: "upload-avatar" });
+    }
+  };
+
+  const handleSaveSettings = async () => {
+    try {
+      setIsSavingSettings(true);
+      await studentApi.editPublicProfile({
+        bio: editBio,
+        publicProfilePhoto: editAvatarUrl
+      });
+      toast.success("Public profile updated!");
+      setIsSettingsOpen(false);
+      queryClient.invalidateQueries({ queryKey: ["publicProfile", activeProfileUserId] });
+      queryClient.invalidateQueries({ queryKey: ["shortVideos"] });
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || "Failed to save profile settings");
+    } finally {
+      setIsSavingSettings(false);
+    }
+  };
 
   const followMutation = useMutation({
     mutationFn: studentApi.followUser,
@@ -449,7 +508,8 @@ export default function ShortVideoFeed() {
     formData.append("video", videoFile);
     formData.append("title", title.trim());
     formData.append("description", caption.trim());
-    formData.append("class", classNameVal);
+    formData.append("class", targetClasses[0] || classNameVal); // Keep first selected class as fallback 'class' field
+    formData.append("targetClasses", targetClasses.join(","));
 
     uploadMutation.mutate(formData);
   };
@@ -847,7 +907,12 @@ export default function ShortVideoFeed() {
 
       {/* ── PUBLIC CREATOR PROFILE FULL PAGE ── */}
       {isProfileOpen && activeProfileUserId && (
-        <div className="fixed inset-0 z-50 flex flex-col bg-white dark:bg-[#110e24] text-slate-800 dark:text-slate-100 transition-colors duration-300">
+        <div 
+          onTouchStart={(e) => e.stopPropagation()}
+          onTouchMove={(e) => e.stopPropagation()}
+          onTouchEnd={(e) => e.stopPropagation()}
+          className="fixed inset-0 z-50 flex flex-col bg-white dark:bg-[#110e24] text-slate-800 dark:text-slate-100 transition-colors duration-300"
+        >
           
           {/* Header */}
           <header className="flex w-full items-center justify-between px-6 py-5 border-b border-slate-100 dark:border-slate-800/80 shrink-0 bg-white dark:bg-[#110e24]">
@@ -863,9 +928,20 @@ export default function ShortVideoFeed() {
               <ChevronLeft size={20} />
             </Button>
             <span className="text-sm font-black tracking-widest uppercase text-slate-800 dark:text-white">
-              Public Profile
+              {activeProfileUserId === currentUserId ? "My Profile" : "Public Profile"}
             </span>
-            <div className="w-10 h-10" />
+            {activeProfileUserId === currentUserId ? (
+              <Button 
+                variant="outline" 
+                size="icon" 
+                className="h-10 w-10 rounded-xl border-slate-200 dark:border-slate-800 bg-transparent text-slate-800 dark:text-white active:scale-95 transition-all cursor-pointer" 
+                onClick={() => setIsSettingsOpen(true)}
+              >
+                <Settings size={18} />
+              </Button>
+            ) : (
+              <div className="w-10 h-10" />
+            )}
           </header>
 
           {/* Profile Loading / Body */}
@@ -874,7 +950,7 @@ export default function ShortVideoFeed() {
               <div className="h-8 w-8 rounded-full border-4 border-violet-600 border-t-transparent animate-spin" />
             </div>
           ) : (
-            <div className="flex-1 overflow-y-auto p-6 space-y-6 no-scrollbar pb-10">
+            <div className="flex-1 overflow-y-auto p-6 space-y-6 no-scrollbar pb-36">
               
               <div className="flex flex-col items-center text-center gap-5">
                 {/* Avatar */}
@@ -902,20 +978,25 @@ export default function ShortVideoFeed() {
                 )}
 
                 {/* Follow & Stats strip */}
-                <div className="w-full flex items-center justify-around py-4 px-4 bg-slate-50 dark:bg-slate-900/60 rounded-3xl text-center shadow-inner">
+                <div className="w-full flex items-center justify-around py-4 px-3 bg-slate-50 dark:bg-slate-900/60 rounded-3xl text-center shadow-inner gap-1">
                   <div>
-                    <p className="text-base font-black leading-none text-slate-900 dark:text-white">{publicProfileData.followersCount || 0}</p>
-                    <p className="text-[9px] font-bold text-slate-400 dark:text-slate-505 uppercase mt-1.5 leading-none">Followers</p>
+                    <p className="text-sm font-black leading-none text-slate-900 dark:text-white">{publicProfileData.videos?.length || 0}</p>
+                    <p className="text-[8px] font-bold text-slate-450 dark:text-slate-500 uppercase mt-1.5 leading-none">Posts</p>
                   </div>
-                  <div className="h-6 w-px bg-slate-200 dark:bg-slate-800" />
+                  <div className="h-6 w-px bg-slate-200 dark:bg-slate-800 shrink-0" />
                   <div>
-                    <p className="text-base font-black leading-none text-slate-900 dark:text-white">{publicProfileData.followingCount || 0}</p>
-                    <p className="text-[9px] font-bold text-slate-400 dark:text-slate-505 uppercase mt-1.5 leading-none">Following</p>
+                    <p className="text-sm font-black leading-none text-slate-900 dark:text-white">{publicProfileData.followersCount || 0}</p>
+                    <p className="text-[8px] font-bold text-slate-450 dark:text-slate-500 uppercase mt-1.5 leading-none">Followers</p>
                   </div>
-                  <div className="h-6 w-px bg-slate-200 dark:bg-slate-800" />
+                  <div className="h-6 w-px bg-slate-200 dark:bg-slate-800 shrink-0" />
                   <div>
-                    <p className="text-base font-black leading-none text-slate-900 dark:text-white">{publicProfileData.totalViews || 0}</p>
-                    <p className="text-[9px] font-bold text-slate-400 dark:text-slate-505 uppercase mt-1.5 leading-none">Total Views</p>
+                    <p className="text-sm font-black leading-none text-slate-900 dark:text-white">{publicProfileData.followingCount || 0}</p>
+                    <p className="text-[8px] font-bold text-slate-450 dark:text-slate-500 uppercase mt-1.5 leading-none">Following</p>
+                  </div>
+                  <div className="h-6 w-px bg-slate-200 dark:bg-slate-800 shrink-0" />
+                  <div>
+                    <p className="text-sm font-black leading-none text-slate-900 dark:text-white">{publicProfileData.totalViews || 0}</p>
+                    <p className="text-[8px] font-bold text-slate-450 dark:text-slate-500 uppercase mt-1.5 leading-none">Views</p>
                   </div>
                 </div>
 
@@ -958,13 +1039,20 @@ export default function ShortVideoFeed() {
                           onClick={() => {
                             setIsProfileOpen(false);
                             setActiveProfileUserId(null);
-                            const el = document.querySelector(`[data-video-id='${vid.videoId}']`);
-                            el?.scrollIntoView({ behavior: "smooth" });
+                            navigate(`/shorts/${vid.videoId}`);
+                            setTimeout(() => {
+                              const feedContainer = document.querySelector('.snap-y');
+                              if (feedContainer) {
+                                feedContainer.scrollTop = 0;
+                              }
+                            }, 50);
                           }}
                           className="relative aspect-[9/16] rounded-2xl overflow-hidden cursor-pointer group bg-black border border-slate-100 dark:border-slate-850 shadow-sm"
                         >
                           {vid.thumbnailUrl ? (
                             <img src={vid.thumbnailUrl} className="w-full h-full object-cover" alt="" />
+                          ) : vid.videoUrl ? (
+                            <video src={vid.videoUrl + "#t=0.5"} className="w-full h-full object-cover" preload="metadata" muted playsInline />
                           ) : (
                             <div className="w-full h-full bg-gradient-to-tr from-purple-950 to-slate-900 flex items-center justify-center text-[10px] text-white/50 uppercase font-black tracking-tighter">Short</div>
                           )}
@@ -1008,22 +1096,61 @@ export default function ShortVideoFeed() {
 
               {/* Title */}
               <div>
-                <label className="text-[10px] font-black tracking-wider text-slate-400 dark:text-slate-555 uppercase block mb-1">Title</label>
+                <div className="flex justify-between items-center mb-1">
+                  <label className="text-[10px] font-black tracking-wider text-slate-400 dark:text-slate-555 uppercase">Title</label>
+                  <span className="text-[9px] font-bold text-slate-450 dark:text-slate-500">{title.length}/80</span>
+                </div>
                 <input 
                   type="text" 
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
+                  maxLength={80}
                   placeholder="e.g. Newton's Third Law Explained"
                   className="w-full text-xs text-slate-800 dark:text-slate-100 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-2.5 placeholder:text-slate-350 dark:placeholder:text-slate-600 outline-none focus:border-violet-500"
                 />
               </div>
 
+              {/* Target Classes Selection (Multi-select) */}
+              <div>
+                <label className="text-[10px] font-black tracking-wider text-slate-400 dark:text-slate-555 uppercase block mb-1.5">Target Classes (Select Multiple)</label>
+                <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto pr-1 no-scrollbar">
+                  {Array.from({ length: 12 }, (_, i) => String(i + 1)).map((cls) => {
+                    const isSelected = targetClasses.includes(cls);
+                    return (
+                      <button
+                        key={cls}
+                        type="button"
+                        onClick={() => {
+                          if (isSelected) {
+                            setTargetClasses(targetClasses.filter((c) => c !== cls));
+                          } else {
+                            setTargetClasses([...targetClasses, cls]);
+                          }
+                        }}
+                        className={cn(
+                          "px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-all cursor-pointer",
+                          isSelected 
+                            ? "bg-violet-600 border-violet-600 text-white shadow-xs" 
+                            : "bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:border-violet-300"
+                        )}
+                      >
+                        Class {cls}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
               {/* Caption */}
               <div>
-                <label className="text-[10px] font-black tracking-wider text-slate-400 dark:text-slate-555 uppercase block mb-1">Caption / Description</label>
+                <div className="flex justify-between items-center mb-1">
+                  <label className="text-[10px] font-black tracking-wider text-slate-400 dark:text-slate-555 uppercase">Caption / Description</label>
+                  <span className="text-[9px] font-bold text-slate-455 dark:text-slate-500">{caption.length}/250</span>
+                </div>
                 <textarea 
                   value={caption}
                   onChange={(e) => setCaption(e.target.value)}
+                  maxLength={250}
                   placeholder="Tell students what this short is about..."
                   rows={3}
                   className="w-full text-xs text-slate-800 dark:text-slate-100 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-2.5 placeholder:text-slate-350 dark:placeholder:text-slate-600 outline-none focus:border-violet-500 resize-none"
@@ -1045,6 +1172,73 @@ export default function ShortVideoFeed() {
                 className="flex-1 h-11 rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-500 hover:from-violet-500 hover:to-fuchsia-400 text-white font-black text-xs border-none shadow-[0_0_15px_rgba(124,58,237,0.3)]"
               >
                 {uploadMutation.isPending ? "Uploading..." : "Upload Now"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+       {/* ── PUBLIC PROFILE SETTINGS MODAL ── */}
+       {isSettingsOpen && (
+         <div 
+           onTouchStart={(e) => e.stopPropagation()}
+           onTouchMove={(e) => e.stopPropagation()}
+           onTouchEnd={(e) => e.stopPropagation()}
+           className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-6"
+         >
+           <div className="relative w-full max-w-sm rounded-[2rem] border border-slate-100 dark:border-[#221c4e] bg-white dark:bg-[#161233] p-6 text-center shadow-2xl flex flex-col gap-5 text-slate-800 dark:text-slate-100 transition-colors duration-300">
+             <h2 className="text-lg font-black tracking-tight flex items-center justify-center gap-2 text-slate-800 dark:text-slate-100">
+               <Settings className="h-5 w-5 text-violet-600 dark:text-violet-400" /> Profile Settings
+             </h2>
+ 
+             <div className="space-y-4 text-left">
+               {/* Profile Image Preview & Selector */}
+               <div className="flex flex-col items-center gap-2">
+                 <Avatar className="h-20 w-20 border-2 border-violet-600 shadow-md">
+                   <AvatarImage src={editAvatarUrl} />
+                   <AvatarFallback className="bg-purple-950 text-white font-black text-2xl">U</AvatarFallback>
+                 </Avatar>
+                 <label className="cursor-pointer text-xs font-bold text-violet-600 dark:text-violet-400 hover:text-violet-500">
+                   Change Photo
+                   <input 
+                     type="file" 
+                     accept="image/*"
+                     onChange={handleAvatarChange}
+                     className="hidden"
+                   />
+                 </label>
+               </div>
+ 
+              {/* Bio */}
+              <div>
+                <div className="flex justify-between items-center mb-1">
+                  <label className="text-[10px] font-black tracking-wider text-slate-400 dark:text-slate-550 uppercase">Bio / Tagline</label>
+                  <span className="text-[9px] font-bold text-slate-450 dark:text-slate-500">{editBio.length}/160</span>
+                </div>
+                <textarea 
+                  value={editBio}
+                  onChange={(e) => setEditBio(e.target.value)}
+                  maxLength={160}
+                  placeholder="Tell students about yourself..."
+                  rows={3}
+                  className="w-full text-xs text-slate-800 dark:text-slate-100 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-2.5 placeholder:text-slate-350 dark:placeholder:text-slate-600 outline-none focus:border-violet-500 resize-none"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-2">
+              <Button
+                onClick={() => setIsSettingsOpen(false)}
+                variant="outline"
+                className="flex-1 h-11 rounded-xl border-slate-200 dark:border-[#221c4e] bg-transparent text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 font-bold text-xs"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleSaveSettings}
+                disabled={isSavingSettings}
+                className="flex-1 h-11 rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-500 hover:from-violet-500 hover:to-fuchsia-400 text-white font-black text-xs border-none shadow-[0_0_15px_rgba(124,58,237,0.3)]"
+              >
+                {isSavingSettings ? "Saving..." : "Save Changes"}
               </Button>
             </div>
           </div>

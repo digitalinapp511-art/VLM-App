@@ -525,7 +525,7 @@ export default function ChatSession() {
               onClick={() => navigate(PATHS.WALLET)}
               className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-violet-50 dark:bg-violet-950/20 border border-violet-100 dark:border-violet-900/40 text-violet-600 dark:text-violet-400 cursor-pointer hover:scale-105 active:scale-95 transition-all shadow-sm"
             >
-              <span className="text-[10px] font-black uppercase tracking-wider">Credits:</span>
+              <span className="text-[10px] font-black uppercase tracking-wider">Doubt Credit:</span>
               <span className="text-xs font-black">{student?.wallet?.humanChatCredits ?? 0}</span>
               <div className="w-5 h-5 rounded-full bg-violet-600 text-white flex items-center justify-center hover:bg-violet-700 transition-colors">
                 <Plus size={10} className="stroke-[3]" />

@@ -332,13 +332,16 @@ export default function AIChat() {
                   }
                   navigate(PATHS.WALLET);
                 }}
-                className="px-3 py-1 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm text-center cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-violet-50 dark:bg-violet-950/20 border border-violet-100 dark:border-violet-900/40 text-violet-600 dark:text-violet-400 cursor-pointer hover:scale-105 active:scale-95 transition-all shadow-sm"
                 title="Recharge Credits"
               >
-                <p className="text-[7px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider">Credits</p>
-                <p className="text-[10px] font-black text-violet-600 dark:text-violet-400 tracking-wide flex items-center justify-center gap-0.5">
-                  {aiCredits} / 2000 <Plus size={8} className="stroke-[3]" />
-                </p>
+                <div className="text-left">
+                  <p className="text-[6px] text-slate-400 dark:text-slate-500 font-black uppercase tracking-wider leading-none">AI Credit</p>
+                  <p className="text-[10px] font-black text-violet-600 dark:text-violet-400 mt-0.5 leading-none">{aiCredits}</p>
+                </div>
+                <div className="w-4 h-4 rounded-full bg-violet-600 text-white flex items-center justify-center hover:bg-violet-700 transition-colors">
+                  <Plus size={8} className="stroke-[3]" />
+                </div>
               </div>
             </header>
 
@@ -469,13 +472,16 @@ export default function AIChat() {
                     }
                     navigate(PATHS.WALLET);
                   }}
-                  className="px-2.5 py-0.5 rounded-lg border border-slate-200 dark:border-slate-850 bg-gradient-to-br from-white to-slate-50 dark:from-slate-900 dark:to-slate-950 shadow-sm text-center cursor-pointer hover:border-violet-300 dark:hover:border-violet-850 transition-all shrink-0 select-none"
+                  className="flex items-center gap-1.5 px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-850 bg-gradient-to-br from-white to-slate-50 dark:from-slate-900 dark:to-slate-950 shadow-sm cursor-pointer hover:border-violet-300 dark:hover:border-violet-850 transition-all shrink-0 select-none"
                   title="Recharge Credits"
                 >
-                  <p className="text-[6px] text-slate-400 dark:text-slate-500 font-black uppercase tracking-wider">Credits</p>
-                  <p className="text-[9px] font-black text-violet-600 dark:text-violet-400 tracking-wide mt-0.5">
-                    {aiCredits} / 2000
-                  </p>
+                  <div className="text-left">
+                    <p className="text-[6px] text-slate-400 dark:text-slate-500 font-black uppercase tracking-wider leading-none">AI Credit</p>
+                    <p className="text-[9px] font-black text-violet-600 dark:text-violet-400 mt-0.5 leading-none">{aiCredits}</p>
+                  </div>
+                  <div className="w-3.5 h-3.5 rounded-full bg-violet-600 text-white flex items-center justify-center hover:bg-violet-700 transition-colors">
+                    <Plus size={8} className="stroke-[3]" />
+                  </div>
                 </div>
               </div>
             </header>

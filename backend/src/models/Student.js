@@ -13,6 +13,7 @@ const studentSchema = new mongoose.Schema(
     dateOfBirth: Date,
     nickname: String,
     profilePhoto: String,
+    publicProfilePhoto: String,
     class: { type: String, required: true },
     board: { type: String, required: true },
     medium: String,

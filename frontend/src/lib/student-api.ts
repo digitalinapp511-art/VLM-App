@@ -17,6 +17,11 @@ export const studentApi = {
     return data;
   },
 
+  getActiveCashbackOffers: async () => {
+    const { data } = await apiClient.get("/student/wallet/cashback-offers");
+    return data;
+  },
+
   getSubjectsFull: async (className?: string) => {
     const { data } = await apiClient.get("/student/subjects", {
       params: { class: className },
@@ -388,8 +393,17 @@ export const studentApi = {
     return data;
   },
 
-  editPublicProfile: async (payload: { nickname?: string; bio?: string; profilePhoto?: string }) => {
+  editPublicProfile: async (payload: { nickname?: string; bio?: string; profilePhoto?: string; publicProfilePhoto?: string }) => {
     const { data } = await apiClient.put(`/student/social/profile`, payload);
+    return data;
+  },
+
+  uploadPublicProfilePhoto: async (file: File) => {
+    const formData = new FormData();
+    formData.append("photo", file);
+    const { data } = await apiClient.post("/student/social/profile/photo", formData, {
+      headers: { "Content-Type": "multipart/form-data" }
+    });
     return data;
   },
 
