@@ -139,8 +139,17 @@ export default function TeacherProfile() {
               {isLoading ? "Loading..." : profile?.fullName || profile?.user?.fullName || "Teacher"}
             </h2>
             <p className="text-cyan-400 text-xs font-bold tracking-widest uppercase mt-1">
-              {profile?.applicationStatus === "approved" ? "Verified Teacher" : "Profile Draft"}
+              {profile?.applicationStatus === "approved" ? "Verified Teacher" : "Pending Verification"}
             </p>
+            <div className="mt-2 flex gap-2">
+              <Button
+                onClick={() => navigate(PATHS.TEACHER_ONBOARDING_WIZARD)}
+                size="sm"
+                className="bg-cyan-500 hover:bg-cyan-600 font-bold text-xs rounded-full px-4"
+              >
+                Verification & Interview Wizard
+              </Button>
+            </div>
             {profile?.vlmTeacherId && (
               <div className="mt-3 inline-flex items-center gap-1.5 bg-cyan-500/10 border border-cyan-500/20 rounded-full px-3 py-1">
                 <span className="text-[10px] text-cyan-400 font-bold tracking-widest uppercase">

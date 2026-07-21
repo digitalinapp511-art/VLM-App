@@ -2,16 +2,21 @@ import React from "react";
 import { Check, PencilLine } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const TimeSlotGrid: React.FC = () => {
+interface TimeSlotGridProps {
+  selectedTime: string;
+  onSelectTime: (time: string) => void;
+}
+
+const TimeSlotGrid: React.FC<TimeSlotGridProps> = ({ selectedTime, onSelectTime }) => {
   const slots = [
-    { time: "9:00 AM", status: "active" },
-    { time: "10:00 AM", status: "selected" },
-    { time: "11:30 AM", status: "disabled" },
-    { time: "1:00 PM", status: "active" },
-    { time: "2:30 PM", status: "disabled" },
-    { time: "4:00 PM", status: "active" },
-    { time: "4:30 PM", status: "active" },
-    { time: "5:30 PM", status: "active" },
+    { time: "09:00 AM", status: "active" },
+    { time: "10:00 AM", status: "active" },
+    { time: "11:30 AM", status: "active" },
+    { time: "01:00 PM", status: "active" },
+    { time: "02:30 PM", status: "active" },
+    { time: "04:00 PM", status: "active" },
+    { time: "05:30 PM", status: "active" },
+    { time: "07:00 PM", status: "active" },
   ];
 
   return (
@@ -23,17 +28,16 @@ const TimeSlotGrid: React.FC = () => {
 
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3 gap-3">
         {slots.map((slot, index) => {
-          const isSelected = slot.status === "selected";
+          const isSelected = selectedTime === slot.time;
           return (
             <button
               key={index}
-              disabled={slot.status === "disabled"}
+              type="button"
+              onClick={() => onSelectTime(slot.time)}
               className={cn(
-                "relative h-14 rounded-2xl border transition-all flex items-center justify-center",
-                slot.status === "disabled" 
-                  ? "bg-zinc-900/40 border-white/5 text-zinc-700 opacity-50 cursor-not-allowed" 
-                  : "bg-white/[0.03] border-white/10 text-zinc-300 hover:bg-white/[0.08]",
-                isSelected && "border-[#22d3ee] bg-[#22d3ee]/10 text-[#22d3ee] shadow-[0_0_20px_rgba(34,211,238,0.2)]"
+                "relative h-14 rounded-2xl border transition-all flex items-center justify-center cursor-pointer",
+                "bg-white/[0.03] border-white/10 text-zinc-300 hover:bg-white/[0.08]",
+                isSelected && "border-[#22d3ee] bg-[#22d3ee]/10 text-[#22d3ee] shadow-[0_0_20px_rgba(34,211,238,0.2)] font-bold"
               )}
             >
               <span className="text-sm font-bold">{slot.time}</span>

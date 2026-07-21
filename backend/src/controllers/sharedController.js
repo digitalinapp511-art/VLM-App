@@ -444,7 +444,8 @@ const sanitizeArrayInput = (input) => {
 };
 
 export const uploadShortVideo = asyncHandler(async (req, res) => {
-  const maxDuration = req.user.activeRole === 'teacher' ? 180 : 90;
+  const userRole = req.user.activeRole || req.user.role || (req.user.roles && req.user.roles[0]) || 'student';
+  const maxDuration = userRole === 'teacher' ? 180 : 90;
   const { title, description } = req.body;
   if (title && title.length > 80) {
     return res.status(400).json({ success: false, message: 'Title exceeds maximum limit of 80 characters' });
@@ -458,21 +459,24 @@ export const uploadShortVideo = asyncHandler(async (req, res) => {
     insertData.targetClasses = sanitizeArrayInput(insertData.targetClasses);
   }
 
+  const videoDuration = Number(req.body.duration || 0);
+
+  // Validate duration BEFORE creating rejected video document if duration is provided
+  if (videoDuration > 0 && videoDuration > maxDuration) {
+    return res.status(400).json({
+      success: false,
+      message: `Video duration (${Math.round(videoDuration)}s) exceeds maximum limit of ${maxDuration} seconds`,
+    });
+  }
+
   const video = await ShortVideo.create({
     uploaderId: req.user._id,
-    uploaderRole: req.user.activeRole,
+    uploaderRole: userRole,
     videoUrl: req.body.videoUrl || (req.file ? getFileUrl(req.file.filename, 'videos') : ''),
-    duration: req.body.duration,
+    duration: videoDuration,
     ...insertData,
     status: 'pending',
   });
-
-  if (video.duration > maxDuration) {
-    video.status = 'rejected';
-    video.rejectionReason = `Max duration ${maxDuration}s exceeded`;
-    await video.save();
-    return res.status(400).json({ success: false, message: video.rejectionReason });
-  }
 
   res.status(201).json({ success: true, data: video });
 });

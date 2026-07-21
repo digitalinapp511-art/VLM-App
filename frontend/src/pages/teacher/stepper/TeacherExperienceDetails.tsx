@@ -20,7 +20,7 @@ const TeacherExperienceDetails: React.FC = () => {
   const [years, setYears] = useState(0);
   const [months, setMonths] = useState(0);
   const [mode, setMode] = useState("");
-  const [type, setType] = useState("");
+  const [types, setTypes] = useState<string[]>([]);
   const [summary, setSummary] = useState("");
   const [resumeFileName, setResumeFileName] = useState("");
   const [resumeUrl, setResumeUrl] = useState("");
@@ -43,8 +43,8 @@ const TeacherExperienceDetails: React.FC = () => {
         if (exp.teachingModes && exp.teachingModes.length > 0) {
           setMode(exp.teachingModes[0]);
         }
-        if (exp.experienceTypes && exp.experienceTypes.length > 0) {
-          setType(exp.experienceTypes[0]);
+        if (exp.experienceTypes && Array.isArray(exp.experienceTypes)) {
+          setTypes(exp.experienceTypes);
         }
         if (exp.summary) {
           setSummary(exp.summary);
@@ -64,6 +64,14 @@ const TeacherExperienceDetails: React.FC = () => {
       }
     }
   }, [profile]);
+
+  const toggleType = (t: string) => {
+    if (types.includes(t)) {
+      setTypes(types.filter((item) => item !== t));
+    } else {
+      setTypes([...types, t]);
+    }
+  };
 
   const handleUploadResume = async (file: File) => {
     setIsUploadingResume(true);
@@ -100,8 +108,8 @@ const TeacherExperienceDetails: React.FC = () => {
       toast.error("Please select a teaching mode");
       return;
     }
-    if (!type) {
-      toast.error("Please select a type of experience");
+    if (!types || types.length === 0) {
+      toast.error("Please select at least one type of experience");
       return;
     }
     if (!resumeUrl) {
@@ -114,7 +122,7 @@ const TeacherExperienceDetails: React.FC = () => {
       totalYears: parseFloat(totalYears.toFixed(2)),
       isFresher: totalYears === 0,
       teachingModes: [mode],
-      experienceTypes: [type],
+      experienceTypes: types,
       summary: summary,
       resumeUrl: resumeUrl
     });
@@ -196,15 +204,15 @@ const TeacherExperienceDetails: React.FC = () => {
           <div className="flex flex-wrap gap-3">
             <SelectionChip 
               label="School" variant="gold" 
-              active={type === "school"} onClick={() => setType("school")} 
+              active={types.includes("school")} onClick={() => toggleType("school")} 
             />
             <SelectionChip 
               label="Home Tuition" variant="gold" 
-              active={type === "home"} onClick={() => setType("home")} 
+              active={types.includes("home")} onClick={() => toggleType("home")} 
             />
             <SelectionChip 
               label="Online Platform" variant="gold" 
-              active={type === "platform"} onClick={() => setType("platform")} 
+              active={types.includes("platform")} onClick={() => toggleType("platform")} 
             />
           </div>
         </motion.div>

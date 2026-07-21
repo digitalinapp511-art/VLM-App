@@ -45,8 +45,17 @@ const teacherSchema = new mongoose.Schema(
       accountNumber: String,
       ifsc: String,
       bankName: String,
+      upiId: String,
       isVerified: { type: Boolean, default: false },
     },
+    verifiedClasses: [String], // Array of verified grade levels e.g. ['9', '10', '11', '12']
+    pendingClassUpgrade: {
+      requestedClasses: [String],
+      status: { type: String, enum: ['none', 'pending_interview', 'approved', 'rejected'], default: 'none' },
+      requestedAt: Date,
+      rejectionReason: String,
+    },
+    documentsSubmitted: { type: Boolean, default: false },
     wallet: {
       totalPoints: { type: Number, default: 0 },
       withdrawableBalance: { type: Number, default: 0 },
@@ -80,6 +89,7 @@ const teacherSchema = new mongoose.Schema(
       status: String,
       notes: String,
       recordingUrl: String,
+      agoraChannelName: String,
     },
   },
   {

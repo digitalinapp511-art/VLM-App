@@ -23,6 +23,16 @@ import {
   getCashbackOffers, getCashbackOffer, createCashbackOffer, updateCashbackOffer,
   deleteCashbackOffer, toggleCashbackOffer,
 } from '../controllers/admin/adminCashbackController.js';
+import {
+  getPendingVerifications,
+  adminVerifyTeacher,
+  getInterviewSlotSettings,
+  updateInterviewSlotSettings,
+  adminRescheduleInterview,
+  getPendingPayouts,
+  processTeacherPayout,
+  getPayoutHistory,
+} from '../controllers/adminPayoutVerificationController.js';
 
 // ── Auth Controller ──────────────────────────────────────────────────────────
 import {
@@ -128,6 +138,18 @@ router.put('/profile', updateAdminProfile);
 router.put('/change-password', changeAdminPassword);
 router.post('/enable-2fa', enableAdmin2FA);
 router.post('/verify-2fa', verifyAdmin2FA);
+
+// ── TEACHER VERIFICATION & AGORA INTERVIEWS ────────────────────────────────
+router.get('/teachers/pending-verification', getPendingVerifications);
+router.post('/teachers/verify-decision', adminVerifyTeacher);
+router.get('/interview-slots/settings', getInterviewSlotSettings);
+router.put('/interview-slots/settings', updateInterviewSlotSettings);
+router.post('/teachers/reschedule-interview', adminRescheduleInterview);
+
+// ── MANUAL WEEKLY PAYOUTS ──────────────────────────────────────────────────
+router.get('/payouts/pending', getPendingPayouts);
+router.post('/payouts/process', processTeacherPayout);
+router.get('/payouts/history', getPayoutHistory);
 
 // ── DASHBOARD ────────────────────────────────────────────────────────────────
 router.get('/dashboard', getAdminDashboard);

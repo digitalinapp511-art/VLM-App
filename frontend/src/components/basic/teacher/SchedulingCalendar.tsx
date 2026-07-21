@@ -2,20 +2,29 @@ import React from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const SchedulingCalendar: React.FC = () => {
+interface SchedulingCalendarProps {
+  selectedDate: Date;
+  onSelectDate: (date: Date) => void;
+}
+
+const SchedulingCalendar: React.FC<SchedulingCalendarProps> = ({ selectedDate, onSelectDate }) => {
   const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-  const dates = Array.from({ length: 30 }, (_, i) => i + 1);
-  const nextMonthDates = [1, 2, 3, 4];
-  
+  const currentMonthName = selectedDate.toLocaleString('default', { month: 'long', year: 'numeric' });
+  const year = selectedDate.getFullYear();
+  const month = selectedDate.getMonth();
+
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const dates = Array.from({ length: daysInMonth }, (_, i) => i + 1);
+
   return (
     <div className="p-5 md:p-8 rounded-[32px] border border-white/10 bg-[#1A1A1A]/40 backdrop-blur-xl h-full">
       <div className="flex items-center justify-between mb-8 px-1">
-        <button className="p-2 hover:bg-white/5 rounded-full transition-colors">
-          <ChevronLeft className="text-zinc-500" size={20} />
+        <button type="button" className="p-2 hover:bg-white/5 rounded-full transition-colors text-zinc-400 hover:text-white">
+          <ChevronLeft size={20} />
         </button>
-        <h3 className="text-lg font-bold text-white tracking-tight">November 2024</h3>
-        <button className="p-2 hover:bg-white/5 rounded-full transition-colors">
-          <ChevronRight className="text-zinc-500" size={20} />
+        <h3 className="text-lg font-bold text-white tracking-tight">{currentMonthName}</h3>
+        <button type="button" className="p-2 hover:bg-white/5 rounded-full transition-colors text-zinc-400 hover:text-white">
+          <ChevronRight size={20} />
         </button>
       </div>
 
@@ -27,30 +36,28 @@ const SchedulingCalendar: React.FC = () => {
         ))}
         
         {dates.map((date) => {
-          const isSelected = date === 25;
-          const isHighlighted = [24, 30].includes(date);
+          const isSelected = selectedDate.getDate() === date;
           
           return (
             <div key={date} className="flex items-center justify-center aspect-square sm:h-12">
-              <span className={cn(
-                "w-9 h-8 md:w-11 md:h-10 flex items-center justify-center rounded-xl text-sm font-bold transition-all cursor-pointer",
-                isSelected 
-                  ? "bg-[#3b82f6] text-white shadow-[0_0_20px_rgba(59,130,246,0.4)] border border-white/20" 
-                  : isHighlighted 
-                    ? "border border-cyan-500/40 bg-cyan-500/10 text-cyan-400" 
+              <span
+                onClick={() => {
+                  const newD = new Date(selectedDate);
+                  newD.setDate(date);
+                  onSelectDate(newD);
+                }}
+                className={cn(
+                  "w-9 h-8 md:w-11 md:h-10 flex items-center justify-center rounded-xl text-sm font-bold transition-all cursor-pointer",
+                  isSelected 
+                    ? "bg-[#3b82f6] text-white shadow-[0_0_20px_rgba(59,130,246,0.4)] border border-white/20" 
                     : "text-zinc-300 hover:bg-white/5"
-              )}>
+                )}
+              >
                 {date}
               </span>
             </div>
           );
         })}
-
-        {nextMonthDates.map((date) => (
-          <div key={`next-${date}`} className="flex items-center justify-center h-10 opacity-20">
-            <span className="text-zinc-500 text-sm font-bold">{date}</span>
-          </div>
-        ))}
       </div>
     </div>
   );

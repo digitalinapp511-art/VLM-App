@@ -1,17 +1,49 @@
-import React from "react";
+import React, { useState } from "react";
 import { motion } from "framer-motion";
-import { ChevronLeft, Calendar, FileClock, ChevronRight, Star } from "lucide-react";
+import { ChevronLeft, Calendar, FileClock, ChevronRight, Star, Loader2 } from "lucide-react";
 import { bgCss } from "@/helper/CssHelper";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-
 import SchedulingCalendar from "@/components/basic/teacher/SchedulingCalendar";
 import TimeSlotGrid from "@/components/basic/teacher/TimeSlotGrid";
 import { useNavigate } from "react-router-dom";
 import { PATHS } from "@/routes/paths";
+import { useMutation } from "@tanstack/react-query";
+import { teacherApi } from "@/lib/teacher-api";
+import { toast } from "sonner";
 
 const InterviewScheduling: React.FC = () => {
-  const navigate =useNavigate()
+  const navigate = useNavigate();
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [selectedTime, setSelectedTime] = useState<string>("10:00 AM");
+
+  const scheduleMutation = useMutation({
+    mutationFn: teacherApi.scheduleInterviewSlot,
+    onSuccess: () => {
+      toast.success("Interview scheduled successfully!");
+      navigate(PATHS.VERIFICATION_STATUS);
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.message || "Failed to schedule interview");
+    },
+  });
+
+  const handleConfirmSchedule = () => {
+    if (!selectedDate || !selectedTime) {
+      toast.error("Please select a date and time slot");
+      return;
+    }
+
+    const dateStr = selectedDate.toISOString().split("T")[0];
+    const fullScheduledAt = new Date(`${dateStr} ${selectedTime}`).toISOString();
+
+    scheduleMutation.mutate({
+      scheduledAt: fullScheduledAt,
+      teacherNotes: `Requested slot: ${selectedDate.toDateString()} at ${selectedTime}`,
+      type: "onboarding",
+    });
+  };
+
   return (
     <div className={cn("min-h-screen flex flex-col p-4 md:p-8 lg:p-12 relative overflow-x-hidden", bgCss)}>
       
@@ -31,7 +63,11 @@ const InterviewScheduling: React.FC = () => {
           className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6"
         >
           <div className="space-y-4">
-            <button className="flex items-center gap-2 text-zinc-400 hover:text-white transition-colors group">
+            <button 
+              type="button" 
+              onClick={() => navigate(-1)}
+              className="flex items-center gap-2 text-zinc-400 hover:text-white transition-colors group"
+            >
               <ChevronLeft size={24} className="group-hover:-translate-x-1 transition-transform" />
               <span className="text-sm font-semibold uppercase tracking-widest">Back</span>
             </button>
@@ -50,8 +86,8 @@ const InterviewScheduling: React.FC = () => {
               <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-3 h-1 bg-[#22d3ee] rounded-full blur-[1px]" />
             </div>
             <div className="text-left">
-                <p className="text-white font-bold text-sm">Virtual Meeting</p>
-                <p className="text-zinc-500 text-xs font-medium">Auto-generated link</p>
+                <p className="text-white font-bold text-sm">Agora Video Meeting</p>
+                <p className="text-zinc-500 text-xs font-medium">1-on-1 Admin Verification</p>
             </div>
           </div>
         </motion.header>
@@ -66,7 +102,7 @@ const InterviewScheduling: React.FC = () => {
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.1 }}
             >
-              <SchedulingCalendar />
+              <SchedulingCalendar selectedDate={selectedDate} onSelectDate={setSelectedDate} />
             </motion.div>
 
             <motion.div 
@@ -78,8 +114,10 @@ const InterviewScheduling: React.FC = () => {
                     <Calendar size={24} />
                 </div>
                 <p className="text-base font-medium text-zinc-400">
-                  Selected Date: <br className="md:hidden" />
-                  <span className="text-white font-bold ml-1">Monday, 25 Nov 2024</span>
+                  Selected Slot: <br className="md:hidden" />
+                  <span className="text-white font-bold ml-1">
+                    {selectedDate.toDateString()} at {selectedTime}
+                  </span>
                 </p>
               </div>
             </motion.div>
@@ -92,21 +130,7 @@ const InterviewScheduling: React.FC = () => {
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.2 }}
             >
-              <TimeSlotGrid />
-            </motion.div>
-
-            <motion.div 
-              initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
-              className="flex items-center justify-between p-6 rounded-[32px] border border-white/10 bg-white/[0.03] hover:bg-white/[0.05] transition-colors group cursor-pointer"
-            >
-              <div className="space-y-1">
-                <h5 className="text-base font-bold text-zinc-100 group-hover:text-purple-400 transition-colors">Can't find a suitable slot?</h5>
-                <p className="text-sm text-zinc-500 font-medium">Request an alternate time slot for review.</p>
-              </div>
-              <div className="relative p-3 bg-white/5 rounded-2xl">
-                 <FileClock className="text-zinc-400 group-hover:text-purple-400 transition-colors" size={32} />
-                 <div className="absolute top-1 right-1 w-3 h-3 rounded-full bg-purple-500 shadow-[0_0_10px_rgba(168,85,247,0.5)]" />
-              </div>
+              <TimeSlotGrid selectedTime={selectedTime} onSelectTime={setSelectedTime} />
             </motion.div>
 
             {/* CTA Button */}
@@ -116,11 +140,21 @@ const InterviewScheduling: React.FC = () => {
               transition={{ delay: 0.4 }}
               className="pt-4"
             >
-              <Button onClick={()=>navigate(PATHS.TEACHER_DEMO_VIDEO)} className="w-full h-16 md:h-20 rounded-[28px] text-lg md:text-xl font-bold tracking-tight bg-gradient-to-r from-[#2b4b9b] to-[#1a2e5d] hover:brightness-110 border border-blue-400/20 shadow-2xl flex items-center justify-center gap-4 group transition-all">
-                CONFIRM & SCHEDULE INTERVIEW
-                <div className="bg-white/10 p-2 rounded-full group-hover:translate-x-1 transition-transform">
-                    <ChevronRight size={24} />
-                </div>
+              <Button 
+                onClick={handleConfirmSchedule}
+                disabled={scheduleMutation.isPending} 
+                className="w-full h-16 md:h-20 rounded-[28px] text-lg md:text-xl font-bold tracking-tight bg-gradient-to-r from-[#2b4b9b] to-[#1a2e5d] hover:brightness-110 border border-blue-400/20 shadow-2xl flex items-center justify-center gap-4 group transition-all text-white cursor-pointer"
+              >
+                {scheduleMutation.isPending ? (
+                  <Loader2 className="animate-spin w-6 h-6" />
+                ) : (
+                  <>
+                    CONFIRM & SCHEDULE INTERVIEW
+                    <div className="bg-white/10 p-2 rounded-full group-hover:translate-x-1 transition-transform">
+                      <ChevronRight size={24} />
+                    </div>
+                  </>
+                )}
               </Button>
             </motion.div>
           </div>

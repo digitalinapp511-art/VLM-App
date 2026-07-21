@@ -24,6 +24,41 @@ export const teacherApi = {
     return data.data;
   },
 
+  // ── Verification & Onboarding ────────────────────────────────
+  getVerificationStatus: async () => {
+    const { data } = await apiClient.get('/teacher/verification/my-status');
+    return data.data;
+  },
+
+  submitVerificationDocs: async (payload: {
+    documents?: Array<{ type: string; name: string; url: string }>;
+    bankDetails?: { accountHolder: string; accountNumber: string; ifsc: string; bankName: string; upiId?: string };
+    demoVideoUrl?: string;
+  }) => {
+    const { data } = await apiClient.post('/teacher/verification/documents', payload);
+    return data;
+  },
+
+  scheduleInterviewSlot: async (payload: {
+    scheduledAt: string;
+    teacherNotes?: string;
+    type?: string;
+    upgradeClasses?: string[];
+  }) => {
+    const { data } = await apiClient.post('/teacher/verification/schedule-interview', payload);
+    return data;
+  },
+
+  getInterviewAgoraToken: async (interviewId: string) => {
+    const { data } = await apiClient.post('/teacher/verification/agora-token', { interviewId });
+    return data.data;
+  },
+
+  requestClassUpgrade: async (requestedClasses: string[]) => {
+    const { data } = await apiClient.post('/teacher/verification/class-upgrade', { requestedClasses });
+    return data;
+  },
+
   // ── File Uploads ─────────────────────────────────────────────
   uploadProfilePhoto: async (file: File) => {
     const form = new FormData();
@@ -62,7 +97,7 @@ export const teacherApi = {
     return data;
   },
 
-  getVerificationStatus: async () => {
+  getLegacyVerificationStatus: async () => {
     const { data } = await apiClient.get('/teacher/application-status');
     return data;
   },

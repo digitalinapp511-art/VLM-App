@@ -53,25 +53,29 @@ export const updateOnboarding = asyncHandler(async (req, res) => {
   const authUser = await User.findById(req.user._id);
   if (authUser) {
     let authUserUpdated = false;
-    if (data.mobile && !authUser.mobile) {
+    if (data.mobile) {
       const cleanMobile = data.mobile.trim();
-      const duplicateUser = await User.findOne({ mobile: cleanMobile });
-      if (duplicateUser && duplicateUser._id.toString() !== authUser._id.toString()) {
-        return res.status(400).json({ success: false, message: 'This mobile number is already linked to another account' });
+      if (cleanMobile && authUser.mobile !== cleanMobile) {
+        const duplicateUser = await User.findOne({ mobile: cleanMobile });
+        if (duplicateUser && duplicateUser._id.toString() !== authUser._id.toString()) {
+          return res.status(400).json({ success: false, message: 'This mobile number is already linked to another account' });
+        }
+        authUser.mobile = cleanMobile;
+        authUser.isMobileVerified = false;
+        authUserUpdated = true;
       }
-      authUser.mobile = cleanMobile;
-      authUser.isMobileVerified = false;
-      authUserUpdated = true;
     }
-    if (data.email && !authUser.email) {
+    if (data.email) {
       const cleanEmail = data.email.trim().toLowerCase();
-      const duplicateUser = await User.findOne({ email: cleanEmail });
-      if (duplicateUser && duplicateUser._id.toString() !== authUser._id.toString()) {
-        return res.status(400).json({ success: false, message: 'This email address is already linked to another account' });
+      if (cleanEmail && authUser.email !== cleanEmail) {
+        const duplicateUser = await User.findOne({ email: cleanEmail });
+        if (duplicateUser && duplicateUser._id.toString() !== authUser._id.toString()) {
+          return res.status(400).json({ success: false, message: 'This email address is already linked to another account' });
+        }
+        authUser.email = cleanEmail;
+        authUser.isEmailVerified = false;
+        authUserUpdated = true;
       }
-      authUser.email = cleanEmail;
-      authUser.isEmailVerified = false;
-      authUserUpdated = true;
     }
     if (authUserUpdated) {
       await authUser.save();

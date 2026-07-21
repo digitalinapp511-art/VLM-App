@@ -8,6 +8,7 @@ export const ROLES = {
 export const TEACHER_STATUS = {
   DRAFT: 'draft',
   SUBMITTED: 'submitted',
+  PENDING_INTERVIEW: 'pending_interview',
   INTERVIEW_PENDING: 'interview_pending',
   INTERVIEW_SCHEDULED: 'interview_scheduled',
   UNDER_REVIEW: 'under_review',

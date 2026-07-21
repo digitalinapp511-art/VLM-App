@@ -52,6 +52,10 @@ import Profile from "./pages/student/Profile";
 import { PATHS } from "@/routes/paths";
 import TeacherRegistration from "./pages/teacher/TeacherRegistration";
 import TeacherQualificationDetails from "./pages/teacher/TeacherQualificationDetails";
+import TeacherOnboardingWizard from "./pages/teacher/TeacherOnboardingWizard";
+import AgoraInterviewRoom from "./pages/Common/AgoraInterviewRoom";
+import AdminTeacherVerification from "./pages/Admin/AdminTeacherVerification";
+import AdminPayoutsManager from "./pages/Admin/AdminPayoutsManager";
 import BasicProfileDetails from "./pages/teacher/stepper/BasicProfileDetails";
 import TeacherExperienceDetails from "./pages/teacher/stepper/TeacherExperienceDetails";
 import TeacherClassSelection from "./pages/teacher/stepper/TeacherClassSelection";
@@ -287,6 +291,10 @@ export default function App() {
           <Route path={PATHS.PROFILE_REVIEW} element={<ProfileReview />} />
           <Route path={PATHS.INTERVIEW_CONFIRMATION} element={<InterviewConfirmation />} />
           <Route path={PATHS.VERIFICATION_STATUS} element={<VerificationStatus />} />
+          <Route path={PATHS.TEACHER_ONBOARDING_WIZARD} element={<TeacherOnboardingWizard />} />
+          <Route path={PATHS.TEACHER_INTERVIEW_ROOM} element={<AgoraInterviewRoom />} />
+          <Route path={PATHS.ADMIN_TEACHER_VERIFICATION} element={<AdminTeacherVerification />} />
+          <Route path={PATHS.ADMIN_PAYOUTS_MANAGER} element={<AdminPayoutsManager />} />
           
 
         {/* Teacher flows */}

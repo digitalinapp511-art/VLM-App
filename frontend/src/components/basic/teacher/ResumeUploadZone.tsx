@@ -39,9 +39,9 @@ const ResumeUploadZone: React.FC<ResumeUploadZoneProps> = ({ fileName, onUpload,
           </>
         ) : (
           <>
-            <h4 className="text-zinc-100 font-bold text-lg mb-1">Tap to Upload Resume</h4>
+            <h4 className="text-zinc-100 font-bold text-lg mb-1">Tap to Upload Document / Resume</h4>
             <p className="text-zinc-500 text-xs font-medium uppercase tracking-wider">
-              (PDF, DOC, DOCX, Max 10MB)
+              (PDF, PNG, JPG, JPEG, Max 10MB)
             </p>
           </>
         )}
@@ -50,7 +50,7 @@ const ResumeUploadZone: React.FC<ResumeUploadZoneProps> = ({ fileName, onUpload,
            <FileUp size={24} />
         </div>
       </div>
-      <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" accept=".pdf,.doc,.docx" onChange={handleFileChange} />
+      <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg" onChange={handleFileChange} />
     </div>
   );
 };

@@ -62,10 +62,21 @@ export default function RoleSelectPage() {
   const [selected, setSelected] = useState<Role | null>(null);
 
   useEffect(() => {
+    const token = localStorage.getItem("vlm_token");
+    const role = localStorage.getItem("vlm_role");
+    if (token && role) {
+      if (role === "student") {
+        navigate(PATHS.STUDENT_DASHBOARD, { replace: true });
+        return;
+      } else if (role === "teacher") {
+        navigate(PATHS.TEACHER_DASHBOARD, { replace: true });
+        return;
+      }
+    }
     // RoleSelectPage is built around a dark layout. Reset to dark mode on mount.
     document.documentElement.classList.remove("light");
     document.documentElement.classList.add("dark");
-  }, []);
+  }, [navigate]);
 
   const handleContinue = () => {
     if (!selected) return;

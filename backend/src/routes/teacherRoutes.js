@@ -18,9 +18,25 @@ import { asyncHandler } from '../middleware/errorHandler.js';
 import Teacher from '../models/Teacher.js';
 import Notification from '../models/Notification.js';
 import Session from '../models/Session.js';
+import {
+  uploadVerificationDocs,
+  scheduleInterview as scheduleTeacherVerificationInterview,
+  getInterviewAgoraToken,
+  handleClassUpgradeRequest,
+  getMyVerificationStatus,
+  getAvailableInterviewSlots,
+} from '../controllers/teacherVerificationController.js';
 
 const router = Router();
 router.use(protect, authorize('teacher'));
+
+// Teacher verification & onboarding routes
+router.get('/verification/my-status', getMyVerificationStatus);
+router.get('/verification/available-slots', getAvailableInterviewSlots);
+router.post('/verification/documents', uploadVerificationDocs);
+router.post('/verification/schedule-interview', scheduleTeacherVerificationInterview);
+router.post('/verification/agora-token', getInterviewAgoraToken);
+router.post('/verification/class-upgrade', handleClassUpgradeRequest);
 
 router.post('/profile/photo', upload.single('photo'), cloudinaryUploadMiddleware, asyncHandler(async (req, res) => {
   if (!req.file) {
@@ -36,6 +52,8 @@ router.post('/profile/photo', upload.single('photo'), cloudinaryUploadMiddleware
 }));
 
 router.get('/profile', getTeacherProfile);
+router.put('/profile', updateOnboarding);
+router.patch('/profile', updateOnboarding);
 router.put('/onboarding', updateOnboarding);
 
 router.post('/onboarding/upload', upload.single('file'), cloudinaryUploadMiddleware, (req, res) => {

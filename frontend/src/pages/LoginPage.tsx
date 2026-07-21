@@ -47,7 +47,19 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
 
   useEffect(() => {
+    const token = localStorage.getItem("vlm_token");
     const activeRole = urlRole || localStorage.getItem("vlm_role") || sessionStorage.getItem("vlm_role") || "student";
+
+    if (token && activeRole) {
+      if (activeRole === "student") {
+        navigate(PATHS.STUDENT_DASHBOARD, { replace: true });
+        return;
+      } else if (activeRole === "teacher") {
+        navigate(PATHS.TEACHER_DASHBOARD, { replace: true });
+        return;
+      }
+    }
+
     if (["student", "teacher", "parent"].includes(activeRole)) {
       localStorage.setItem("vlm_role", activeRole);
       if (activeRole === "student") {
@@ -59,7 +71,7 @@ export default function LoginPage() {
         document.documentElement.classList.add("dark");
       }
     }
-  }, [urlRole]);
+  }, [urlRole, navigate]);
 
 
   const loginMutation = useSendOtp();
