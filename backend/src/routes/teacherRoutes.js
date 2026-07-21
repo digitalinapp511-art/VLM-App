@@ -6,8 +6,11 @@ import {
 import {
   getWallet, requestWithdrawal,
   getWithdrawals, getReviews, replyReview, createLiveClass, getLiveClasses,
-  getEarningsHistory, getAnalytics,
+  getEarningsHistory, getAnalytics, uploadShortVideo, getShortVideos,
 } from '../controllers/sharedController.js';
+
+router.post('/videos', upload.single('video'), cloudinaryUploadMiddleware, uploadShortVideo);
+router.get('/videos', getShortVideos);
 import {
   generateAgoraToken, acceptDoubtRequest, declineDoubtRequest,
   getIncomingRequests, endSession,

@@ -444,8 +444,9 @@ const sanitizeArrayInput = (input) => {
 };
 
 export const uploadShortVideo = asyncHandler(async (req, res) => {
-  const userRole = req.user.activeRole || req.user.role || (req.user.roles && req.user.roles[0]) || 'student';
-  const maxDuration = userRole === 'teacher' ? 180 : 90;
+  const isTeacher = (req.user?.roles && req.user.roles.includes('teacher')) || req.user?.role === 'teacher' || req.user?.activeRole === 'teacher';
+  const userRole = isTeacher ? 'teacher' : (req.user?.activeRole || req.user?.role || 'student');
+  const maxDuration = isTeacher ? 180 : 90;
   const { title, description } = req.body;
   if (title && title.length > 80) {
     return res.status(400).json({ success: false, message: 'Title exceeds maximum limit of 80 characters' });
