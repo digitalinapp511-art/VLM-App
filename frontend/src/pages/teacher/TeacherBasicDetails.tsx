@@ -2,12 +2,12 @@ import React from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { ChevronDown } from "lucide-react";
-import { 
-  User, 
-  VenusAndMars, 
-  Calendar, 
-  MapPin, 
-  Mail, 
+import {
+  User,
+  VenusAndMars,
+  Calendar,
+  MapPin,
+  Mail,
   Smartphone,
   ChevronRight
 } from "lucide-react";
@@ -38,7 +38,7 @@ const TeacherBasicDetails: React.FC = () => {
       >
         <header className="text-center mb-6">
           <h1 className="text-2xl font-bold text-white mb-1">
-            Basic Profile Details <span className="text-zinc-400 text-lg font-normal">(Step 1 of 5)</span>
+            Basic Profile Details
           </h1>
           <p className="text-zinc-500 text-sm">Complete your personal details.</p>
         </header>
@@ -47,33 +47,33 @@ const TeacherBasicDetails: React.FC = () => {
           {/* Top Section: Photo + Name/Gender/DOB */}
           <div className="flex gap-4">
             <ProfilePhotoUpload />
-            
+
             <div className="flex-1 space-y-3">
-              <RegistrationInputField 
-                icon={<User />} 
-                label="Full Name" 
-                placeholder="Enter Full Name" 
+              <RegistrationInputField
+                icon={<User />}
+                label="Full Name"
+                placeholder="Enter Full Name"
               />
-              <RegistrationInputField 
-                icon={<VenusAndMars />} 
-                label="Gender" 
-                placeholder="Select Gender" 
-                isSelect 
+              <RegistrationInputField
+                icon={<VenusAndMars />}
+                label="Gender"
+                placeholder="Select Gender"
+                isSelect
                 iconColor="text-rose-400"
               />
-              <RegistrationInputField 
-                icon={<Calendar />} 
-                label="DOB" 
-                placeholder="DD / MM / YYYY" 
+              <RegistrationInputField
+                icon={<Calendar />}
+                label="DOB"
+                placeholder="DD / MM / YYYY"
               />
             </div>
           </div>
 
           {/* Full Width Address */}
-          <RegistrationInputField 
-            icon={<MapPin />} 
-            label="Address" 
-            placeholder="Enter Street Address" 
+          <RegistrationInputField
+            icon={<MapPin />}
+            label="Address"
+            placeholder="Enter Street Address"
           />
 
           {/* Grid: City/State + Pincode */}
@@ -82,47 +82,47 @@ const TeacherBasicDetails: React.FC = () => {
               <div className="flex items-center gap-4">
                 <MapPin size={20} className="text-blue-400" />
                 <div className="flex-1">
-                   <div className="flex items-center justify-between border-b border-white/5 pb-1 mb-1">
-                      <div className="flex flex-col">
-                        <span className="text-[11px] font-bold text-zinc-100">City / State</span>
-                        <span className="text-[13px] text-zinc-500">City</span>
-                      </div>
-                      <ChevronDown size={14} className="text-zinc-500" />
-                   </div>
-                   <div className="flex items-center justify-between">
-                      <span className="text-[13px] text-zinc-500">State</span>
-                      <ChevronDown size={14} className="text-zinc-500" />
-                   </div>
+                  <div className="flex items-center justify-between border-b border-white/5 pb-1 mb-1">
+                    <div className="flex flex-col">
+                      <span className="text-[11px] font-bold text-zinc-100">City / State</span>
+                      <span className="text-[13px] text-zinc-500">City</span>
+                    </div>
+                    <ChevronDown size={14} className="text-zinc-500" />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[13px] text-zinc-500">State</span>
+                    <ChevronDown size={14} className="text-zinc-500" />
+                  </div>
                 </div>
               </div>
             </div>
 
-            <RegistrationInputField 
+            <RegistrationInputField
               className="col-span-2"
-              icon={<MapPin />} 
-              label="Pincode" 
-              placeholder="XXXXXX" 
+              icon={<MapPin />}
+              label="Pincode"
+              placeholder="XXXXXX"
             />
           </div>
 
           {/* Contact Fields */}
-          <RegistrationInputField 
-            icon={<Mail />} 
-            label="Email" 
-            value="Pearl@gmail.com" 
+          <RegistrationInputField
+            icon={<Mail />}
+            label="Email"
+            value="Pearl@gmail.com"
           />
 
-          <RegistrationInputField 
-            icon={<Smartphone />} 
-            label="Mobile" 
-            value="9797979797" 
+          <RegistrationInputField
+            icon={<Smartphone />}
+            label="Mobile"
+            value="9797979797"
             iconColor="text-blue-300"
           />
         </div>
 
         {/* Footer Action */}
         <div className="mt-8">
-          <Button 
+          <Button
             onClick={() => navigate("/teacher/register/step-2")}
             className={cn(
               "w-full h-14 rounded-full text-lg font-semibold transition-all",

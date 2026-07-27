@@ -69,6 +69,7 @@ export const PATHS = {
     TEACHER_EARNINGS_HISTORY: "/teacher-earnings-history",
     TEACHER_SESSION_HISTORY: "/teacher-session-history",
     TEACHER_REQUESTS: "/teacher-requests",
+    TEACHER_MISSED_REQUESTS: "/teacher-missed-requests",
     TEACHER_CLASSES: "/teacher-classes",
     CREATE_LIVE_CLASS: "/teacher-classes/create",
     TEACHER_LIBRARY: "/teacher-library",

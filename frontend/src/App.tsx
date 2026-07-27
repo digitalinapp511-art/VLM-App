@@ -93,6 +93,7 @@ import TeacherReferralHistory from "./pages/teacher/ReferralHistory";
 import EarningsHistory from "./pages/teacher/EarningsHistory";
 import TeachSessionHistory from "./pages/teacher/TeachSessionHistory";
 import RequestsPage from "./pages/teacher/RequestsPage";
+import MissedRequestsPage from "./pages/teacher/MissedRequestsPage";
 import CreateLiveClassRequest from "./pages/teacher/CreateLiveClassRequest";
 import RecordingLibrary from "./pages/teacher/RecordingLibrary";
 import Live_Session from "./pages/teacher/Live_Session";
@@ -312,6 +313,7 @@ export default function App() {
         <Route path={PATHS.TEACHER_EARNINGS_HISTORY} element={<EarningsHistory />} />
         <Route path={PATHS.TEACHER_SESSION_HISTORY} element={<TeachSessionHistory />} />
         <Route path={PATHS.TEACHER_REQUESTS} element={<RequestsPage />} />
+        <Route path={PATHS.TEACHER_MISSED_REQUESTS} element={<MissedRequestsPage />} />
         <Route path={PATHS.TEACHER_CLASSES} element={<LiveClassRequestStatus />} />
         <Route path={PATHS.CREATE_LIVE_CLASS} element={<CreateLiveClassRequest />} />
         <Route path={PATHS.TEACHER_LIBRARY} element={<RecordingLibrary />} />

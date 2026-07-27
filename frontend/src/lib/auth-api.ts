@@ -40,6 +40,9 @@ export const authApi = {
 
   getMe: async () => {
     const { data } = await apiClient.get("/auth/me");
+    if (data.user) {
+      data.user.profile = data.profile;
+    }
     return data.user;
   },
 

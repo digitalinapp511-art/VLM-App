@@ -110,7 +110,7 @@ export const scheduleInterview = asyncHandler(async (req, res) => {
     slotRequestedBy: 'teacher',
     teacherNotes,
     agoraChannelName,
-    status: 'scheduled',
+    status: 'pending',
     type,
     upgradeClasses: upgradeClasses || [],
   });
@@ -118,7 +118,7 @@ export const scheduleInterview = asyncHandler(async (req, res) => {
   teacher.interview = {
     scheduledAt: interview.scheduledAt,
     slotId: interview._id,
-    status: 'scheduled',
+    status: 'pending',
     notes: teacherNotes,
     agoraChannelName,
   };
@@ -130,14 +130,14 @@ export const scheduleInterview = asyncHandler(async (req, res) => {
       requestedAt: new Date(),
     };
   } else {
-    teacher.applicationStatus = 'pending_interview';
+    teacher.applicationStatus = 'interview_pending';
   }
 
   await teacher.save();
 
   res.json({
     success: true,
-    message: 'Interview scheduled successfully',
+    message: 'Interview request submitted. Awaiting admin confirmation.',
     data: interview,
   });
 });

@@ -446,7 +446,7 @@ const sanitizeArrayInput = (input) => {
 export const uploadShortVideo = asyncHandler(async (req, res) => {
   const isTeacher = (req.user?.roles && req.user.roles.includes('teacher')) || req.user?.role === 'teacher' || req.user?.activeRole === 'teacher';
   const userRole = isTeacher ? 'teacher' : (req.user?.activeRole || req.user?.role || 'student');
-  const maxDuration = isTeacher ? 180 : 90;
+  const maxDuration = 90; // 90 seconds limit for both teacher and student
   const { title, description } = req.body;
   if (title && title.length > 80) {
     return res.status(400).json({ success: false, message: 'Title exceeds maximum limit of 80 characters' });
@@ -462,7 +462,7 @@ export const uploadShortVideo = asyncHandler(async (req, res) => {
 
   const videoDuration = Number(req.body.duration || 0);
 
-  // Validate duration BEFORE creating rejected video document if duration is provided
+  // Validate duration BEFORE creating video document if duration is provided
   if (videoDuration > 0 && videoDuration > maxDuration) {
     return res.status(400).json({
       success: false,

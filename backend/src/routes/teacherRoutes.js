@@ -9,8 +9,6 @@ import {
   getEarningsHistory, getAnalytics, uploadShortVideo, getShortVideos,
 } from '../controllers/sharedController.js';
 
-router.post('/videos', upload.single('video'), cloudinaryUploadMiddleware, uploadShortVideo);
-router.get('/videos', getShortVideos);
 import {
   generateAgoraToken, acceptDoubtRequest, declineDoubtRequest,
   getIncomingRequests, endSession,
@@ -32,6 +30,9 @@ import {
 
 const router = Router();
 router.use(protect, authorize('teacher'));
+
+router.post('/videos', upload.single('video'), cloudinaryUploadMiddleware, uploadShortVideo);
+router.get('/videos', getShortVideos);
 
 // Teacher verification & onboarding routes
 router.get('/verification/my-status', getMyVerificationStatus);
@@ -123,7 +124,13 @@ router.get('/sessions/:sessionId/agora-token', generateAgoraToken);
 router.get('/sessions', asyncHandler(async (req, res) => {
   const teacher = await Teacher.findOne({ userId: req.user._id });
   if (!teacher) return res.status(404).json({ success: false, message: 'Not found' });
-  const sessions = await Session.find({ teacherId: teacher._id })
+  
+  const query = { teacherId: teacher._id };
+  if (req.query.status) {
+    query.status = req.query.status;
+  }
+  
+  const sessions = await Session.find(query)
     .populate('studentId', 'fullName class nickname profilePhoto')
     .sort({ createdAt: -1 })
     .limit(50);

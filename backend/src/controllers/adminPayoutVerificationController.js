@@ -12,7 +12,7 @@ import { asyncHandler } from '../middleware/errorHandler.js';
 export const getPendingVerifications = asyncHandler(async (req, res) => {
   const pendingTeachers = await Teacher.find({
     $or: [
-      { applicationStatus: { $in: ['pending_interview', 'under_review', 'submitted', 'draft'] } },
+      { applicationStatus: { $in: ['pending_interview', 'under_review', 'submitted', 'interview_pending', 'interview_scheduled'] } },
       { 'pendingClassUpgrade.status': 'pending_interview' },
     ],
   }).populate('userId', 'email mobile fullName profilePhoto');
@@ -23,8 +23,8 @@ export const getPendingVerifications = asyncHandler(async (req, res) => {
 
   const result = pendingTeachers.map(teacher => {
     const tObj = teacher.toObject();
-    tObj.interviews = interviews.filter(i => i.teacherId.toString() === teacher._id.toString());
-    tObj.documents = documents.filter(d => d.teacherId.toString() === teacher._id.toString());
+    tObj.interviews = interviews.filter(i => i.teacherId && i.teacherId.toString() === teacher._id.toString());
+    tObj.documents = documents.filter(d => d.teacherId && d.teacherId.toString() === teacher._id.toString());
     return tObj;
   });
 
@@ -130,6 +130,10 @@ export const adminVerifyTeacher = asyncHandler(async (req, res) => {
   const teacher = await Teacher.findById(teacherId);
   if (!teacher) {
     return res.status(404).json({ success: false, message: 'Teacher profile not found' });
+  }
+
+  if (teacher.applicationStatus === 'draft') {
+    return res.status(400).json({ success: false, message: 'Cannot verify a teacher with incomplete (draft) profile.' });
   }
 
   if (interviewId) {
@@ -272,3 +276,49 @@ export const getPayoutHistory = asyncHandler(async (req, res) => {
 
   res.json({ success: true, data: history });
 });
+
+/**
+ * @route POST /api/admin/teachers/confirm-interview
+ * @desc Admin confirms/approves a pending teacher interview slot
+ */
+export const adminConfirmInterview = asyncHandler(async (req, res) => {
+  const { interviewId } = req.body;
+  const Notification = (await import('../models/Notification.js')).default;
+
+  const interview = await Interview.findById(interviewId).populate('teacherId');
+  if (!interview) {
+    return res.status(404).json({ success: false, message: 'Interview not found' });
+  }
+
+  interview.status = 'scheduled';
+  await interview.save();
+
+  const teacher = interview.teacherId;
+  if (teacher) {
+    teacher.interview = {
+      scheduledAt: interview.scheduledAt,
+      slotId: interview._id,
+      status: 'scheduled',
+      notes: interview.teacherNotes || '',
+      agoraChannelName: interview.agoraChannelName,
+    };
+    teacher.applicationStatus = 'interview_scheduled';
+    await teacher.save();
+
+    // Send Notification to Teacher
+    const formattedDate = new Date(interview.scheduledAt).toLocaleString();
+    await Notification.create({
+      userId: teacher.userId,
+      title: 'Interview Confirmed by Admin',
+      message: `Your verification interview has been confirmed for ${formattedDate}. Please check your onboarding dashboard to join.`,
+      type: 'interview_scheduled',
+    });
+  }
+
+  res.json({
+    success: true,
+    message: 'Interview confirmed successfully and notification sent to teacher.',
+    data: interview,
+  });
+});
+

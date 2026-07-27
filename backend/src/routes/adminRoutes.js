@@ -29,10 +29,12 @@ import {
   getInterviewSlotSettings,
   updateInterviewSlotSettings,
   adminRescheduleInterview,
+  adminConfirmInterview,
   getPendingPayouts,
   processTeacherPayout,
   getPayoutHistory,
 } from '../controllers/adminPayoutVerificationController.js';
+import { getInterviewAgoraToken } from '../controllers/teacherVerificationController.js';
 
 // ── Auth Controller ──────────────────────────────────────────────────────────
 import {
@@ -52,12 +54,12 @@ import {
   getFounderAiUsage, getFounderLiveSessionAnalytics, getFounderBusinessSummary,
 } from '../controllers/admin/adminDashboardController.js';
 
-// ── Student Controller ───────────────────────────────────────────────────────
 import {
   getStudents, getStudent, createStudent, updateStudent, deleteStudent,
   searchStudents, filterStudents, bulkImportStudents, exportStudents,
   updateStudentStatus, updateStudentWallet, updateStudentSubscription,
   updateStudentKyc, getStudentActivity, getStudentDevices, getStudentSessions,
+  getStudentStats,
 } from '../controllers/admin/adminStudentController.js';
 
 // ── Teacher Controller ───────────────────────────────────────────────────────
@@ -142,9 +144,11 @@ router.post('/verify-2fa', verifyAdmin2FA);
 // ── TEACHER VERIFICATION & AGORA INTERVIEWS ────────────────────────────────
 router.get('/teachers/pending-verification', getPendingVerifications);
 router.post('/teachers/verify-decision', adminVerifyTeacher);
+router.post('/teacher/verification/agora-token', getInterviewAgoraToken);
 router.get('/interview-slots/settings', getInterviewSlotSettings);
 router.put('/interview-slots/settings', updateInterviewSlotSettings);
 router.post('/teachers/reschedule-interview', adminRescheduleInterview);
+router.post('/teachers/confirm-interview', adminConfirmInterview);
 
 // ── MANUAL WEEKLY PAYOUTS ──────────────────────────────────────────────────
 router.get('/payouts/pending', getPendingPayouts);
@@ -164,6 +168,7 @@ router.get('/dashboard/notifications', getAdminNotifications);
 router.get('/students/search', checkPermission('students'), searchStudents);
 router.get('/students/filter', checkPermission('students'), filterStudents);
 router.get('/students/export', checkPermission('students'), exportStudents);
+router.get('/students/stats', checkPermission('students'), getStudentStats);
 router.post('/students/bulk-import', checkPermission('students'), bulkImportStudents);
 router.get('/students', checkPermission('students'), getStudents);
 router.post('/students', checkPermission('students'), createStudent);

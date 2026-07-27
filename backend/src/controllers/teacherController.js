@@ -156,6 +156,9 @@ export const updateAvailability = asyncHandler(async (req, res) => {
   if (!teacher) return res.status(404).json({ success: false, message: 'Not found' });
 
   if (rawStatus) {
+    if (rawStatus !== 'offline' && teacher.applicationStatus !== 'approved' && !teacher.isApproved) {
+      return res.status(403).json({ success: false, message: 'Cannot go online until your profile is approved by the admin.' });
+    }
     teacher.availabilityStatus = rawStatus;
     teacher.manuallySetOffline = rawStatus === 'offline';
 

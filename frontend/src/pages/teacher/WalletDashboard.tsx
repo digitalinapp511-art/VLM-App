@@ -14,8 +14,9 @@ import {
 import { bgCss } from "@/helper/CssHelper";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { teacherApi } from "@/lib/teacher-api";
+import { toast } from "sonner";
 
 import { PointsCard, BalanceCard } from "@/components/basic/teacher/WalletStatCards";
 import TransactionItem from "@/components/basic/teacher/TransactionItem";
@@ -24,6 +25,7 @@ import { useNavigate } from "react-router-dom";
 
 const WalletDashboard: React.FC = () => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   const { data: profile } = useQuery({
     queryKey: ["teacherProfile"],
@@ -48,8 +50,49 @@ const WalletDashboard: React.FC = () => {
   const bankName = profile?.bankDetails?.bankName || "No Bank Added";
   const accNo = profile?.bankDetails?.accountNumber 
     ? `Account No : **** ${String(profile.bankDetails.accountNumber).slice(-4)}` 
-    : "Verify Bank Details in Onboarding";
+    : "No account details saved";
   const firstName = profile?.fullName?.split(" ")[0] ?? "Teacher";
+
+  const [showBankModal, setShowBankModal] = React.useState(false);
+  const [accountHolder, setAccountHolder] = React.useState("");
+  const [accountNumber, setAccountNumber] = React.useState("");
+  const [ifsc, setIfsc] = React.useState("");
+  const [bankNameForm, setBankNameForm] = React.useState("");
+  const [upiId, setUpiId] = React.useState("");
+  const [savingBank, setSavingBank] = React.useState(false);
+
+  React.useEffect(() => {
+    if (profile?.bankDetails) {
+      setAccountHolder(profile.bankDetails.accountHolder || "");
+      setAccountNumber(profile.bankDetails.accountNumber || "");
+      setIfsc(profile.bankDetails.ifsc || "");
+      setBankNameForm(profile.bankDetails.bankName || "");
+      setUpiId(profile.bankDetails.upiId || "");
+    }
+  }, [profile]);
+
+  const handleSaveBank = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSavingBank(true);
+    try {
+      await teacherApi.submitVerificationDocs({
+        bankDetails: {
+          accountHolder,
+          accountNumber,
+          ifsc,
+          bankName: bankNameForm,
+          upiId,
+        }
+      });
+      toast.success("Bank details saved successfully!");
+      setShowBankModal(false);
+      queryClient.invalidateQueries({ queryKey: ["teacherProfile"] });
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || "Failed to save bank details");
+    } finally {
+      setSavingBank(false);
+    }
+  };
 
   return (
     <div className={cn("min-h-screen flex flex-col p-4 pb-28 relative", bgCss)}>
@@ -100,7 +143,15 @@ const WalletDashboard: React.FC = () => {
 
         {/* Withdrawal Method */}
         <section className="p-6 rounded-[32px] border border-white/10 bg-zinc-950/30">
-          <h3 className="text-[11px] font-bold text-zinc-500 uppercase tracking-[0.15em] mb-4">Withdrawal Method</h3>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-[11px] font-bold text-zinc-500 uppercase tracking-[0.15em]">Withdrawal Method</h3>
+            <button
+              onClick={() => setShowBankModal(true)}
+              className="text-xs font-bold text-cyan-400 hover:underline"
+            >
+              Add / Edit Details
+            </button>
+          </div>
           <div className="p-4 rounded-2xl border border-purple-500/20 bg-white/[0.02] flex items-center gap-4">
              <div className="w-12 h-10 bg-white rounded flex items-center justify-center shadow-lg shrink-0">
                 <div className="w-6 h-6 border-4 border-rose-500 rounded-sm" />
@@ -143,6 +194,91 @@ const WalletDashboard: React.FC = () => {
           </div>
         </section>
       </div>
+
+      {showBankModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="w-full max-w-md p-6 rounded-[32px] border border-white/10 bg-zinc-900 shadow-2xl flex flex-col gap-4 text-white"
+          >
+            <h3 className="text-lg font-black tracking-tight">Bank Details</h3>
+            <p className="text-xs text-zinc-400">Please provide your bank details for payouts.</p>
+            <form onSubmit={handleSaveBank} className="space-y-3">
+              <div>
+                <label className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">Account Holder Name</label>
+                <input
+                  type="text"
+                  required
+                  value={accountHolder}
+                  onChange={(e) => setAccountHolder(e.target.value)}
+                  className="w-full h-10 px-3 rounded-xl bg-zinc-950 border border-white/10 focus:border-cyan-400 outline-none text-sm mt-1"
+                  placeholder="e.g. John Doe"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">Bank Name</label>
+                <input
+                  type="text"
+                  required
+                  value={bankNameForm}
+                  onChange={(e) => setBankNameForm(e.target.value)}
+                  className="w-full h-10 px-3 rounded-xl bg-zinc-950 border border-white/10 focus:border-cyan-400 outline-none text-sm mt-1"
+                  placeholder="e.g. HDFC Bank"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">Account Number</label>
+                <input
+                  type="text"
+                  required
+                  value={accountNumber}
+                  onChange={(e) => setAccountNumber(e.target.value)}
+                  className="w-full h-10 px-3 rounded-xl bg-zinc-950 border border-white/10 focus:border-cyan-400 outline-none text-sm mt-1"
+                  placeholder="e.g. 501002345678"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">IFSC Code</label>
+                <input
+                  type="text"
+                  required
+                  value={ifsc}
+                  onChange={(e) => setIfsc(e.target.value)}
+                  className="w-full h-10 px-3 rounded-xl bg-zinc-950 border border-white/10 focus:border-cyan-400 outline-none text-sm mt-1"
+                  placeholder="e.g. HDFC0000123"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">UPI ID (Optional)</label>
+                <input
+                  type="text"
+                  value={upiId}
+                  onChange={(e) => setUpiId(e.target.value)}
+                  className="w-full h-10 px-3 rounded-xl bg-zinc-950 border border-white/10 focus:border-cyan-400 outline-none text-sm mt-1"
+                  placeholder="e.g. john@okaxis"
+                />
+              </div>
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowBankModal(false)}
+                  className="flex-1 h-10 rounded-full border border-white/10 bg-zinc-800 text-xs font-bold hover:bg-zinc-700"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingBank}
+                  className="flex-1 h-10 rounded-full bg-cyan-500 text-black text-xs font-bold hover:bg-cyan-400 disabled:opacity-50"
+                >
+                  {savingBank ? "Saving..." : "Save Details"}
+                </button>
+              </div>
+            </form>
+          </motion.div>
+        </div>
+      )}
 
       {/* Bottom Nav */}
       <nav className="fixed bottom-0 left-0 w-full bg-[#0a0a0a]/95 border-t border-white/5 backdrop-blur-lg px-6 py-4 flex items-center justify-between z-50">

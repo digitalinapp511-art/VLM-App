@@ -124,6 +124,9 @@ export const deleteTeacher = asyncHandler(async (req, res) => {
 export const approveTeacher = asyncHandler(async (req, res) => {
   const teacher = await Teacher.findById(req.params.id);
   if (!teacher) return res.status(404).json({ success: false, message: 'Teacher not found' });
+  if (teacher.applicationStatus === 'draft') {
+    return res.status(400).json({ success: false, message: 'Cannot approve a teacher with incomplete (draft) profile.' });
+  }
   teacher.applicationStatus = 'approved';
   await teacher.save();
   res.json({ success: true, message: 'Teacher approved', data: teacher });
@@ -136,6 +139,9 @@ export const rejectTeacher = asyncHandler(async (req, res) => {
   const { reason } = req.body;
   const teacher = await Teacher.findById(req.params.id);
   if (!teacher) return res.status(404).json({ success: false, message: 'Teacher not found' });
+  if (teacher.applicationStatus === 'draft') {
+    return res.status(400).json({ success: false, message: 'Cannot reject a teacher with incomplete (draft) profile.' });
+  }
   teacher.applicationStatus = 'rejected';
   teacher.rejectionReason = reason || 'Does not meet qualification criteria';
   await teacher.save();

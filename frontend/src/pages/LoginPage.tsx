@@ -14,6 +14,9 @@ import { useGoogleAuth, useSendOtp } from "@/hooks/use-auth";
 import { PATHS } from "@/routes/paths";
 import { toast } from "sonner";
 
+import { authApi } from "@/lib/auth-api";
+import { resolveUserProfileRoute } from "@/lib/auth-helpers";
+
 const Container = ({ children, className }: any) => <div className={cn("relative flex min-h-svh w-full flex-col items-center justify-center overflow-hidden p-3 md:p-4", className)}>{children}</div>;
 const Stack = ({ children, className }: any) => <div className={cn("flex flex-col", className)}>{children}</div>;
 const Grid = ({ children, className }: any) => <div className={cn("grid w-full", className)}>{children}</div>;
@@ -50,14 +53,18 @@ export default function LoginPage() {
     const token = localStorage.getItem("vlm_token");
     const activeRole = urlRole || localStorage.getItem("vlm_role") || sessionStorage.getItem("vlm_role") || "student";
 
-    if (token && activeRole) {
-      if (activeRole === "student") {
-        navigate(PATHS.STUDENT_DASHBOARD, { replace: true });
-        return;
-      } else if (activeRole === "teacher") {
-        navigate(PATHS.TEACHER_DASHBOARD, { replace: true });
-        return;
-      }
+    if (token) {
+      authApi.getMe()
+        .then((user) => {
+          if (user) {
+            const targetRoute = resolveUserProfileRoute(user, user.profile);
+            navigate(targetRoute, { replace: true });
+          }
+        })
+        .catch(() => {
+          localStorage.removeItem("vlm_token");
+        });
+      return;
     }
 
     if (["student", "teacher", "parent"].includes(activeRole)) {

@@ -285,3 +285,40 @@ export const bulkImportStudents = asyncHandler(async (req, res) => {
 
   res.json({ success: true, message: 'Bulk import complete', results });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GET /api/admin/students/stats
+// ─────────────────────────────────────────────────────────────────────────────
+export const getStudentStats = asyncHandler(async (req, res) => {
+  const totalStudents = await Student.countDocuments();
+
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+
+  const activeToday = await Student.countDocuments({
+    lastActiveDate: { $gte: startOfToday }
+  });
+
+  const premiumSubscribers = await Student.countDocuments({
+    'subscription.status': 'active'
+  });
+
+  const activeUserIds = await User.find({ role: 'student', status: 'active' }).distinct('_id');
+  const activeStudents = await Student.countDocuments({ userId: { $in: activeUserIds } });
+
+  const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+  const onlineStudents = await Student.countDocuments({
+    lastActiveDate: { $gte: fiveMinutesAgo }
+  });
+
+  res.json({
+    success: true,
+    data: {
+      totalStudents,
+      activeToday,
+      premiumSubscribers,
+      activeStudents,
+      onlineStudents
+    }
+  });
+});

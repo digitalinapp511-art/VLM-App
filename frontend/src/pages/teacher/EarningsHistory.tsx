@@ -17,9 +17,62 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import EarningsFilters from "@/components/basic/teacher/EarningsFilters";
 import HistoryItem from "@/components/basic/teacher/HistoryItem";
 
+import { useQuery } from "@tanstack/react-query";
+import { teacherApi } from "@/lib/teacher-api";
+
 const EarningsHistory: React.FC = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("Video");
+
+  const getEarningTypeParam = (tab: string) => {
+    switch (tab) {
+      case "Chat":
+        return "chat";
+      case "Audio":
+        return "audio";
+      case "Video":
+        return "video";
+      case "Live Class":
+        return "live_class";
+      case "Short Video":
+        return "short_video";
+      default:
+        return "video";
+    }
+  };
+
+  const { data: earnings = [], isLoading } = useQuery({
+    queryKey: ["teacherEarnings", activeTab],
+    queryFn: () => teacherApi.getEarnings({ type: getEarningTypeParam(activeTab) }),
+  });
+
+  const getHistoryItemType = (earningType: string, txType: string) => {
+    if (txType === "debit") return "penalty";
+    switch (earningType) {
+      case "chat":
+      case "doubt":
+      case "audio":
+        return "chat";
+      case "video":
+        return "video_lesson";
+      case "live_class":
+        return "live_class";
+      case "short_video":
+        return "short_video";
+      default:
+        return "video_lesson";
+    }
+  };
+
+  const formatTimestamp = (dateStr: string) => {
+    return new Date(dateStr).toLocaleString("en-IN", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit"
+    });
+  };
 
   return (
     <div className={cn("min-h-screen flex flex-col p-4 pb-28 relative overflow-x-hidden", bgCss)}>
@@ -62,53 +115,27 @@ const EarningsHistory: React.FC = () => {
           className="p-6 rounded-[40px] border-2 border-cyan-500/20 bg-zinc-950/40 backdrop-blur-2xl shadow-[0_0_40px_rgba(34,211,238,0.1)]"
         >
           <h3 className="text-[13px] font-black text-cyan-400 uppercase tracking-[0.2em] mb-6">
-            September 2024
+            Earning Details
           </h3>
 
           <div className="flex flex-col">
-            <HistoryItem
-              type="chat"
-              title="Chat Session"
-              subtitle="Doubt ID: #VLM-C-458"
-              timestamp="Sep 29, 2024 • 10:15 AM"
-              points="750"
-            />
-            <HistoryItem
-              type="video_lesson"
-              title="Video Lesson"
-              subtitle="Student: Aisha C."
-              timestamp="Sep 29, 2024 • 10:15 AM"
-              points="3,500"
-            />
-            <HistoryItem
-              type="live_class"
-              title="Live Class"
-              subtitle="Sep 29, 2024 • 10:15 AM"
-              timestamp="Sep 29, 2024 • 10:15 AM"
-              points="55,000"
-            />
-            <HistoryItem
-              type="course"
-              title="Course: Calculus 101"
-              subtitle="Sep 29, 2024 • 10:15 AM"
-              timestamp="Sep 29, 2024 • 10:15 AM"
-              points="55,000"
-            />
-            <HistoryItem
-              type="short_video"
-              title="Short Video"
-              subtitle="motion basics video"
-              timestamp="Sep 29, 2024 • 10:15 AM"
-              points="2,000"
-            />
-            <HistoryItem
-              type="penalty"
-              title="Penalty"
-              subtitle="Content copyright violation"
-              timestamp="Sep 28, 2024 • 10:05 AM"
-              points="20,000"
-              isNegative
-            />
+            {isLoading ? (
+              <p className="text-xs text-zinc-500 py-4 text-center">Loading earnings history...</p>
+            ) : earnings.length === 0 ? (
+              <p className="text-xs text-zinc-500 py-4 text-center">No earnings recorded for this category</p>
+            ) : (
+              earnings.map((tx: any) => (
+                <HistoryItem
+                  key={tx._id || tx.id}
+                  type={getHistoryItemType(tx.earningType, tx.type)}
+                  title={tx.description || (tx.type === "credit" ? "Earning Credited" : "Wallet Debit")}
+                  subtitle={tx.sessionId ? `Session: #${tx.sessionId.slice(-6).toUpperCase()}` : "System Transaction"}
+                  timestamp={formatTimestamp(tx.createdAt)}
+                  points={String(tx.points || 0)}
+                  isNegative={tx.type === "debit"}
+                />
+              ))
+            )}
           </div>
         </motion.div>
       </div>

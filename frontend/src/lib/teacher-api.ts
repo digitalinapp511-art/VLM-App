@@ -147,6 +147,15 @@ export const teacherApi = {
     return data.data;
   },
 
+  getEarnings: async (params?: { type?: string; from?: string; to?: string }) => {
+    const q = new URLSearchParams();
+    if (params?.type) q.set('type', params.type);
+    if (params?.from) q.set('from', params.from);
+    if (params?.to) q.set('to', params.to);
+    const { data } = await apiClient.get(`/teacher/earnings?${q.toString()}`);
+    return data.data;
+  },
+
   // ── Sessions ─────────────────────────────────────────────────
   getSessions: async (params?: { status?: string; type?: string }) => {
     const q = new URLSearchParams();

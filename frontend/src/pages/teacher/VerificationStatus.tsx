@@ -27,12 +27,30 @@ const VerificationStatus: React.FC = () => {
     queryFn: teacherApi.getVerificationStatus,
   });
 
-  const steps = data?.steps ?? [
-    { id: "draft", title: "Draft", description: "Profile in Draft", status: "active" },
-    { id: "submitted", title: "Submitted", description: "Verification Submitted", status: "pending" },
-    { id: "interview_scheduled", title: "Interview Scheduled", description: "Interview Scheduled", status: "pending" },
-    { id: "under_review", title: "Under Review", description: "Application Under Review (Estimated 2-3 days)", status: "pending" },
-    { id: "approved", title: "Approved", description: "Verification Approved (Start Teaching Soon)", status: "pending" },
+  const currentStatus = data?.applicationStatus || "draft";
+
+  const getStepStatus = (stepId: string): "completed" | "active" | "pending" => {
+    const statusOrder = ["draft", "pending_interview", "interview_scheduled", "under_review", "approved"];
+    
+    // Normalize status mapping
+    let normalizedCurrent = currentStatus;
+    if (currentStatus === "submitted") normalizedCurrent = "pending_interview";
+    if (currentStatus === "interview_pending") normalizedCurrent = "pending_interview";
+
+    const currentIndex = statusOrder.indexOf(normalizedCurrent);
+    const stepIndex = statusOrder.indexOf(stepId);
+
+    if (stepIndex < currentIndex) return "completed";
+    if (stepIndex === currentIndex) return "active";
+    return "pending";
+  };
+
+  const steps = [
+    { id: "draft", title: "Profile Draft", description: "Fill out your details", status: getStepStatus("draft") },
+    { id: "pending_interview", title: "Submitted", description: "Verification documents submitted", status: getStepStatus("pending_interview") },
+    { id: "interview_scheduled", title: "Interview Status", description: "Verification interview scheduled", status: getStepStatus("interview_scheduled") },
+    { id: "under_review", title: "Review", description: "Application review by admin", status: getStepStatus("under_review") },
+    { id: "approved", title: "Approved", description: "Start teaching on VLM Academy!", status: getStepStatus("approved") },
   ];
 
   return (
@@ -44,12 +62,6 @@ const VerificationStatus: React.FC = () => {
       </div>
       <div className="absolute top-[40%] -right-3 text-purple-500/30 blur-[1px]">
         <Star size={20} fill="currentColor" />
-      </div>
-      <div className="absolute bottom-[20%] -left-3 text-cyan-500/20 blur-[1px]">
-        <Star size={16} fill="currentColor" />
-      </div>
-      <div className="absolute bottom-10 right-4 text-zinc-600/30 blur-[1px]">
-        <Star size={12} fill="currentColor" />
       </div>
 
       <motion.div
@@ -76,6 +88,33 @@ const VerificationStatus: React.FC = () => {
           </p>
         </header>
 
+        {/* Dynamic Interview Scheduled Panel */}
+        {data?.interview && (data.interview.status === "scheduled" || data.interview.status === "rescheduled") && (
+          <div className="mb-8 p-5 rounded-2xl border border-cyan-400/30 bg-cyan-400/5 text-center flex flex-col items-center gap-3">
+            <h4 className="text-sm font-black text-white uppercase tracking-wider">
+              Verification Interview Scheduled
+            </h4>
+            <p className="text-xs text-zinc-300">
+              Your interview is booked for: <br />
+              <strong className="text-cyan-400">
+                {new Date(data.interview.scheduledAt).toLocaleString("en-IN", {
+                  day: "numeric",
+                  month: "short",
+                  year: "numeric",
+                  hour: "2-digit",
+                  minute: "2-digit"
+                })}
+              </strong>
+            </p>
+            <Button
+              onClick={() => navigate(`/teacher/interview-room/${data.interview._id}`)}
+              className="mt-2 w-full h-11 rounded-full bg-cyan-400 text-black hover:bg-cyan-300 font-bold transition-all text-xs"
+            >
+              Join Interview Call Room
+            </Button>
+          </div>
+        )}
+
         {/* Timeline Content */}
         <div className="px-1 sm:px-2 mb-6 sm:mb-12">
           {steps.map((step: any, index: number) => (
@@ -95,7 +134,7 @@ const VerificationStatus: React.FC = () => {
           <p className="text-[9px] sm:text-[10px] text-zinc-600 font-bold tracking-widest uppercase">
             {isLoading
               ? "Loading..."
-              : `Verification Status: ${data?.verificationStatus ?? "DRAFT"} | Applicant: ${data?.teacherName ?? "Teacher"}`}
+              : `Verification Status: ${data?.applicationStatus ?? "DRAFT"} | Applicant: ${data?.teacherName ?? "Teacher"}`}
           </p>
         </div>
       </motion.div>

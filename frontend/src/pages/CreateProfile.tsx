@@ -215,13 +215,23 @@ export default function CreateProfileShadcn() {
     queryFn: authApi.getMe,
   });
 
-  // Sync user details to states
+  const storedIdentifier = (
+    sessionStorage.getItem("vlm_email") ||
+    sessionStorage.getItem("vlm_auth_email") ||
+    ""
+  ).trim();
+
+  const isPhoneIdentifier = /^\d{10}$/.test(storedIdentifier);
+  const isEmailIdentifier = storedIdentifier.includes("@");
+
+  const authMobile = user?.mobile || (isPhoneIdentifier ? storedIdentifier : "");
+  const authEmail = user?.email || (isEmailIdentifier ? storedIdentifier : "");
+
+  // Sync user details / sessionStorage to states
   useEffect(() => {
-    if (user) {
-      if (user.mobile) setMobile(user.mobile);
-      if (user.email) setEmail(user.email);
-    }
-  }, [user]);
+    if (authMobile) setMobile(authMobile);
+    if (authEmail) setEmail(authEmail);
+  }, [authMobile, authEmail]);
 
   const [preferredSubjects, setPreferredSubjects] = useState<string[]>(["Mathematics"]);
   const [weakSubjects, setWeakSubjects] = useState<string[]>(["Social Studies"]);
@@ -574,8 +584,8 @@ export default function CreateProfileShadcn() {
                     setMobile(val);
                     if (errors.mobile) setErrors(prev => ({ ...prev, mobile: false }));
                   }}
-                  disabled={!!user?.mobile}
-                  className={cn(inputCls, "pl-10", !!user?.mobile && "opacity-60 bg-slate-100 dark:bg-zinc-900 cursor-not-allowed text-slate-500", errors.mobile && "border-red-500 bg-red-50/50 dark:bg-red-950/20 focus-visible:ring-red-500/50")}
+                  disabled={!!authMobile}
+                  className={cn(inputCls, "pl-10", !!authMobile && "opacity-60 bg-slate-100 dark:bg-zinc-900 cursor-not-allowed text-slate-500", errors.mobile && "border-red-500 bg-red-50/50 dark:bg-red-950/20 focus-visible:ring-red-500/50")}
                 />
               </div>
               {errors.mobile && (
@@ -596,8 +606,8 @@ export default function CreateProfileShadcn() {
                     setEmail(e.target.value);
                     if (errors.email) setErrors(prev => ({ ...prev, email: false }));
                   }}
-                  disabled={!!user?.email}
-                  className={cn(inputCls, "pl-10", !!user?.email && "opacity-60 bg-slate-100 dark:bg-zinc-900 cursor-not-allowed text-slate-500", errors.email && "border-red-500 bg-red-50/50 dark:bg-red-950/20 focus-visible:ring-red-500/50")}
+                  disabled={!!authEmail}
+                  className={cn(inputCls, "pl-10", !!authEmail && "opacity-60 bg-slate-100 dark:bg-zinc-900 cursor-not-allowed text-slate-500", errors.email && "border-red-500 bg-red-50/50 dark:bg-red-950/20 focus-visible:ring-red-500/50")}
                 />
               </div>
               {errors.email && <span className="text-[10px] text-red-500 font-bold mt-0.5 block">Email address is required</span>}

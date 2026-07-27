@@ -2,41 +2,50 @@ import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { VlmLogo } from "@/components/basic/VlmLogo";
 import { PATHS } from "@/routes/paths";
+import { authApi } from "@/lib/auth-api";
+import { resolveUserProfileRoute } from "@/lib/auth-helpers";
 
 export default function SplashPage() {
   const navigate = useNavigate();
 
-  // ── DEV MODE BYPASS ─────────────────────────────────────
-  // Set to true to skip login during development
   const DEV_BYPASS_LOGIN = false;
-  // ─────────────────────────────────────────────────────────
 
   useEffect(() => {
-    const timer = setTimeout(() => {
+    let isMounted = true;
+    const timer = setTimeout(async () => {
+      if (!isMounted) return;
+
       if (DEV_BYPASS_LOGIN) {
-        // Inject a mock token and role so auth checks pass
         localStorage.setItem("vlm_token", "dev-mock-token");
         localStorage.setItem("vlm_role", "teacher");
         navigate(PATHS.TEACHER_DASHBOARD, { replace: true });
-      } else {
-        const token = localStorage.getItem("vlm_token");
-        const role = localStorage.getItem("vlm_role");
-        if (token && role) {
-          if (role === "student") {
-            navigate(PATHS.STUDENT_DASHBOARD, { replace: true });
-          } else if (role === "teacher") {
-            navigate(PATHS.TEACHER_DASHBOARD, { replace: true });
-          } else if (role === "parent") {
-            navigate(PATHS.COMING_SOON, { replace: true });
-          } else {
-            navigate(PATHS.ROLE_SELECT, { replace: true });
+        return;
+      }
+
+      const token = localStorage.getItem("vlm_token");
+      if (token) {
+        try {
+          const user = await authApi.getMe();
+          if (user && isMounted) {
+            const targetRoute = resolveUserProfileRoute(user, user.profile);
+            navigate(targetRoute, { replace: true });
+            return;
           }
-        } else {
-          navigate(PATHS.ROLE_SELECT, { replace: true });
+        } catch (err) {
+          console.error("Failed to verify session on splash:", err);
+          localStorage.removeItem("vlm_token");
         }
       }
+
+      if (isMounted) {
+        navigate(PATHS.ROLE_SELECT, { replace: true });
+      }
     }, 2800);
-    return () => clearTimeout(timer);
+
+    return () => {
+      isMounted = false;
+      clearTimeout(timer);
+    };
   }, [navigate]);
 
   return (
@@ -65,6 +74,3 @@ export default function SplashPage() {
     </div>
   );
 }
-
-// ── Inline SVG logo (matches Figma — golden 3‑D lettering + blue mortarboard) ──
-

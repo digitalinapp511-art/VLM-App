@@ -157,36 +157,43 @@ const Dashboard: React.FC = () => {
           <div className="flex items-center gap-4">
             <div
               className="flex flex-col items-center gap-1 cursor-pointer hover:opacity-80 active:scale-95 transition-all"
-              onClick={() => navigate(PATHS.AVAILABILITY_STATUS)}
+              onClick={() => {
+                const isApproved = teacher?.isApproved || teacher?.applicationStatus === "approved";
+                if (!isApproved) {
+                  toast.error("Cannot change availability status. You are offline until verified/approved by the admin.");
+                  return;
+                }
+                navigate(PATHS.AVAILABILITY_STATUS);
+              }}
             >
               <div
                 className={cn("flex items-center w-14 h-7 p-1 rounded-full border transition-all duration-300 select-none relative",
-                  currentStatus === "online" && "bg-emerald-500/20 border-emerald-500/40",
-                  currentStatus === "busy" && "bg-amber-500/20 border-amber-500/40",
-                  currentStatus === "offline" && "bg-zinc-800 border-zinc-700"
+                  ((teacher?.isApproved || teacher?.applicationStatus === "approved") ? currentStatus : "offline") === "online" && "bg-emerald-500/20 border-emerald-500/40",
+                  ((teacher?.isApproved || teacher?.applicationStatus === "approved") ? currentStatus : "offline") === "busy" && "bg-amber-500/20 border-amber-500/40",
+                  ((teacher?.isApproved || teacher?.applicationStatus === "approved") ? currentStatus : "offline") === "offline" && "bg-zinc-800 border-zinc-700"
                 )}
               >
-                {currentStatus === "online" && (
+                {((teacher?.isApproved || teacher?.applicationStatus === "approved") ? currentStatus : "offline") === "online" && (
                   <span className="text-[7px] font-black text-emerald-500 uppercase tracking-wider ml-1">ON</span>
                 )}
-                {currentStatus === "busy" && (
+                {((teacher?.isApproved || teacher?.applicationStatus === "approved") ? currentStatus : "offline") === "busy" && (
                   <span className="text-[7px] font-black text-amber-500 uppercase tracking-wider ml-6">BSY</span>
                 )}
-                {currentStatus === "offline" && (
+                {((teacher?.isApproved || teacher?.applicationStatus === "approved") ? currentStatus : "offline") === "offline" && (
                   <span className="text-[7px] font-black text-zinc-500 uppercase tracking-wider ml-auto mr-1">OFF</span>
                 )}
                 <div className={cn("w-5 h-5 rounded-full bg-white shadow-md transform transition-all duration-300 absolute",
-                  currentStatus === "online" && "translate-x-7",
-                  currentStatus === "busy" && "translate-x-3.5",
-                  currentStatus === "offline" && "translate-x-0"
+                  ((teacher?.isApproved || teacher?.applicationStatus === "approved") ? currentStatus : "offline") === "online" && "translate-x-7",
+                  ((teacher?.isApproved || teacher?.applicationStatus === "approved") ? currentStatus : "offline") === "busy" && "translate-x-3.5",
+                  ((teacher?.isApproved || teacher?.applicationStatus === "approved") ? currentStatus : "offline") === "offline" && "translate-x-0"
                 )} />
               </div>
               <span className="flex items-center gap-1 text-[8px] font-bold text-zinc-500 uppercase mt-0.5">
                 <div className={cn("w-1.5 h-1.5 rounded-full",
-                  currentStatus === "online" ? "bg-emerald-500 animate-pulse" :
-                    currentStatus === "busy" ? "bg-amber-500 animate-pulse" : "bg-zinc-500"
+                  ((teacher?.isApproved || teacher?.applicationStatus === "approved") ? currentStatus : "offline") === "online" ? "bg-emerald-500 animate-pulse" :
+                    ((teacher?.isApproved || teacher?.applicationStatus === "approved") ? currentStatus : "offline") === "busy" ? "bg-amber-500 animate-pulse" : "bg-zinc-500"
                 )} />
-                {currentStatus === "online" ? "Online" : currentStatus === "busy" ? "Busy" : "Offline"}
+                {((teacher?.isApproved || teacher?.applicationStatus === "approved") ? currentStatus : "offline") === "online" ? "Online" : ((teacher?.isApproved || teacher?.applicationStatus === "approved") ? currentStatus : "offline") === "busy" ? "Busy" : "Offline"}
               </span>
             </div>
             <button
@@ -207,6 +214,9 @@ const Dashboard: React.FC = () => {
                 <AvatarFallback>{firstName[0]}</AvatarFallback>
               </Avatar>
               <span className="text-[10px] font-bold text-zinc-500 mt-1">{firstName}</span>
+              {(!teacher?.isApproved && teacher?.applicationStatus !== "approved") && (
+                <span className="text-[8px] font-black bg-amber-500/10 text-amber-500 border border-amber-500/20 px-1.5 py-0.5 rounded uppercase tracking-wider mt-1">Unverified</span>
+              )}
             </div>
           </div>
         </header>
@@ -217,7 +227,7 @@ const Dashboard: React.FC = () => {
           <StatsCard title="Total Points" value={isLoading ? "..." : String(stats?.totalPoints ?? 0)} subValue={`Value: ₹${(stats?.totalPoints ?? 0) / 10}`} variant="gold" icon={<Star size={14} fill="currentColor" />} onClick={() => navigate(PATHS.TEACHER_WALLET)} />
           <StatsCard title="Wallet Balance" value={isLoading ? "..." : `₹${stats?.walletBalance ?? 0}`} subValue="withdrawable" variant="purple" onClick={() => navigate(PATHS.TEACHER_WALLET)} />
           <StatsCard title="Total Sessions" value={isLoading ? "..." : String(stats?.totalSessions ?? 0)} subValue="sessions" icon={<History size={14} />} onClick={() => navigate(PATHS.TEACHER_SESSION_HISTORY)} />
-          <StatsCard title="Missed Requests" value={isLoading ? "..." : String(stats?.missedRequests ?? 0)} subValue="missed" onClick={() => navigate(PATHS.TEACHER_REQUESTS)} />
+          <StatsCard title="Missed Requests" value={isLoading ? "..." : String(stats?.missedRequests ?? 0)} subValue="missed" onClick={() => navigate(PATHS.TEACHER_MISSED_REQUESTS)} />
           <StatsCard 
             title="Rating" 
             value={isLoading ? "..." : String(typeof stats?.rating === 'number' ? stats.rating.toFixed(1) : 0)} 

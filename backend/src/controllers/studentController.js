@@ -53,6 +53,7 @@ export const getOrCreateStudentProfile = async (userId) => {
       class: '10',
       board: 'CBSE',
       subjects: ['Math', 'Science', 'English', 'Social Science', 'Hindi'],
+      onboardingCompleted: false,
     });
   }
   return student;
@@ -115,6 +116,7 @@ export const createStudentProfile = asyncHandler(async (req, res) => {
       return res.status(403).json({ success: false, message: 'Profile ownership mismatch' });
     }
     Object.assign(student, req.body);
+    student.onboardingCompleted = true;
     // Sync contact from User record only if not already present
     if (!student.email) student.email = authUser.email;
     if (!student.mobile) student.mobile = authUser.mobile;
@@ -126,6 +128,7 @@ export const createStudentProfile = asyncHandler(async (req, res) => {
       vlmStudentId,
       email: req.body.email || authUser.email,
       mobile: req.body.mobile || authUser.mobile,
+      onboardingCompleted: true,
       ...req.body,
     });
   }
