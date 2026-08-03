@@ -8,6 +8,8 @@ export function useCreateProfile() {
     mutationFn: (payload) => studentApi.createProfile(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["studentProfile"] });
+      queryClient.invalidateQueries({ queryKey: ["currentUserSession"] });
+      queryClient.invalidateQueries({ queryKey: ["currentUserProfileSetup"] });
     },
   });
 }
@@ -34,6 +36,8 @@ export function useUpdateProfile() {
     mutationFn: (payload) => studentApi.updateProfile(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["studentProfile"] });
+      queryClient.invalidateQueries({ queryKey: ["currentUserSession"] });
+      queryClient.invalidateQueries({ queryKey: ["currentUserProfileSetup"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
     },
   });
@@ -106,8 +110,15 @@ export function usePlans(classQuery?: string) {
 }
 
 export function useActivateTrial() {
+  const queryClient = useQueryClient();
   return useMutation<any, Error, string>({
     mutationFn: (planId) => studentApi.activateTrial(planId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["studentProfile"] });
+      queryClient.invalidateQueries({ queryKey: ["currentUserSession"] });
+      queryClient.invalidateQueries({ queryKey: ["currentUserProfileSetup"] });
+      queryClient.invalidateQueries({ queryKey: ["mySubscription"] });
+    },
   });
 }
 

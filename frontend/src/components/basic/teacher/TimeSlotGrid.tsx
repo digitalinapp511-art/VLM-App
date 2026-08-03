@@ -3,21 +3,48 @@ import { Check, PencilLine } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface TimeSlotGridProps {
+  selectedDate?: Date;
   selectedTime: string;
   onSelectTime: (time: string) => void;
 }
 
-const TimeSlotGrid: React.FC<TimeSlotGridProps> = ({ selectedTime, onSelectTime }) => {
+const TimeSlotGrid: React.FC<TimeSlotGridProps> = ({ selectedDate, selectedTime, onSelectTime }) => {
   const slots = [
     { time: "09:00 AM", status: "active" },
     { time: "10:00 AM", status: "active" },
-    { time: "11:30 AM", status: "active" },
+    { time: "11:00 AM", status: "active" },
+    { time: "12:00 PM", status: "active" },
     { time: "01:00 PM", status: "active" },
-    { time: "02:30 PM", status: "active" },
+    { time: "02:00 PM", status: "active" },
+    { time: "03:00 PM", status: "active" },
     { time: "04:00 PM", status: "active" },
-    { time: "05:30 PM", status: "active" },
-    { time: "07:00 PM", status: "active" },
+    { time: "05:00 PM", status: "active" },
+    { time: "06:00 PM", status: "active" },
   ];
+
+  const isSlotPast = (timeStr: string) => {
+    if (!selectedDate) return false;
+    
+    const today = new Date();
+    const isToday = selectedDate.getDate() === today.getDate() &&
+                    selectedDate.getMonth() === today.getMonth() &&
+                    selectedDate.getFullYear() === today.getFullYear();
+                    
+    if (!isToday) return false;
+    
+    // Parse "09:00 AM" into hours and minutes
+    const [time, modifier] = timeStr.split(" ");
+    let [hours, minutes] = time.split(":").map(Number);
+    if (modifier === "PM" && hours < 12) {
+      hours += 12;
+    }
+    if (modifier === "AM" && hours === 12) {
+      hours = 0;
+    }
+    
+    const slotDate = new Date(today.getFullYear(), today.getMonth(), today.getDate(), hours, minutes, 0);
+    return slotDate < today;
+  };
 
   return (
     <div className="p-6 md:p-8 rounded-[32px] border border-white/10 bg-[#1A1A1A]/40 backdrop-blur-xl">
@@ -29,14 +56,19 @@ const TimeSlotGrid: React.FC<TimeSlotGridProps> = ({ selectedTime, onSelectTime 
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3 gap-3">
         {slots.map((slot, index) => {
           const isSelected = selectedTime === slot.time;
+          const isPast = isSlotPast(slot.time);
+          
           return (
             <button
               key={index}
               type="button"
+              disabled={isPast}
               onClick={() => onSelectTime(slot.time)}
               className={cn(
-                "relative h-14 rounded-2xl border transition-all flex items-center justify-center cursor-pointer",
-                "bg-white/[0.03] border-white/10 text-zinc-300 hover:bg-white/[0.08]",
+                "relative h-14 rounded-2xl border transition-all flex items-center justify-center",
+                isPast 
+                  ? "bg-white/[0.01] border-white/5 text-zinc-600 opacity-20 cursor-not-allowed pointer-events-none"
+                  : "bg-white/[0.03] border-white/10 text-zinc-300 hover:bg-white/[0.08] cursor-pointer",
                 isSelected && "border-[#22d3ee] bg-[#22d3ee]/10 text-[#22d3ee] shadow-[0_0_20px_rgba(34,211,238,0.2)] font-bold"
               )}
             >

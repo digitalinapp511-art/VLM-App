@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronLeft, Camera, User, BookOpen, Star, Mail, Phone, ShieldCheck, Home, Wallet, Library, LogOut, X, MapPin, Briefcase, GraduationCap, Calendar, Shield } from "lucide-react";
 import { bgCss } from "@/helper/CssHelper";
+import { getAvatarUrl } from "@/helper/avatarHelper";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -31,6 +32,32 @@ export default function TeacherProfile() {
     queryKey: ["teacherProfile"],
     queryFn: teacherApi.getProfile,
   });
+
+  const renderExperience = (exp?: any) => {
+    let totalYears = exp;
+    if (exp && typeof exp === "object") {
+      totalYears = exp.totalYears !== undefined ? exp.totalYears : exp.years;
+    }
+    totalYears = parseFloat(totalYears);
+    if (totalYears == null || isNaN(totalYears)) return "-";
+
+    const years = Math.floor(totalYears);
+    let months = Math.round((totalYears - years) * 12);
+
+    if (months === 12) {
+      return `${years + 1} years`;
+    }
+
+    if (years === 0) {
+      return `${months} ${months === 1 ? "month" : "months"}`;
+    }
+
+    if (months === 0) {
+      return `${years} ${years === 1 ? "year" : "years"}`;
+    }
+
+    return `${years} ${years === 1 ? "year" : "years"} ${months} ${months === 1 ? "month" : "months"}`;
+  };
 
   const p = profile?.user || {};
 
@@ -124,7 +151,7 @@ export default function TeacherProfile() {
         <div className="flex flex-col items-center gap-4 p-8 rounded-[32px] border border-white/5 bg-white/[0.02] backdrop-blur-md">
           <div className="relative group">
             <Avatar className="w-24 h-24 border-2 border-white/10 bg-zinc-800">
-              <AvatarImage src={profile?.profilePhoto || `https://api.dicebear.com/7.x/avataaars/svg?seed=${profile?.fullName || "Teacher"}`} />
+              <AvatarImage src={getAvatarUrl(profile?.profilePhoto, profile?.fullName, 'teacher')} />
               <AvatarFallback>{(profile?.fullName || "T")[0]}</AvatarFallback>
             </Avatar>
             <button 
@@ -143,11 +170,11 @@ export default function TeacherProfile() {
             </p>
             <div className="mt-2 flex gap-2">
               <Button
-                onClick={() => navigate(PATHS.TEACHER_ONBOARDING_WIZARD)}
+                onClick={() => navigate(PATHS.VERIFICATION_STATUS)}
                 size="sm"
                 className="bg-cyan-500 hover:bg-cyan-600 font-bold text-xs rounded-full px-4"
               >
-                Verification & Interview Wizard
+                Track Interview Status
               </Button>
             </div>
             {profile?.vlmTeacherId && (
@@ -468,7 +495,7 @@ export default function TeacherProfile() {
               <label className="text-xs font-medium text-zinc-500 uppercase ml-2">Total Experience</label>
               <div className="mt-1 flex items-center p-4 rounded-2xl bg-black/40 border border-white/5 text-white">
                 <span className="font-bold">
-                  {profile?.experience?.totalYears !== undefined ? `${profile.experience.totalYears} Years` : "0 Years"}
+                  {renderExperience(profile?.experience?.totalYears)}
                 </span>
               </div>
             </div>

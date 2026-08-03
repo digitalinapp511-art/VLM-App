@@ -12,6 +12,7 @@ import {
   ChevronRight
 } from "lucide-react";
 import { bgCss } from "@/helper/CssHelper";
+import { getAvatarUrl } from "@/helper/avatarHelper";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -101,7 +102,7 @@ const WalletDashboard: React.FC = () => {
       <header className="flex items-center justify-between py-4 mb-6">
         <h1 className="text-base font-black text-white tracking-tight">Wallet Dashboard</h1>
         <Avatar className="w-10 h-10 border-2 border-white/10">
-          <AvatarImage src={profile?.profilePhoto || `https://api.dicebear.com/7.x/avataaars/svg?seed=${firstName}`} />
+          <AvatarImage src={getAvatarUrl(profile?.profilePhoto, profile?.fullName || firstName, 'teacher')} />
           <AvatarFallback>{firstName?.[0] || 'T'}</AvatarFallback>
         </Avatar>
       </header>

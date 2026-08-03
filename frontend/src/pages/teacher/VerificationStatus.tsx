@@ -89,31 +89,52 @@ const VerificationStatus: React.FC = () => {
         </header>
 
         {/* Dynamic Interview Scheduled Panel */}
-        {data?.interview && (data.interview.status === "scheduled" || data.interview.status === "rescheduled") && (
-          <div className="mb-8 p-5 rounded-2xl border border-cyan-400/30 bg-cyan-400/5 text-center flex flex-col items-center gap-3">
-            <h4 className="text-sm font-black text-white uppercase tracking-wider">
-              Verification Interview Scheduled
-            </h4>
-            <p className="text-xs text-zinc-300">
-              Your interview is booked for: <br />
-              <strong className="text-cyan-400">
-                {new Date(data.interview.scheduledAt).toLocaleString("en-IN", {
-                  day: "numeric",
-                  month: "short",
-                  year: "numeric",
-                  hour: "2-digit",
-                  minute: "2-digit"
-                })}
-              </strong>
-            </p>
-            <Button
-              onClick={() => navigate(`/teacher/interview-room/${data.interview._id}`)}
-              className="mt-2 w-full h-11 rounded-full bg-cyan-400 text-black hover:bg-cyan-300 font-bold transition-all text-xs"
-            >
-              Join Interview Call Room
-            </Button>
-          </div>
-        )}
+        {data?.interview && (data.interview.status === "scheduled" || data.interview.status === "rescheduled") && (() => {
+          const scheduledTime = new Date(data.interview.scheduledAt);
+          const fifteenMinBefore = new Date(scheduledTime.getTime() - 15 * 60 * 1000);
+          const oneHourAfter = new Date(scheduledTime.getTime() + 60 * 60 * 1000);
+          
+          const today = new Date();
+          const isJoinEnabled = today >= fifteenMinBefore && today <= oneHourAfter;
+
+          return (
+            <div className="mb-8 p-5 rounded-2xl border border-cyan-400/30 bg-cyan-400/5 text-center flex flex-col items-center gap-3">
+              <h4 className="text-sm font-black text-white uppercase tracking-wider">
+                Verification Interview Scheduled
+              </h4>
+              <p className="text-xs text-zinc-300">
+                Your interview is booked for: <br />
+                <strong className="text-cyan-400">
+                  {scheduledTime.toLocaleString("en-IN", {
+                    day: "numeric",
+                    month: "short",
+                    year: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit"
+                  })}
+                </strong>
+                
+              </p>
+              <Button
+                disabled={!isJoinEnabled}
+                onClick={() => navigate(`/teacher/interview-room/${data.interview._id}`)}
+                className={cn(
+                  "mt-2 w-full h-11 rounded-full font-bold transition-all text-xs cursor-pointer",
+                  isJoinEnabled 
+                    ? "bg-cyan-400 text-black hover:bg-cyan-300"
+                    : "bg-zinc-800 text-zinc-500 border border-zinc-700 cursor-not-allowed opacity-55"
+                )}
+              >
+                Join Interview Call Room
+              </Button>
+              {!isJoinEnabled && today < fifteenMinBefore && (
+                <p className="text-[10px] text-zinc-400 italic">
+                  * Note: The join button will be activated 15 minutes before your scheduled interview time.
+                </p>
+              )}
+            </div>
+          );
+        })()}
 
         {/* Timeline Content */}
         <div className="px-1 sm:px-2 mb-6 sm:mb-12">

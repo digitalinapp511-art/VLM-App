@@ -23,6 +23,12 @@ const mcqTaskSchema = new mongoose.Schema(
     }],
     score: Number,
     pointsEarned: Number,
+    subjectBreakdown: [{
+      subject: { type: String },
+      total: { type: Number, default: 0 },
+      correct: { type: Number, default: 0 },
+      accuracy: { type: Number, default: 0 },   // 0-100 percentage
+    }],
     startedAt: Date,
     completedAt: Date,
   },

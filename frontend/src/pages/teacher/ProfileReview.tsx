@@ -6,6 +6,7 @@ import {
   Home, BookOpen, Wallet, Library, User as UserIcon
 } from "lucide-react";
 import { bgCss } from "@/helper/CssHelper";
+import { getAvatarUrl } from "@/helper/avatarHelper";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
@@ -68,7 +69,7 @@ const ProfileReview: React.FC = () => {
         <ReviewSectionCard title="Profile Details" onEdit={() => navigate(PATHS.BASICPROFILE_DETAILS)} className="row-span-1">
           <div className="flex flex-col items-center text-center space-y-3 mb-2">
             <Avatar className="w-16 h-16 border-2 border-blue-400/20">
-              <AvatarImage src={p?.profilePhoto || `https://api.dicebear.com/7.x/avataaars/svg?seed=${displayFullName || 'teacher'}`} />
+              <AvatarImage src={getAvatarUrl(p?.profilePhoto, displayFullName, 'teacher')} />
               <AvatarFallback>{displayFullName?.[0] ?? 'T'}</AvatarFallback>
             </Avatar>
             <div className="space-y-1">

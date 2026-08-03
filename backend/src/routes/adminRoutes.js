@@ -59,7 +59,7 @@ import {
   searchStudents, filterStudents, bulkImportStudents, exportStudents,
   updateStudentStatus, updateStudentWallet, updateStudentSubscription,
   updateStudentKyc, getStudentActivity, getStudentDevices, getStudentSessions,
-  getStudentStats,
+  getStudentStats, getStudentMcqStats,
 } from '../controllers/admin/adminStudentController.js';
 
 // ── Teacher Controller ───────────────────────────────────────────────────────
@@ -182,6 +182,7 @@ router.put('/students/:id/kyc', checkPermission('students'), updateStudentKyc);
 router.get('/students/:id/activity', checkPermission('students'), getStudentActivity);
 router.get('/students/:id/devices', checkPermission('students'), getStudentDevices);
 router.get('/students/:id/sessions', checkPermission('students'), getStudentSessions);
+router.get('/students/:id/mcq-stats', checkPermission('students'), getStudentMcqStats);
 
 // ── PARENTS ──────────────────────────────────────────────────────────────────
 router.get('/parents/activity', checkPermission('parents'), getParentActivity);

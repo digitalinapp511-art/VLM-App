@@ -813,9 +813,29 @@ export const submitMcq = asyncHandler(async (req, res) => {
     return { ...a, isCorrect: correct };
   });
 
+  // ── PER-SUBJECT BREAKDOWN ──────────────────────────────────────────────────
+  // Build a map: subject → { total, correct }
+  const subjectMap = {};
+  processedAnswers.forEach((a) => {
+    const subject = task.questions[a.questionIndex]?.subject || 'General';
+    if (!subjectMap[subject]) subjectMap[subject] = { total: 0, correct: 0 };
+    subjectMap[subject].total += 1;
+    if (a.isCorrect) subjectMap[subject].correct += 1;
+  });
+
+  // Convert to array for storage with accuracy %
+  const subjectBreakdown = Object.entries(subjectMap).map(([subject, stats]) => ({
+    subject,
+    total: stats.total,
+    correct: stats.correct,
+    accuracy: Math.round((stats.correct / stats.total) * 100),
+  }));
+  // ──────────────────────────────────────────────────────────────────────────
+
   task.answers = processedAnswers;
   task.score = score;
   task.pointsEarned = score * 5;
+  task.subjectBreakdown = subjectBreakdown;
   task.status = 'completed';
   task.completedAt = new Date();
   await task.save();
@@ -826,9 +846,31 @@ export const submitMcq = asyncHandler(async (req, res) => {
   student.mcqPoints += (score * 10); // MCQ Points specifically for leaderboard calculation
   student.markModified('wallet');
 
+  // ── UPSERT LIFETIME SUBJECT PERFORMANCE ───────────────────────────────────
+  const now = new Date();
+  if (!student.subjectPerformance) student.subjectPerformance = [];
+  subjectBreakdown.forEach(({ subject, total, correct }) => {
+    const existing = student.subjectPerformance.find(p => p.subject === subject);
+    if (existing) {
+      existing.totalAttempted += total;
+      existing.totalCorrect += correct;
+      existing.accuracy = Math.round((existing.totalCorrect / existing.totalAttempted) * 100);
+      existing.lastUpdated = now;
+    } else {
+      student.subjectPerformance.push({
+        subject,
+        totalAttempted: total,
+        totalCorrect: correct,
+        accuracy: Math.round((correct / total) * 100),
+        lastUpdated: now,
+      });
+    }
+  });
+  student.markModified('subjectPerformance');
+  // ──────────────────────────────────────────────────────────────────────────
+
   // Streak logic
   const lastActive = student.lastActiveDate;
-  const now = new Date();
   if (!lastActive) {
     student.streak = 1;
   } else {
@@ -853,7 +895,15 @@ export const submitMcq = asyncHandler(async (req, res) => {
     await logStudentPointsTransaction(student.userId, task.pointsEarned, 'bonus', 'Daily MCQ Completion Bonus');
   }
 
-  res.json({ success: true, data: { score, total: task.questions.length, pointsEarned: task.pointsEarned } });
+  res.json({
+    success: true,
+    data: {
+      score,
+      total: task.questions.length,
+      pointsEarned: task.pointsEarned,
+      subjectBreakdown,
+    }
+  });
 });
 
 export const getMcqHistory = asyncHandler(async (req, res) => {

@@ -56,6 +56,7 @@ const teacherSchema = new mongoose.Schema(
       rejectionReason: String,
     },
     documentsSubmitted: { type: Boolean, default: false },
+    documents: { type: mongoose.Schema.Types.Mixed, default: {} },
     wallet: {
       totalPoints: { type: Number, default: 0 },
       withdrawableBalance: { type: Number, default: 0 },

@@ -17,6 +17,7 @@ import { getSocket } from "@/lib/socket";
 import { IncomingRequestPopup } from "@/components/basic/teacher/IncomingRequestPopup";
 import { AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
+import { getAvatarUrl } from "@/helper/avatarHelper";
 
 const Dashboard: React.FC = () => {
 
@@ -210,7 +211,7 @@ const Dashboard: React.FC = () => {
               onClick={() => navigate(PATHS.TEACHER_PROFILE)}
             >
               <Avatar className="w-10 h-10 border-2 border-white/10 bg-zinc-800">
-                <AvatarImage src={teacher?.profilePhoto || `https://api.dicebear.com/7.x/avataaars/svg?seed=${firstName}`} />
+                <AvatarImage src={getAvatarUrl(teacher?.profilePhoto, teacher?.name, 'teacher')} />
                 <AvatarFallback>{firstName[0]}</AvatarFallback>
               </Avatar>
               <span className="text-[10px] font-bold text-zinc-500 mt-1">{firstName}</span>
@@ -269,25 +270,18 @@ const Dashboard: React.FC = () => {
             {isLoading ? (
               <p className="text-xs text-zinc-500">Loading...</p>
             ) : (() => {
-              const notificationsToDisplay = data?.notifications?.length > 0 ? data.notifications : [
-                {
-                  id: "notif-1",
-                  message: "New doubt session request received.",
-                  title: "Amit Verma (Grade 11)"
-                },
-                {
-                  id: "notif-2",
-                  message: "Your weekly teaching earnings have been credited to your wallet.",
-                  title: "System Updates"
-                },
-                {
-                  id: "notif-3",
-                  message: "Upcoming live class 'Organic Chemistry' starts in 1 hour.",
-                  title: "Priya Sen (Grade 12)"
-                }
-              ];
-              return notificationsToDisplay.slice(0, 3).map((n: any) => (
-                <NotificationItem key={n.id || n._id || Math.random().toString()} icon={<Bell size={14} className="text-yellow-500" />} text={n.message} student={n.title} color="bg-yellow-500/10" />
+              const notifications = data?.notifications || [];
+              if (notifications.length === 0) {
+                return <p className="text-xs text-zinc-500 py-4">No new notifications</p>;
+              }
+              return notifications.slice(0, 3).map((n: any) => (
+                <NotificationItem
+                  key={n.id || n._id || Math.random().toString()}
+                  icon={<Bell size={14} className="text-yellow-500" />}
+                  text={n.message || n.title}
+                  subtitle={n.message ? n.title : undefined}
+                  color="bg-yellow-500/10"
+                />
               ));
             })()}
           </div>

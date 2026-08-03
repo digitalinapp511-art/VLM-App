@@ -40,7 +40,35 @@ export const getTeacherProfile = asyncHandler(async (req, res) => {
   teacherObj.metrics = metrics;
 
   const Document = (await import('../models/Document.js')).default;
-  const docs = await Document.find({ teacherId: teacher._id });
+  const docRecord = await Document.findOne({ teacherId: teacher._id });
+  const docs = [];
+  if (docRecord) {
+    ['aadhaar', 'qualificationCert', 'experienceProof', 'resume'].forEach(type => {
+      if (docRecord[type] && docRecord[type].url) {
+        docs.push({
+          type,
+          name: docRecord[type].name || type,
+          url: docRecord[type].url,
+          status: docRecord[type].status || 'pending',
+          rejectionReason: docRecord[type].rejectionReason
+        });
+      }
+    });
+
+    if (Array.isArray(docRecord.additional)) {
+      docRecord.additional.forEach(file => {
+        if (file && file.url) {
+          docs.push({
+            type: 'additional',
+            name: file.name || 'additional',
+            url: file.url,
+            status: file.status || 'pending',
+            rejectionReason: file.rejectionReason
+          });
+        }
+      });
+    }
+  }
   teacherObj.uploadedDocuments = docs;
 
   res.json({ success: true, data: teacherObj });
@@ -340,11 +368,36 @@ export const updateProfile = asyncHandler(async (req, res) => {
   if (req.body.documents) {
     if (!teacher.documents) teacher.documents = {};
     const dAllowed = ['aadhaar', 'qualificationCert', 'experienceProof', 'resume', 'additional'];
-    dAllowed.forEach((key) => {
-      if (req.body.documents[key] !== undefined) {
-        teacher.documents[key] = req.body.documents[key];
+    const DocumentModel = (await import('../models/Document.js')).default;
+    const updateDoc = {};
+    for (const key of dAllowed) {
+      const val = req.body.documents[key];
+      if (val !== undefined) {
+        const urlStr = typeof val === 'string' ? val : val?.url || '';
+        teacher.documents[key] = val;
+        if (urlStr) {
+          updateDoc[key] = {
+            name: typeof val === 'object' && val?.name ? val.name : key,
+            url: urlStr,
+            status: typeof val === 'object' && val?.status ? val.status : 'pending',
+            rejectionReason: typeof val === 'object' && val?.rejectionReason ? val.rejectionReason : ''
+          };
+        }
       }
-    });
+    }
+
+    if (Object.keys(updateDoc).length > 0) {
+      await DocumentModel.findOneAndUpdate(
+        { teacherId: teacher._id },
+        {
+          $set: updateDoc,
+          userId: req.user._id,
+          teacherId: teacher._id
+        },
+        { upsert: true, new: true }
+      );
+    }
+    teacher.markModified('documents');
   }
 
   if (req.body.applicationStatus !== undefined) {

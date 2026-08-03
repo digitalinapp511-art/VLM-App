@@ -5,6 +5,7 @@ import { initSocket } from './socket/index.js';
 import User from './models/User.js';
 import { connectRedis } from './services/redisService.js';
 import { startDispatchWorker } from './workers/dispatchWorker.js';
+import { startInterviewReminderScheduler } from './services/interviewReminderService.js';
 
 const app = createApp();
 const server = http.createServer(app);
@@ -46,6 +47,9 @@ const start = async () => {
 
   // Start the production dispatch worker (replaces legacy doubtQueue worker)
   startDispatchWorker();
+
+  // Start the onboarding interview 30-min reminder checker
+  startInterviewReminderScheduler();
 
   await seedAdmin();
   initSocket(server);

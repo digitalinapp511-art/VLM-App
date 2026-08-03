@@ -231,7 +231,37 @@ export default function CreateProfileShadcn() {
   useEffect(() => {
     if (authMobile) setMobile(authMobile);
     if (authEmail) setEmail(authEmail);
-  }, [authMobile, authEmail]);
+
+    if (user?.profile) {
+      const p = user.profile;
+      if (p.firstName) setFirstName(p.firstName);
+      if (p.middleName) setMiddleName(p.middleName || "");
+      if (p.lastName) setLastName(p.lastName);
+      if (p.gender) setGender(p.gender);
+      if (p.dateOfBirth) {
+        const d = new Date(p.dateOfBirth);
+        if (!isNaN(d.getTime())) {
+          setDateOfBirth(d.toISOString().split("T")[0]);
+        }
+      }
+      if (p.nickname) setNickname(p.nickname || "");
+      if (p.class) setClassName(p.class);
+      if (p.board) setBoard(p.board);
+      if (p.city) setCity(p.city);
+      if (p.state) setState(p.state);
+      if (p.medium) setMedium(p.medium || "");
+      if (p.parentMobile) setParentMobile(p.parentMobile);
+      if (p.profilePhoto) setProfilePhoto(p.profilePhoto);
+      if (p.preferredSubjects && p.preferredSubjects.length > 0) {
+        setPreferredSubjects(p.preferredSubjects);
+      } else if (p.subjects && p.subjects.length > 0) {
+        setPreferredSubjects(p.subjects);
+      }
+      if (p.weakSubjects && p.weakSubjects.length > 0) {
+        setWeakSubjects(p.weakSubjects);
+      }
+    }
+  }, [authMobile, authEmail, user?.profile]);
 
   const [preferredSubjects, setPreferredSubjects] = useState<string[]>(["Mathematics"]);
   const [weakSubjects, setWeakSubjects] = useState<string[]>(["Social Studies"]);

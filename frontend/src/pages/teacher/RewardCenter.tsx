@@ -6,6 +6,7 @@ import { teacherApi } from "@/lib/teacher-api";
 import { PATHS } from "@/routes/paths";
 import { TrendingUp, Home, BookOpen, Wallet, Library, User, ArrowLeft, History } from "lucide-react";
 import { bgCss } from "@/helper/CssHelper";
+import { getAvatarUrl } from "@/helper/avatarHelper";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 
@@ -50,7 +51,7 @@ const RewardCenter: React.FC = () => {
           </div>
         </div>
         <Avatar className="w-11 h-11 border-2 border-white/10">
-          <AvatarImage src={profile?.profilePhoto || `https://api.dicebear.com/7.x/avataaars/svg?seed=${firstName}`} />
+          <AvatarImage src={getAvatarUrl(profile?.profilePhoto, profile?.fullName || firstName, 'teacher')} />
           <AvatarFallback>{firstName[0]}</AvatarFallback>
         </Avatar>
       </header>

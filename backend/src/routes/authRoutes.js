@@ -3,7 +3,7 @@ import cookieParser from 'cookie-parser';
 import {
   sendOtp, verifyOtp, loginWithEmail, registerWithEmail,
   getMe, switchRole, logout, checkAppStatus, verifyProfileContact,
-  refreshTokens,
+  refreshTokens, sendInterviewSync, getInterviewSync
 } from '../controllers/authController.js';
 import { protect } from '../middleware/auth.js';
 
@@ -22,5 +22,8 @@ router.get('/me', protect, getMe);
 router.post('/switch-role', protect, switchRole);
 router.post('/logout', protect, logout);
 router.post('/verify-profile-contact', protect, verifyProfileContact);
+
+router.post('/interview/:id/sync', protect, sendInterviewSync);
+router.get('/interview/:id/sync', protect, getInterviewSync);
 
 export default router;

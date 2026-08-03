@@ -36,14 +36,14 @@ export const LiveClassCard: React.FC<{ title: string; student: string; startedAt
   );
 };
 
-export const NotificationItem: React.FC<{ icon: React.ReactNode; text: string; student: string; color: string }> = ({ icon, text, student, color }) => (
+export const NotificationItem: React.FC<{ icon: React.ReactNode; text: string; subtitle?: string; color: string }> = ({ icon, text, subtitle, color }) => (
   <div className="flex gap-3 items-start">
     <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center shrink-0", color)}>
       {icon}
     </div>
     <div className="flex flex-col">
       <p className="text-[12px] font-bold text-zinc-200 leading-tight mb-1">{text}</p>
-      <p className="text-[10px] text-zinc-500">Student: {student}</p>
+      {subtitle && <p className="text-[10px] text-zinc-500">{subtitle}</p>}
     </div>
   </div>
 );

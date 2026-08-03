@@ -466,3 +466,38 @@ export const checkAppStatus = asyncHandler(async (req, res) => {
 });
 
 export const protectedRoutes = { getMe, switchRole, logout, verifyProfileContact };
+
+const interviewSyncCache = {};
+
+export const sendInterviewSync = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { event } = req.body;
+  
+  if (!interviewSyncCache[id]) {
+    interviewSyncCache[id] = [];
+  }
+  
+  const payload = {
+    ...event,
+    sender: req.user?.role === 'admin' ? 'admin' : 'candidate',
+    timestamp: Date.now()
+  };
+  
+  interviewSyncCache[id].push(payload);
+  
+  if (interviewSyncCache[id].length > 1000) {
+    interviewSyncCache[id].shift();
+  }
+  
+  res.json({ success: true });
+});
+
+export const getInterviewSync = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const since = Number(req.query.since) || 0;
+  
+  const events = interviewSyncCache[id] || [];
+  const filtered = events.filter(e => e.timestamp > since);
+  
+  res.json({ success: true, data: filtered });
+});

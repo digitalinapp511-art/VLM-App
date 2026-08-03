@@ -24,7 +24,36 @@ export const getPendingVerifications = asyncHandler(async (req, res) => {
   const result = pendingTeachers.map(teacher => {
     const tObj = teacher.toObject();
     tObj.interviews = interviews.filter(i => i.teacherId && i.teacherId.toString() === teacher._id.toString());
-    tObj.documents = documents.filter(d => d.teacherId && d.teacherId.toString() === teacher._id.toString());
+    const docs = [];
+    const docRecord = documents.find(d => d.teacherId && d.teacherId.toString() === teacher._id.toString());
+    if (docRecord) {
+      ['aadhaar', 'qualificationCert', 'experienceProof', 'resume'].forEach(type => {
+        if (docRecord[type] && docRecord[type].url) {
+          docs.push({
+            type,
+            name: docRecord[type].name || type,
+            url: docRecord[type].url,
+            status: docRecord[type].status || 'pending',
+            rejectionReason: docRecord[type].rejectionReason
+          });
+        }
+      });
+
+      if (Array.isArray(docRecord.additional)) {
+        docRecord.additional.forEach(file => {
+          if (file && file.url) {
+            docs.push({
+              type: 'additional',
+              name: file.name || 'additional',
+              url: file.url,
+              status: file.status || 'pending',
+              rejectionReason: file.rejectionReason
+            });
+          }
+        });
+      }
+    }
+    tObj.documents = docs;
     return tObj;
   });
 
@@ -44,7 +73,7 @@ export const getInterviewSlotSettings = asyncHandler(async (req, res) => {
       key: 'interview_slot_config',
       value: {
         availableDays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'], // Working days
-        timeSlots: ['09:00 AM', '10:00 AM', '11:30 AM', '01:00 PM', '02:30 PM', '04:00 PM', '05:30 PM', '07:00 PM'],
+        timeSlots: ['09:00 AM', '10:00 AM', '11:00 AM', '12:00 PM', '01:00 PM', '02:00 PM', '03:00 PM', '04:00 PM', '05:00 PM', '06:00 PM'],
         maxBookingsPerSlot: 3,
       },
       category: 'interview',
@@ -68,7 +97,7 @@ export const updateInterviewSlotSettings = asyncHandler(async (req, res) => {
     {
       value: {
         availableDays: availableDays || ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
-        timeSlots: timeSlots || ['09:00 AM', '10:00 AM', '11:30 AM', '01:00 PM', '02:30 PM', '04:00 PM', '05:30 PM'],
+        timeSlots: timeSlots || ['09:00 AM', '10:00 AM', '11:00 AM', '12:00 PM', '01:00 PM', '02:00 PM', '03:00 PM', '04:00 PM', '05:00 PM', '06:00 PM'],
         maxBookingsPerSlot: maxBookingsPerSlot || 3,
       },
     },
@@ -83,38 +112,69 @@ export const updateInterviewSlotSettings = asyncHandler(async (req, res) => {
  * @desc Admin reschedules a teacher interview and sends notification
  */
 export const adminRescheduleInterview = asyncHandler(async (req, res) => {
-  const { interviewId, newScheduledAt, reason } = req.body;
+  const { interviewId, teacherId, newScheduledAt, scheduledAt, reason } = req.body;
   const Notification = (await import('../models/Notification.js')).default;
+  const dateToSchedule = newScheduledAt || scheduledAt || new Date();
 
-  const interview = await Interview.findById(interviewId).populate('teacherId');
-  if (!interview) {
-    return res.status(404).json({ success: false, message: 'Interview not found' });
+  let targetId = interviewId || teacherId;
+  let interview = null;
+
+  if (targetId) {
+    interview = await Interview.findById(targetId).populate('teacherId');
   }
 
-  interview.scheduledAt = new Date(newScheduledAt);
-  interview.status = 'rescheduled';
-  interview.adminNotes = reason || 'Rescheduled by admin.';
+  if (!interview && targetId) {
+    interview = await Interview.findOne({ teacherId: targetId }).sort({ createdAt: -1 }).populate('teacherId');
+  }
+
+  if (!interview && targetId) {
+    const teacherDoc = await Teacher.findById(targetId);
+    if (teacherDoc) {
+      const agoraChannelName = `interview_${teacherDoc._id}_${Date.now()}`;
+      interview = await Interview.create({
+        teacherId: teacherDoc._id,
+        scheduledAt: new Date(dateToSchedule),
+        slotRequestedBy: 'admin',
+        agoraChannelName,
+        status: 'scheduled',
+        type: 'onboarding'
+      });
+      interview.teacherId = teacherDoc;
+    }
+  }
+
+  if (!interview) {
+    return res.status(404).json({ success: false, message: 'Teacher or Interview session not found' });
+  }
+
+  interview.scheduledAt = new Date(dateToSchedule);
+  interview.status = 'scheduled';
+  interview.adminNotes = reason || 'Scheduled / Rescheduled by admin.';
   await interview.save();
 
-  const teacher = interview.teacherId;
+  const teacher = interview.teacherId && interview.teacherId._id ? interview.teacherId : await Teacher.findById(interview.teacherId);
   if (teacher) {
+    if (!teacher.interview) teacher.interview = {};
     teacher.interview.scheduledAt = interview.scheduledAt;
-    teacher.interview.status = 'rescheduled';
+    teacher.interview.slotId = interview._id;
+    teacher.interview.status = 'scheduled';
+    teacher.interview.agoraChannelName = interview.agoraChannelName || `interview_${teacher._id}`;
+    teacher.applicationStatus = 'interview_scheduled';
     await teacher.save();
 
     // Send Notification to Teacher
-    const formattedDate = new Date(newScheduledAt).toLocaleString();
+    const formattedDate = new Date(dateToSchedule).toLocaleString();
     await Notification.create({
       userId: teacher.userId,
-      title: 'Interview Rescheduled by Admin',
-      message: `Your verification interview has been rescheduled to ${formattedDate}. Reason: ${reason || 'Admin slot adjustment'}. Please check your onboarding dashboard to join.`,
-      type: 'interview_rescheduled',
+      title: 'Interview Scheduled / Updated by Admin',
+      message: `Your verification interview is set for ${formattedDate}. Reason: ${reason || 'Slot confirmed'}. Please check your onboarding dashboard to join.`,
+      type: 'interview_scheduled',
     });
   }
 
   res.json({
     success: true,
-    message: 'Interview rescheduled successfully and notification sent to teacher.',
+    message: 'Interview scheduled successfully and notification sent to teacher.',
     data: interview,
   });
 });
@@ -201,7 +261,11 @@ export const adminVerifyTeacher = asyncHandler(async (req, res) => {
  */
 export const getPendingPayouts = asyncHandler(async (req, res) => {
   const teachers = await Teacher.find({
-    'wallet.withdrawableBalance': { $gt: 0 },
+    $or: [
+      { 'wallet.withdrawableBalance': { $gt: 0 } },
+      { 'bankDetails.accountNumber': { $exists: true, $ne: '' } },
+      { 'bankDetails.upiId': { $exists: true, $ne: '' } }
+    ]
   }).populate('userId', 'fullName email mobile');
 
   const formatted = teachers.map(t => ({
@@ -282,10 +346,20 @@ export const getPayoutHistory = asyncHandler(async (req, res) => {
  * @desc Admin confirms/approves a pending teacher interview slot
  */
 export const adminConfirmInterview = asyncHandler(async (req, res) => {
-  const { interviewId } = req.body;
+  const { interviewId, teacherId } = req.body;
   const Notification = (await import('../models/Notification.js')).default;
 
-  const interview = await Interview.findById(interviewId).populate('teacherId');
+  let targetId = interviewId || teacherId;
+  let interview = null;
+
+  if (targetId) {
+    interview = await Interview.findById(targetId).populate('teacherId');
+  }
+
+  if (!interview && targetId) {
+    interview = await Interview.findOne({ teacherId: targetId }).sort({ createdAt: -1 }).populate('teacherId');
+  }
+
   if (!interview) {
     return res.status(404).json({ success: false, message: 'Interview not found' });
   }

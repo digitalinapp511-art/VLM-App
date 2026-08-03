@@ -2,6 +2,7 @@ import Student from '../../models/Student.js';
 import User from '../../models/User.js';
 import Session from '../../models/Session.js';
 import WalletTransaction from '../../models/WalletTransaction.js';
+import McqTask from '../../models/McqTask.js';
 import { asyncHandler } from '../../middleware/errorHandler.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -16,8 +17,10 @@ export const getStudents = asyncHandler(async (req, res) => {
   if (board) filter.board = board;
   if (search) {
     filter.$or = [
-      { fullName: { $regex: search, $options: 'i' } },
+      { firstName: { $regex: search, $options: 'i' } },
+      { lastName: { $regex: search, $options: 'i' } },
       { mobile: { $regex: search, $options: 'i' } },
+      { email: { $regex: search, $options: 'i' } },
       { vlmStudentId: { $regex: search, $options: 'i' } },
     ];
   }
@@ -25,6 +28,7 @@ export const getStudents = asyncHandler(async (req, res) => {
   const [students, total] = await Promise.all([
     Student.find(filter)
       .populate('userId', 'email mobile status lastLogin')
+      .populate('linkedParents')
       .skip(skip).limit(Number(limit))
       .sort({ createdAt: -1 }),
     Student.countDocuments(filter),
@@ -81,7 +85,7 @@ export const filterStudents = asyncHandler(async (req, res) => {
 export const getStudent = asyncHandler(async (req, res) => {
   const student = await Student.findById(req.params.id)
     .populate('userId', 'email mobile status lastLogin createdAt')
-    .populate('linkedParents', 'fullName mobile');
+    .populate('linkedParents');
 
   if (!student) return res.status(404).json({ success: false, message: 'Student not found' });
   res.json({ success: true, data: student });
@@ -320,5 +324,43 @@ export const getStudentStats = asyncHandler(async (req, res) => {
       activeStudents,
       onlineStudents
     }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GET /api/admin/students/:id/mcq-stats  — per-subject MCQ performance
+// ─────────────────────────────────────────────────────────────────────────────
+export const getStudentMcqStats = asyncHandler(async (req, res) => {
+  const student = await Student.findById(req.params.id)
+    .select('firstName lastName subjectPerformance mcqPoints totalPoints streak');
+  if (!student) return res.status(404).json({ success: false, message: 'Student not found' });
+
+  // Last 10 completed MCQ tasks with their subject breakdowns
+  const recentTasks = await McqTask.find({
+    studentId: req.params.id,
+    status: 'completed',
+  })
+    .sort({ completedAt: -1 })
+    .limit(10)
+    .select('score questions subjectBreakdown pointsEarned completedAt date');
+
+  // Overall accuracy across all subjects
+  const overallAttempted = (student.subjectPerformance || []).reduce((s, p) => s + (p.totalAttempted || 0), 0);
+  const overallCorrect = (student.subjectPerformance || []).reduce((s, p) => s + (p.totalCorrect || 0), 0);
+  const overallAccuracy = overallAttempted > 0 ? Math.round((overallCorrect / overallAttempted) * 100) : 0;
+
+  res.json({
+    success: true,
+    data: {
+      subjectPerformance: student.subjectPerformance || [],
+      recentTasks,
+      summary: {
+        overallAccuracy,
+        overallAttempted,
+        overallCorrect,
+        mcqPoints: student.mcqPoints || 0,
+        totalTasks: await McqTask.countDocuments({ studentId: req.params.id, status: 'completed' }),
+      },
+    },
   });
 });

@@ -162,3 +162,9 @@ All endpoints are prefixed with `/api/`:
 - `GET  /api/teacher/profile`
 - `POST /api/sessions/:id/complete`
 - etc.
+
+---
+
+## Database Design & ER Diagrams
+
+For a detailed view of the database entities, Mongoose models, and ER Diagrams (Mermaid-based), please refer to [DATABASE_DESIGN.md](../DATABASE_DESIGN.md).

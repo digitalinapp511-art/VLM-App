@@ -82,14 +82,63 @@ router.post('/documents', upload.single('document'), cloudinaryUploadMiddleware,
     const documentName = req.body.name || req.file.originalname || req.file.filename;
     const documentType = req.body.type || 'additional';
 
-    await Document.create({
-      userId: req.user._id,
-      teacherId: teacher._id,
-      type: documentType,
-      name: documentName,
-      url: url,
-      status: 'pending'
-    });
+    if (documentType === 'additional') {
+      await Document.findOneAndUpdate(
+        { teacherId: teacher._id },
+        {
+          $push: {
+            additional: {
+              name: documentName,
+              url: url,
+              status: 'pending'
+            }
+          },
+          userId: req.user._id,
+          teacherId: teacher._id
+        },
+        { upsert: true, new: true }
+      );
+    } else {
+      const updateDoc = {};
+      updateDoc[documentType] = {
+        name: documentName,
+        url: url,
+        status: 'pending'
+      };
+
+      await Document.findOneAndUpdate(
+        { teacherId: teacher._id },
+        {
+          $set: updateDoc,
+          userId: req.user._id,
+          teacherId: teacher._id
+        },
+        { upsert: true, new: true }
+      );
+    }
+
+    if (!teacher.documents) {
+      teacher.documents = {};
+    }
+    // For local teacher.documents field, we can store either a string URL or an array of URLs for additional
+    if (documentType === 'additional') {
+      if (!Array.isArray(teacher.documents.additional)) {
+        teacher.documents.additional = teacher.documents.additional ? [teacher.documents.additional] : [];
+      }
+      teacher.documents.additional.push(url);
+    } else {
+      teacher.documents[documentType] = url;
+    }
+    teacher.markModified('documents');
+
+    if (documentType === 'resume') {
+      if (!teacher.experience) {
+        teacher.experience = {};
+      }
+      teacher.experience.resumeUrl = url;
+      teacher.markModified('experience');
+    }
+    await teacher.save();
   }
 
   res.json({ success: true, url });

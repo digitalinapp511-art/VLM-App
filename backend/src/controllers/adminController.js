@@ -7,6 +7,8 @@ import AdminSettings from '../models/AdminSettings.js';
 import StudyResource from '../models/StudyResource.js';
 import WalletTransaction from '../models/WalletTransaction.js';
 import Withdrawal from '../models/Withdrawal.js';
+import Document from '../models/Document.js';
+import Interview from '../models/Interview.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
 import { generateToken } from '../middleware/auth.js';
 
@@ -153,9 +155,106 @@ export const getStudents = asyncHandler(async (req, res) => {
  */
 export const getTeachers = asyncHandler(async (req, res) => {
   const teachers = await Teacher.find().populate('userId', 'status lastLogin');
+  const teacherIds = teachers.map(t => t._id);
+  const userIds = teachers.map(t => t.userId?._id || t.userId).filter(Boolean);
+
+  const documents = await Document.find({
+    $or: [
+      { teacherId: { $in: teacherIds } },
+      { userId: { $in: userIds } }
+    ]
+  });
+
+  const interviews = await Interview.find({ teacherId: { $in: teacherIds } }).sort({ createdAt: -1 });
+
+  const result = teachers.map(teacher => {
+    const tObj = teacher.toObject({ getters: true, virtuals: true });
+    let docs = [];
+    const docRecord = documents.find(d => 
+      (d.teacherId && d.teacherId.toString() === teacher._id.toString()) ||
+      (d.userId && teacher.userId && d.userId.toString() === (teacher.userId._id || teacher.userId).toString())
+    );
+    if (docRecord) {
+      ['aadhaar', 'qualificationCert', 'experienceProof', 'resume'].forEach(type => {
+        if (docRecord[type] && docRecord[type].url) {
+          docs.push({
+            type,
+            name: docRecord[type].name || type,
+            url: docRecord[type].url,
+            status: docRecord[type].status || 'pending',
+            rejectionReason: docRecord[type].rejectionReason
+          });
+        }
+      });
+
+      if (Array.isArray(docRecord.additional)) {
+        docRecord.additional.forEach(file => {
+          if (file && file.url) {
+            docs.push({
+              type: 'additional',
+              name: file.name || 'additional',
+              url: file.url,
+              status: file.status || 'pending',
+              rejectionReason: file.rejectionReason
+            });
+          }
+        });
+      }
+    }
+
+    // Merge documents stored directly on teacher.documents object
+    const rawDocs = teacher._doc?.documents || teacher.documents;
+    if (rawDocs && typeof rawDocs === 'object' && !Array.isArray(rawDocs)) {
+      Object.entries(rawDocs).forEach(([type, val]) => {
+        const url = typeof val === 'string' ? val : val?.url;
+        if (url && !docs.some(d => d.type === type || d.url === url)) {
+          docs.push({
+            type,
+            name: typeof val === 'object' && val?.name ? val.name : type,
+            url,
+            status: typeof val === 'object' && val?.status ? val.status : 'approved'
+          });
+        }
+      });
+    }
+
+    // Merge experience.resumeUrl if missing
+    if (tObj.experience?.resumeUrl && !docs.some(d => d.type === 'resume' || d.url === tObj.experience.resumeUrl)) {
+      docs.push({
+        type: 'resume',
+        name: 'Resume / CV',
+        url: tObj.experience.resumeUrl,
+        status: 'approved'
+      });
+    }
+
+    tObj.uploadedDocuments = docs;
+    tObj.documents = docs;
+
+    // Attach interview details
+    const teacherInterviews = interviews.filter(i => i.teacherId && i.teacherId.toString() === teacher._id.toString()).map(i => i.toObject());
+    const activeInterview = teacherInterviews.find(i => i.status === 'scheduled' || i.status === 'pending' || i.status === 'rescheduled') || teacherInterviews[0];
+
+    tObj.interviews = teacherInterviews;
+    if (activeInterview) {
+      tObj.interview = activeInterview;
+    } else if (tObj.interview && (tObj.interview.scheduledAt || tObj.interview.slotId)) {
+      tObj.interview = {
+        _id: tObj.interview.slotId || tObj._id,
+        scheduledAt: tObj.interview.scheduledAt,
+        status: tObj.interview.status || 'scheduled',
+        agoraChannelName: tObj.interview.agoraChannelName || `interview_${teacher._id}`
+      };
+    } else {
+      tObj.interview = null;
+    }
+
+    return tObj;
+  });
+
   res.json({
     success: true,
-    data: teachers
+    data: result
   });
 });
 

@@ -130,7 +130,7 @@ const InterviewScheduling: React.FC = () => {
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.2 }}
             >
-              <TimeSlotGrid selectedTime={selectedTime} onSelectTime={setSelectedTime} />
+              <TimeSlotGrid selectedDate={selectedDate} selectedTime={selectedTime} onSelectTime={setSelectedTime} />
             </motion.div>
 
             {/* CTA Button */}

@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { teacherApi } from "@/lib/teacher-api";
 import { PATHS } from "@/routes/paths";
 import { bgCss } from "@/helper/CssHelper";
+import { getAvatarUrl } from "@/helper/avatarHelper";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -158,7 +159,7 @@ export default function TeacherEditProfile() {
         <div className="flex flex-col items-center gap-4 p-6 rounded-3xl border border-white/5 bg-white/[0.02] backdrop-blur-md">
           <div className="relative group">
             <Avatar className="w-24 h-24 border-2 border-white/10 bg-zinc-800">
-              <AvatarImage src={photoPreview || `https://api.dicebear.com/7.x/avataaars/svg?seed=${form.firstName || "Teacher"}`} />
+              <AvatarImage src={photoPreview || getAvatarUrl(profile?.profilePhoto, profile?.fullName || `${form.firstName} ${form.lastName}`.trim(), 'teacher')} />
               <AvatarFallback>{(form.firstName || "T")[0]}</AvatarFallback>
             </Avatar>
             <button 

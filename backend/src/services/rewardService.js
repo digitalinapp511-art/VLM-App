@@ -40,7 +40,10 @@ export const creditTeacher = async (teacherId, earningType, points, description,
   const isSessionEarning = ['session', 'chat', 'audio', 'video', 'doubt'].includes(earningType);
 
   if (isSessionEarning) {
-    const inrAmount = points;
+    const totalEarnings = points;
+    const inrAmount = Number((totalEarnings * 0.75).toFixed(2));
+    const companyShare = Number((totalEarnings * 0.25).toFixed(2));
+
     teacher.wallet.withdrawableBalance += inrAmount;
     metrics.todayEarnings += inrAmount;
     await teacher.save();
@@ -56,11 +59,20 @@ export const creditTeacher = async (teacherId, earningType, points, description,
       description,
       sessionId,
       status: 'credited',
+      metadata: {
+        totalGrossAmount: totalEarnings,
+        teacherShare: inrAmount,
+        companyShare
+      }
     });
   } else {
+    const totalEarnings = pointsToInr(points);
+    const inrAmount = Number((totalEarnings * 0.75).toFixed(2));
+    const companyShare = Number((totalEarnings * 0.25).toFixed(2));
+
     teacher.wallet.totalPoints += points;
-    teacher.wallet.withdrawableBalance += pointsToInr(points);
-    metrics.todayEarnings += pointsToInr(points);
+    teacher.wallet.withdrawableBalance += inrAmount;
+    metrics.todayEarnings += inrAmount;
     await teacher.save();
     await metrics.save();
 
@@ -70,10 +82,16 @@ export const creditTeacher = async (teacherId, earningType, points, description,
       type: 'credit',
       earningType,
       points,
-      inrAmount: pointsToInr(points),
+      inrAmount,
       description,
       sessionId,
       status: 'credited',
+      metadata: {
+        totalPoints: points,
+        totalGrossAmount: totalEarnings,
+        teacherShare: inrAmount,
+        companyShare
+      }
     });
   }
 };

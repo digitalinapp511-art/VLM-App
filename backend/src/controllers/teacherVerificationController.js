@@ -37,20 +37,63 @@ export const uploadVerificationDocs = asyncHandler(async (req, res) => {
   }
 
   if (documents && Array.isArray(documents)) {
+    if (!teacher.documents) {
+      teacher.documents = {};
+    }
+    const updateDoc = {};
+    const additionals = [];
+
     for (const doc of documents) {
-      await Document.findOneAndUpdate(
-        { teacherId: teacher._id, type: doc.type },
-        {
-          userId: req.user._id,
-          teacherId: teacher._id,
-          type: doc.type,
+      if (doc.type === 'additional') {
+        additionals.push({
+          name: doc.name || 'additional',
+          url: doc.url,
+          status: 'pending'
+        });
+      } else {
+        updateDoc[doc.type] = {
           name: doc.name || doc.type,
           url: doc.url,
           status: 'pending',
-        },
-        { upsert: true, new: true }
-      );
+        };
+      }
+
+      if (doc.type === 'additional') {
+        if (!Array.isArray(teacher.documents.additional)) {
+          teacher.documents.additional = teacher.documents.additional ? [teacher.documents.additional] : [];
+        }
+        if (!teacher.documents.additional.includes(doc.url)) {
+          teacher.documents.additional.push(doc.url);
+        }
+      } else {
+        teacher.documents[doc.type] = doc.url;
+      }
+
+      if (doc.type === 'resume') {
+        if (!teacher.experience) {
+          teacher.experience = {};
+        }
+        teacher.experience.resumeUrl = doc.url;
+      }
     }
+
+    const setPayload = { ...updateDoc };
+    if (additionals.length > 0) {
+      setPayload.additional = additionals;
+    }
+
+    await Document.findOneAndUpdate(
+      { teacherId: teacher._id },
+      {
+        $set: setPayload,
+        userId: req.user._id,
+        teacherId: teacher._id
+      },
+      { upsert: true, new: true }
+    );
+
+    teacher.markModified('documents');
+    teacher.markModified('experience');
   }
 
   teacher.documentsSubmitted = true;
@@ -147,17 +190,51 @@ export const scheduleInterview = asyncHandler(async (req, res) => {
  * @desc Get Agora RTC token for verification interview room
  */
 export const getInterviewAgoraToken = asyncHandler(async (req, res) => {
-  const { interviewId } = req.body;
-  const interview = await Interview.findById(interviewId).populate('teacherId');
+  const { interviewId, teacherId } = req.body;
+  let targetId = interviewId || teacherId;
+  let interview = null;
 
-  if (!interview) {
-    return res.status(404).json({ success: false, message: 'Interview not found' });
+  if (targetId) {
+    interview = await Interview.findById(targetId).populate('teacherId');
   }
 
-  const channelName = interview.agoraChannelName || `interview_${interview.teacherId._id}`;
-  const uid = req.user._id.toString();
+  if (!interview && targetId) {
+    interview = await Interview.findOne({ teacherId: targetId }).sort({ createdAt: -1 }).populate('teacherId');
+  }
 
-  // Generate Agora RTC Token (or return channel name if RTC token generator helper fallback)
+  if (!interview && targetId) {
+    const teacherDoc = await Teacher.findOne({ $or: [{ _id: targetId }, { userId: targetId }] });
+    if (teacherDoc) {
+      const agoraChannelName = `interview_${teacherDoc._id}_${Date.now()}`;
+      interview = await Interview.create({
+        teacherId: teacherDoc._id,
+        scheduledAt: teacherDoc.interview?.scheduledAt || new Date(),
+        slotRequestedBy: 'admin',
+        agoraChannelName,
+        status: 'scheduled',
+        type: 'onboarding'
+      });
+      interview = await Interview.findById(interview._id).populate('teacherId');
+
+      teacherDoc.interview = {
+        scheduledAt: interview.scheduledAt,
+        slotId: interview._id,
+        status: 'scheduled',
+        agoraChannelName
+      };
+      teacherDoc.applicationStatus = 'interview_scheduled';
+      await teacherDoc.save();
+    }
+  }
+
+  if (!interview) {
+    return res.status(404).json({ success: false, message: 'Interview session not found for this teacher.' });
+  }
+
+  const teacherObj = interview.teacherId || {};
+  const channelName = interview.agoraChannelName || `interview_${teacherObj._id || interview._id}`;
+  const uid = req.user?._id ? req.user._id.toString() : 'admin_caller';
+
   let agoraToken = '';
   try {
     agoraToken = generateRtcToken(channelName, uid);
@@ -248,7 +325,35 @@ export const getMyVerificationStatus = asyncHandler(async (req, res) => {
     return res.status(404).json({ success: false, message: 'Teacher profile not found' });
   }
 
-  const docs = await Document.find({ teacherId: teacher._id });
+  const docRecord = await Document.findOne({ teacherId: teacher._id });
+  const docs = [];
+  if (docRecord) {
+    ['aadhaar', 'qualificationCert', 'experienceProof', 'resume'].forEach(type => {
+      if (docRecord[type] && docRecord[type].url) {
+        docs.push({
+          type,
+          name: docRecord[type].name || type,
+          url: docRecord[type].url,
+          status: docRecord[type].status || 'pending',
+          rejectionReason: docRecord[type].rejectionReason
+        });
+      }
+    });
+
+    if (Array.isArray(docRecord.additional)) {
+      docRecord.additional.forEach(file => {
+        if (file && file.url) {
+          docs.push({
+            type: 'additional',
+            name: file.name || 'additional',
+            url: file.url,
+            status: file.status || 'pending',
+            rejectionReason: file.rejectionReason
+          });
+        }
+      });
+    }
+  }
   const latestInterview = await Interview.findOne({ teacherId: teacher._id }).sort({ createdAt: -1 });
 
   res.json({
