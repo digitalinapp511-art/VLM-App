@@ -737,7 +737,7 @@ export default function CreateProfileShadcn() {
               Preferred Subjects
             </p>
             <div className="flex flex-wrap gap-2">
-              {allSubjects.map((subject) => {
+              {allSubjects.map((subject: string) => {
                 const isSelected = preferredSubjects.includes(subject);
                 return (
                   <button
@@ -763,7 +763,7 @@ export default function CreateProfileShadcn() {
               Weak Subjects
             </p>
             <div className="flex flex-wrap gap-2">
-              {allSubjects.map((subject) => {
+              {allSubjects.map((subject: string) => {
                 const isSelected = weakSubjects.includes(subject);
                 return (
                   <button

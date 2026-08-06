@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { useStudentProfile, useStudentWalletHistory } from "@/hooks/use-student";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { studentApi } from "@/lib/student-api";
+import { apiClient } from "@/lib/api-client";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import StudentBottomNav from "@/features/student/components/layout/StudentBottomNav";
