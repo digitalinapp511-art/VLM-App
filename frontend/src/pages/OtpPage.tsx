@@ -43,7 +43,17 @@ function resolvePostOtpPath(role: Role, isNewUser: boolean, responseData?: any):
 
 export default function OtpVerificationPage() {
   const [otpValue, setOtpValue] = useState("");
-  const [timer, setTimer] = useState(120);
+  const [timer, setTimer] = useState(() => {
+    const sentAt = sessionStorage.getItem("vlm_otp_sent_at");
+    if (sentAt) {
+      const elapsed = Math.floor((Date.now() - parseInt(sentAt, 10)) / 1000);
+      const remaining = 120 - elapsed;
+      return remaining > 0 ? remaining : 0;
+    }
+    const now = Date.now().toString();
+    sessionStorage.setItem("vlm_otp_sent_at", now);
+    return 120;
+  });
   const [sentOtp, setSentOtp] = useState<string | null>(
     sessionStorage.getItem("vlm_sent_otp")
   );
@@ -63,19 +73,22 @@ export default function OtpVerificationPage() {
 
   const email =
     sessionStorage.getItem("vlm_email") || "";
-  const maskedEmail = email
-    ? email.replace(
-        /(.{2})(.*)(@.*)/,
-        (_, p1, p2, p3) => p1 + "*".repeat(Math.min(p2.length, 5)) + p3
-      )
-    : "";
+  const isEmail = email.includes("@");
+  const maskedEmail = email;
 
   useEffect(() => {
     if (timer > 0) {
-      const id = setTimeout(
-        () => setTimer(timer - 1),
-        1000
-      );
+      const id = setTimeout(() => {
+        setTimer(() => {
+          const sentAt = sessionStorage.getItem("vlm_otp_sent_at");
+          if (sentAt) {
+            const elapsed = Math.floor((Date.now() - parseInt(sentAt, 10)) / 1000);
+            const remaining = 120 - elapsed;
+            return remaining > 0 ? remaining : 0;
+          }
+          return timer - 1;
+        });
+      }, 1000);
 
       return () => clearTimeout(id);
     }
@@ -122,17 +135,9 @@ export default function OtpVerificationPage() {
                 <span className="text-slate-800 text-base font-extrabold tracking-tight">
                   {maskedEmail}
                 </span>
-                <div className="bg-green-500 rounded-full p-0.5">
-                  <CheckCircle2 size={10} className="text-white fill-current" />
-                </div>
+                <CheckCircle2 size={16} className="text-green-500" />
               </div>
 
-              {sentOtp && (
-                <div className="mt-2 px-3 py-1 bg-violet-500/10 border border-violet-500/20 rounded-xl inline-flex flex-col items-center">
-                  <span className="text-[8px] font-black text-violet-600 uppercase tracking-widest">Sent OTP (Testing)</span>
-                  <span className="text-xs font-mono font-black text-slate-700 mt-0.5">{sentOtp}</span>
-                </div>
-              )}
             </div>
 
             {/* OTP Slots */}
@@ -197,6 +202,7 @@ export default function OtpVerificationPage() {
                       console.error("Failed to resend OTP", err);
                     }
                   }
+                  sessionStorage.setItem("vlm_otp_sent_at", Date.now().toString());
                   setTimer(120);
                 }}
               >
@@ -230,7 +236,7 @@ export default function OtpVerificationPage() {
         </h2>
 
         <p className="text-white/50 text-[13px] leading-relaxed max-w-[260px] mx-auto">
-          We've sent a 6-digit code to your email address.
+          We've sent a 6-digit code to your {isEmail ? "email address" : "mobile number"}.
         </p>
       </div>
 
@@ -238,7 +244,7 @@ export default function OtpVerificationPage() {
         <CardContent className="flex flex-col items-center p-0">
           <div className="text-center space-y-0.5 mb-4">
             <h3 className="text-white/70 text-xs font-semibold uppercase tracking-wider">
-              Verify your Email
+              Verify your {isEmail ? "Email" : "Mobile Number"}
             </h3>
 
             <div className="flex items-center justify-center gap-1.5 pt-0.5">
@@ -246,24 +252,13 @@ export default function OtpVerificationPage() {
                 {maskedEmail}
               </span>
 
-              <div className="bg-green-500 rounded-full p-0.5">
-                <CheckCircle2
-                  size={12}
-                  className="text-[#050505] fill-current"
-                />
-              </div>
+              <CheckCircle2 size={16} className="text-green-500" />
             </div>
 
             <p className="text-green-500 text-[9px] font-black uppercase tracking-widest mt-0.5">
               verified
             </p>
 
-            {sentOtp && (
-              <div className="mt-2.5 px-3 py-1 bg-cyan-500/10 border border-cyan-500/20 rounded-xl inline-flex flex-col items-center">
-                <span className="text-[8px] font-black text-cyan-400 uppercase tracking-widest">Sent OTP (Testing)</span>
-                <span className="text-sm font-mono font-black text-white">{sentOtp}</span>
-              </div>
-            )}
           </div>
 
           <InputOTP
@@ -330,6 +325,7 @@ export default function OtpVerificationPage() {
                     console.error("Failed to resend OTP", err);
                   }
                 }
+                sessionStorage.setItem("vlm_otp_sent_at", Date.now().toString());
                 setTimer(120);
               }}
             >

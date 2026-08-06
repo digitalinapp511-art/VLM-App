@@ -18,10 +18,17 @@ export const sendOtpViaWidget = async (identifier) => {
     }
 
     let formattedIdentifier = identifier;
-    // Auto-prepend country code '91' if the identifier is a 10-digit phone number
-    if (/^\d{10}$/.test(identifier)) {
-      formattedIdentifier = '91' + identifier;
+    // Strip '+' and other formatting if it looks like a phone number
+    if (/@/.test(identifier) === false) {
+      const cleanDigits = identifier.replace(/\D/g, '');
+      if (cleanDigits.length === 10) {
+        formattedIdentifier = '91' + cleanDigits;
+      } else {
+        formattedIdentifier = cleanDigits;
+      }
     }
+
+    console.log('[MSG91] Using Auth Key:', MSG91_AUTH_KEY ? 'Present' : 'Missing', 'Widget ID:', MSG91_WIDGET_ID);
 
     const response = await fetch('https://api.msg91.com/api/v5/widget/sendOtp', {
       method: 'POST',
@@ -36,6 +43,7 @@ export const sendOtpViaWidget = async (identifier) => {
     });
 
     const data = await response.json();
+    console.log('[MSG91] API Response:', JSON.stringify(data));
 
     if (response.ok && data.type === 'success') {
       return {

@@ -13,7 +13,7 @@ import parentRoutes from './routes/parentRoutes.js';
 import sessionRoutes from './routes/sessionRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
 
-dotenv.config();
+dotenv.config();  
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 

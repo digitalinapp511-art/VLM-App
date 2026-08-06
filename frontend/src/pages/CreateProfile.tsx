@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { PATHS } from "@/routes/paths";
-import { ChevronLeft, User, MapPin, Phone, Mail, Camera, Upload, ChevronDown } from "lucide-react";
+import { ChevronLeft, User, MapPin, Phone, Mail, Camera, Upload, ChevronDown, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCreateProfile } from "@/hooks/use-student";
 import { useQuery } from "@tanstack/react-query";
@@ -260,16 +260,39 @@ export default function CreateProfileShadcn() {
       if (p.weakSubjects && p.weakSubjects.length > 0) {
         setWeakSubjects(p.weakSubjects);
       }
+      if (p.stream) {
+        setStream(p.stream);
+      }
     }
   }, [authMobile, authEmail, user?.profile]);
 
-  const [preferredSubjects, setPreferredSubjects] = useState<string[]>(["Mathematics"]);
-  const [weakSubjects, setWeakSubjects] = useState<string[]>(["Social Studies"]);
+  const [stream, setStream] = useState("");
+  const [preferredSubjects, setPreferredSubjects] = useState<string[]>([]);
+  const [weakSubjects, setWeakSubjects] = useState<string[]>([]);
 
-  const allSubjects = [
+  // Dynamically query subjects from backend based on selected Class & Stream
+  const { data: subjectsResponse } = useQuery({
+    queryKey: ["subjectsList", className, stream],
+    queryFn: () => studentApi.getSubjectsFull(className, stream),
+    enabled: !!className,
+  });
+
+  const subjectsList = subjectsResponse?.data || [];
+  const defaultSubjects = [
     "Mathematics", "Physics", "Chemistry", "Biology",
     "History", "English", "Geography", "Social Studies",
   ];
+  const allSubjects = subjectsList.length > 0
+    ? subjectsList.map((s: any) => s.name)
+    : defaultSubjects;
+
+  // Clear subject selections when class/stream changes
+  useEffect(() => {
+    if (className) {
+      setPreferredSubjects([]);
+      setWeakSubjects([]);
+    }
+  }, [className, stream]);
 
   const validate = () => {
     const newErrors: { [key: string]: boolean } = {};
@@ -304,6 +327,9 @@ export default function CreateProfileShadcn() {
     setDobError(currentDobError);
 
     if (!className) newErrors.className = true;
+    if ((className === "11" || className === "12") && !stream) {
+      newErrors.stream = true;
+    }
     if (!board) newErrors.board = true;
     if (!medium) newErrors.medium = true;
     if (!city.trim()) newErrors.city = true;
@@ -336,6 +362,7 @@ export default function CreateProfileShadcn() {
         profilePhoto,
         nickname,
         class: className,
+        stream,
         board,
         city,
         state,
@@ -381,11 +408,27 @@ export default function CreateProfileShadcn() {
       </div>
 
       {/* ── HEADER ── */}
-      <header className="w-full max-w-xl px-5 pt-10 pb-2">
-        <h1 className="text-[22px] font-black tracking-tight text-slate-800 dark:text-white">Create Your Profile</h1>
-        <p className="text-slate-500 dark:text-white/40 text-xs leading-relaxed mt-1 max-w-xs font-bold">
-          Welcome to VLM Academy. Help us personalise your learning experience.
-        </p>
+      <header className="w-full max-w-xl px-5 pt-10 pb-2 flex items-start gap-3">
+        <button
+          onClick={async () => {
+            try {
+              await authApi.logout();
+              navigate(PATHS.ROLE_SELECT, { replace: true });
+            } catch (err) {
+              console.error("Failed to sign out on back button:", err);
+            }
+          }}
+          className="mt-1 p-2 rounded-xl border border-slate-200 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-white/5 text-slate-600 dark:text-white/60 cursor-pointer bg-white/50 dark:bg-transparent transition-all"
+          title="Back to login"
+        >
+          <ChevronLeft className="h-5 w-5" />
+        </button>
+        <div>
+          <h1 className="text-[22px] font-black tracking-tight text-slate-800 dark:text-white">Create Your Profile</h1>
+          <p className="text-slate-500 dark:text-white/40 text-xs leading-relaxed mt-1 max-w-xs font-bold">
+            Welcome to VLM Academy. Help us personalise your learning experience.
+          </p>
+        </div>
       </header>
 
       {/* ── MAIN ── */}
@@ -533,6 +576,24 @@ export default function CreateProfileShadcn() {
               {errors.board && <span className="text-[10px] text-red-500 font-bold mt-0.5 block">Board is required</span>}
             </Field>
           </div>
+
+          {(className === "11" || className === "12") && (
+            <div className="pt-2">
+              <Field label="Stream *">
+                <CustomDropdown
+                  placeholder="Select Stream"
+                  value={stream}
+                  options={["PCM", "PCB", "Commerce", "Arts"]}
+                  onChange={(val) => {
+                    setStream(val);
+                    if (errors.stream) setErrors(prev => ({ ...prev, stream: false }));
+                  }}
+                  hasError={errors.stream}
+                />
+                {errors.stream && <span className="text-[10px] text-red-500 font-bold mt-0.5 block">Stream is required</span>}
+              </Field>
+            </div>
+          )}
 
           <Field label="Medium *">
             <div className={cn("flex gap-2 p-1 rounded-2xl", errors.medium && "border border-red-500 bg-red-50/50 dark:bg-red-950/20")}>

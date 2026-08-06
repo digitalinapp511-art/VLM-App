@@ -319,8 +319,12 @@ export default function Mcq() {
               onClick={() => {
                 if (isAlreadyDone) return;
                 if (task && questions.length > 0) {
-                  // Questions already generated today — start directly
-                  setQuizStarted(true);
+                  // Show the loading animation briefly (e.g. 1.2 seconds) to build anticipation and look premium
+                  setIsGenerating(true);
+                  setTimeout(() => {
+                    setIsGenerating(false);
+                    setQuizStarted(true);
+                  }, 1200);
                 } else {
                   // Trigger AI generation
                   generateMutation.mutate();
@@ -650,25 +654,95 @@ export default function Mcq() {
   );
 
   // Full-screen AI generation animation
-  if (isGenerating) return (
-    <div className="min-h-svh bg-[#0b081e] flex flex-col items-center justify-center gap-6 px-8 text-center">
-      <div className="relative h-24 w-24">
-        <div className="absolute inset-0 rounded-full border-4 border-violet-600/20" />
-        <div className="absolute inset-0 rounded-full border-4 border-t-violet-500 border-r-fuchsia-500 border-b-transparent border-l-transparent animate-spin" />
-        <div className="absolute inset-3 rounded-full border-4 border-t-transparent border-r-transparent border-b-fuchsia-400 border-l-violet-400 animate-spin" style={{animationDirection:'reverse', animationDuration:'1.2s'}} />
-        <div className="absolute inset-0 flex items-center justify-center text-2xl">🤖</div>
+  if (isGenerating) {
+    return (
+      <div className="min-h-svh bg-[#0b081e] flex flex-col items-center justify-center gap-8 px-8 text-center relative overflow-hidden">
+        
+        {/* Glowing Background Orbs */}
+        <div className="absolute top-[20%] left-[-10%] h-72 w-72 bg-violet-600/10 blur-[120px] rounded-full pointer-events-none" />
+        <div className="absolute bottom-[20%] right-[-10%] h-72 w-72 bg-fuchsia-600/10 blur-[120px] rounded-full pointer-events-none" />
+        
+        {/* Glowing AI Sphere */}
+        <div className="relative">
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ repeat: Infinity, duration: 6, ease: "linear" }}
+            className="w-28 h-28 rounded-full bg-gradient-to-tr from-violet-500 via-fuchsia-500 to-cyan-400 p-[3px] shadow-[0_0_40px_rgba(124,58,237,0.3)]"
+          >
+            <div className="bg-[#0b081e] w-full h-full rounded-full flex items-center justify-center">
+              <motion.div
+                animate={{ scale: [1, 1.15, 1], rotate: [0, 5, -5, 0] }}
+                transition={{ repeat: Infinity, duration: 3, ease: "easeInOut" }}
+                className="text-4xl"
+              >
+                🤖
+              </motion.div>
+            </div>
+          </motion.div>
+          
+          {/* External Pulse Ring */}
+          <div className="absolute -inset-2 rounded-full border border-violet-500/30 animate-ping opacity-20 pointer-events-none" />
+        </div>
+
+        {/* Dynamic Status Steps */}
+        {(() => {
+          const [stepIdx, setStepIdx] = useState(0);
+          const steps = [
+            "Analyzing your study material...",
+            "Selecting weak subject areas...",
+            "Formulating multiple choice options...",
+            "Configuring test difficulty level...",
+            "Double checking explanations...",
+            "Assembling final question set..."
+          ];
+
+          useEffect(() => {
+            const id = setInterval(() => {
+              setStepIdx(prev => (prev + 1) % steps.length);
+            }, 1800);
+            return () => clearInterval(id);
+          }, []);
+
+          return (
+            <div className="space-y-4 z-10">
+              <div className="space-y-1">
+                <p className="text-white font-black text-xl tracking-tight uppercase">AI is generating your questions</p>
+                <div className="h-6 flex items-center justify-center">
+                  <AnimatePresence mode="wait">
+                    <motion.p
+                      key={stepIdx}
+                      initial={{ opacity: 0, y: 5 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -5 }}
+                      transition={{ duration: 0.2 }}
+                      className="text-cyan-400 text-xs font-black tracking-wider uppercase font-mono"
+                    >
+                      {steps[stepIdx]}
+                    </motion.p>
+                  </AnimatePresence>
+                </div>
+              </div>
+
+              {/* Dynamic Loading Progress Bar */}
+              <div className="w-56 h-1.5 bg-white/5 rounded-full overflow-hidden mx-auto border border-white/5 relative">
+                <motion.div
+                  initial={{ width: "0%" }}
+                  animate={{ width: "100%" }}
+                  transition={{ duration: 10, ease: "easeInOut" }}
+                  className="h-full bg-gradient-to-r from-violet-500 via-fuchsia-500 to-cyan-400 rounded-full"
+                />
+              </div>
+
+              <p className="text-slate-400 text-[10px] font-bold max-w-xs leading-relaxed mx-auto">
+                Personalizing 20 questions based on your class, subjects, and past performance...
+              </p>
+            </div>
+          );
+        })()}
+        
       </div>
-      <div className="space-y-2">
-        <p className="text-white font-black text-lg">AI is generating your questions</p>
-        <p className="text-slate-400 text-xs font-medium max-w-xs leading-relaxed">Personalizing 20 questions based on your class, subjects, and past performance...</p>
-      </div>
-      <div className="flex gap-1.5 mt-2">
-        {[0,1,2].map(i => (
-          <div key={i} className="h-2 w-2 rounded-full bg-violet-500 animate-bounce" style={{animationDelay: `${i * 0.15}s`}} />
-        ))}
-      </div>
-    </div>
-  );
+    );
+  }
 
   if (!questions.length) {
     return (

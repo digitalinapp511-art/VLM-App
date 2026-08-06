@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { bgCss } from "@/helper/CssHelper";
 import { cn } from "@/lib/utils";
-import { ChevronLeft, PhoneOff, Paperclip, Image as ImageIcon, Mic, Send, Square, Play, Pause, X, Loader2 } from "lucide-react";
+import { ChevronLeft, PhoneOff, Paperclip, Image as ImageIcon, Mic, Send, Square, Play, Pause, X, Loader2, Award, FileText, CheckCircle2, Cpu, Clock, Shield } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useSocket } from "@/hooks/use-socket";
 import { teacherApi } from "@/lib/teacher-api";
@@ -140,6 +140,10 @@ export default function ChatSession() {
   const chatEndRef = useRef<HTMLDivElement>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [studentStats, setStudentStats] = useState<any>(null);
+  const [isInsightsOpen, setIsInsightsOpen] = useState(false);
+  const [loadingStats, setLoadingStats] = useState(false);
   
   // Media Recorder Refs
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -154,6 +158,7 @@ export default function ChatSession() {
           const s = res.data.data;
           if (s.studentId) {
             setCurrentStudent({
+              id: s.studentId._id || s.studentId.id,
               name: s.studentId.nickname || s.studentId.fullName,
               photo: s.studentId.profilePhoto
             });
@@ -171,6 +176,21 @@ export default function ChatSession() {
       })
       .catch(err => console.error("Error loading session details:", err));
   }, [sessionId]);
+
+  useEffect(() => {
+    const studentId = currentStudent?.id || student?.id || student?._id;
+    if (!studentId) return;
+
+    setLoadingStats(true);
+    teacherApi.getStudentStats(studentId)
+      .then(res => {
+        if (res) {
+          setStudentStats(res.stats);
+        }
+      })
+      .catch(err => console.error("Error fetching student stats:", err))
+      .finally(() => setLoadingStats(false));
+  }, [currentStudent?.id, student?.id, student?._id]);
 
   const {
     sendMessage,
@@ -416,6 +436,119 @@ export default function ChatSession() {
         )}
       </AnimatePresence>
 
+      {/* Student Insights Modal */}
+      <AnimatePresence>
+        {isInsightsOpen && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center p-4 backdrop-blur-md"
+            onClick={() => setIsInsightsOpen(false)}
+          >
+            <motion.div 
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              className="relative w-full max-w-sm p-6 rounded-[2.5rem] border border-cyan-500/30 bg-[#0d1b2e] shadow-2xl flex flex-col gap-5 text-left"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Glowing animated border ring */}
+              <div className="absolute inset-0 rounded-[2.5rem] opacity-35 pointer-events-none shadow-[0_0_40px_rgba(6,182,212,0.25)]" />
+
+              {/* Close Button */}
+              <button 
+                onClick={() => setIsInsightsOpen(false)}
+                className="absolute top-6 right-6 text-white/50 hover:text-white transition-colors"
+              >
+                <X size={20} />
+              </button>
+
+              {/* Student Header Info */}
+              <div className="flex items-center gap-3 pt-2">
+                <Avatar className="h-14 w-14 border-2 border-white/10 shadow-xl">
+                  <AvatarImage src={currentStudent?.photo || `https://api.dicebear.com/7.x/avataaars/svg?seed=${currentStudent?.name}`} />
+                  <AvatarFallback className="bg-zinc-800 text-white text-lg font-black">{currentStudent?.name?.[0] || 'ST'}</AvatarFallback>
+                </Avatar>
+                <div>
+                  <p className="text-base font-black text-white leading-none">{currentStudent?.name || "Student"}</p>
+                  <p className="text-xs text-white/50 mt-1">
+                    Class {student?.class || currentStudent?.class || "12"} · {student?.board || "CBSE"}
+                  </p>
+                  <div className="flex items-center gap-1.5 mt-1.5">
+                    <Shield size={10} className="text-cyan-400" />
+                    <span className="text-[10px] text-cyan-400 font-bold">Student Portfolio</span>
+                  </div>
+                </div>
+              </div>
+
+              {loadingStats ? (
+                <div className="flex flex-col items-center justify-center py-8 gap-3">
+                  <Loader2 className="h-8 w-8 text-cyan-400 animate-spin" />
+                  <p className="text-xs text-white/40 font-bold uppercase tracking-widest">Loading stats...</p>
+                </div>
+              ) : studentStats ? (
+                <>
+                  {/* Stats Grid */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="p-3.5 rounded-2xl border border-cyan-500/20 bg-white/[0.02] flex flex-col gap-1">
+                      <Award size={18} className="text-cyan-400 mb-1" />
+                      <p className="text-[10px] text-white/40 font-bold uppercase tracking-wider leading-none">Academic Score</p>
+                      <p className="text-sm font-black text-white mt-1">{studentStats.totalPoints ?? 0} PTS</p>
+                    </div>
+                    <div className="p-3.5 rounded-2xl border border-purple-500/20 bg-white/[0.02] flex flex-col gap-1">
+                      <Clock size={18} className="text-purple-400 mb-1" />
+                      <p className="text-[10px] text-white/40 font-bold uppercase tracking-wider leading-none">Study Time</p>
+                      <p className="text-sm font-black text-white mt-1">
+                        {Math.floor((studentStats.dailyAppUseSeconds || 0) / 3600)}h {Math.floor(((studentStats.dailyAppUseSeconds || 0) % 3600) / 60)}m
+                      </p>
+                    </div>
+                    <div className="p-3.5 rounded-2xl border border-orange-500/20 bg-white/[0.02] flex flex-col gap-1">
+                      <FileText size={18} className="text-orange-400 mb-1" />
+                      <p className="text-[10px] text-white/40 font-bold uppercase tracking-wider leading-none">Weak Subjects</p>
+                      <p className="text-sm font-black text-white mt-1">{studentStats.totalSessions ?? 0} Asked</p>
+                    </div>
+                    <div className="p-3.5 rounded-2xl border border-blue-500/20 bg-white/[0.02] flex flex-col gap-1">
+                      <CheckCircle2 size={18} className="text-blue-400 mb-1" />
+                      <p className="text-[10px] text-white/40 font-bold uppercase tracking-wider leading-none">Doubt Solved</p>
+                      <p className="text-sm font-black text-white mt-1">{studentStats.resolvedDoubts ?? 0}</p>
+                    </div>
+                  </div>
+
+                  {/* Plan Status */}
+                  <div className="p-3 rounded-2xl border border-cyan-500/10 bg-white/[0.01] flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-xl bg-cyan-500/10 text-cyan-400 flex items-center justify-center shrink-0">
+                      <Shield size={16} />
+                    </div>
+                    <div>
+                      <p className="text-[9px] text-zinc-400 font-semibold uppercase tracking-wider leading-none">Plan Status</p>
+                      <p className="text-xs font-bold text-white mt-1 capitalize">Active - {studentStats.subscription?.status || "Trial"}</p>
+                    </div>
+                  </div>
+
+                  {/* AI Insight */}
+                  {studentStats.aiInsight && (
+                    <div className="p-4 rounded-2xl border border-[#D4AF37]/25 bg-white/[0.01] flex gap-3 items-start">
+                      <div className="w-8 h-8 rounded-xl bg-[#D4AF37]/10 text-[#D4AF37] flex items-center justify-center shrink-0 mt-0.5">
+                        <Cpu size={16} />
+                      </div>
+                      <div>
+                        <p className="text-[9px] text-[#D4AF37]/80 font-bold uppercase tracking-wider leading-none">AI Insight</p>
+                        <p className="text-xs text-white/80 leading-relaxed font-semibold mt-1.5">
+                          {studentStats.aiInsight}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <p className="text-xs text-white/40 text-center py-4">No stats available for this student.</p>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Background Graphic Effects */}
       <div className="absolute inset-0 pointer-events-none opacity-20">
         <div className="absolute top-[20%] right-[10%] w-[300px] h-[300px] bg-cyan-500/10 blur-[120px] rounded-full" />
@@ -441,16 +574,19 @@ export default function ChatSession() {
         </div>
 
         {/* Floating Student Badge */}
-        <div className="mx-auto mt-2 mb-6 max-w-sm w-full bg-white/5 border border-white/10 rounded-full p-1.5 pr-4 flex items-center justify-between shadow-2xl backdrop-blur-md">
+        <div 
+          onClick={() => setIsInsightsOpen(true)}
+          className="mx-auto mt-2 mb-6 max-w-sm w-full bg-white/5 border border-white/10 hover:border-cyan-500/40 rounded-full p-1.5 pr-4 flex items-center justify-between shadow-2xl backdrop-blur-md cursor-pointer hover:bg-white/10 transition-all group"
+        >
           <div className="px-4 py-1.5 rounded-full border border-cyan-500/40 bg-cyan-950/30 text-cyan-400 text-xs font-bold tracking-wide">
             {subjectName}
           </div>
           <div className="flex items-center gap-3">
             <div className="text-right">
-              <p className="text-sm font-bold leading-none">{currentStudent?.name || "Student"}</p>
-              <p className="text-[9px] text-white/50 mt-1 uppercase tracking-wider">Doubt ID: {currentRequestId ? currentRequestId.slice(-6).toUpperCase() : "#VLM-C-456"}</p>
+              <p className="text-sm font-bold leading-none group-hover:text-cyan-300 transition-colors">{currentStudent?.name || "Student"}</p>
+              <p className="text-[9px] text-cyan-400 mt-1 uppercase tracking-wider font-extrabold animate-pulse">View Insights</p>
             </div>
-            <Avatar className="h-8 w-8 ring-2 ring-white/10">
+            <Avatar className="h-8 w-8 ring-2 ring-cyan-500/30 group-hover:ring-cyan-400 transition-all">
               <AvatarImage src={currentStudent?.photo || `https://api.dicebear.com/7.x/avataaars/svg?seed=${currentStudent?.name}`} />
               <AvatarFallback>ST</AvatarFallback>
             </Avatar>

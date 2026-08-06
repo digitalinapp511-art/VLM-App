@@ -45,9 +45,9 @@ const getIcon = (id: string) => {
   }
 };
 
-const fetchSubjects = async () => {
+const fetchSubjects = async (clsName?: string, streamName?: string) => {
   try {
-    const response = await studentApi.getSubjectsFull();
+    const response = await studentApi.getSubjectsFull(clsName, streamName);
     const subjectsArray = response?.data || response;
     
     if (Array.isArray(subjectsArray) && subjectsArray.length > 0) {
@@ -83,10 +83,14 @@ export default function SubjectSelection() {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [hasInitialized, setHasInitialized] = useState(false);
 
+  const studentProfile = (profile as any)?.data ?? profile;
+  const className = studentProfile?.class || "";
+  const streamName = studentProfile?.stream || "";
+
   // TanStack Query to fetch subjects
   const { data: subjects, isLoading } = useQuery({
-    queryKey: ["availableSubjects"],
-    queryFn: fetchSubjects,
+    queryKey: ["availableSubjects", className, streamName],
+    queryFn: () => fetchSubjects(className, streamName),
   });
 
   useEffect(() => {

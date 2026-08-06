@@ -98,6 +98,7 @@ export const PATHS = {
   LIBRARY: "/library",
   USE_SUBSCRIPTION: "/use-subscription",
   USE_RECHARGE: "/use-recharge",
+  TRANSACTION_HISTORY: "/transaction-history",
 
 
   //Parent Flow

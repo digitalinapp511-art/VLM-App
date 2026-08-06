@@ -28,6 +28,7 @@ export interface IncomingRequest {
   timerExpiresAt: string;
   ratePerMinute?: number;
   student: {
+    id?: string;
     name: string;
     nickname?: string;
     class: string;

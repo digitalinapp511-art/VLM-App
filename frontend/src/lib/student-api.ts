@@ -22,9 +22,9 @@ export const studentApi = {
     return data;
   },
 
-  getSubjectsFull: async (className?: string) => {
+  getSubjectsFull: async (className?: string, stream?: string) => {
     const { data } = await apiClient.get("/student/subjects", {
-      params: { class: className },
+      params: { class: className, stream },
     });
     return data;
   },
@@ -448,6 +448,45 @@ export const studentApi = {
   },
   rejectParentRequest: async (parentId: string) => {
     const { data } = await apiClient.post(`/student/parent-requests/${parentId}/reject`);
+    return data;
+  },
+
+  // ── Razorpay Payment APIs ──────────────────────────────────────────────────
+
+  /** Step 1 for wallet recharge: create a Razorpay order on the server */
+  createWalletOrder: async (payload: {
+    amount: number;
+    aiCredits: number;
+    humanChatCredits: number;
+    redeemedPoints?: number;
+  }) => {
+    const { data } = await apiClient.post("/student/payment/wallet/create-order", payload);
+    return data;
+  },
+
+  /** Step 2 for wallet recharge: verify payment signature & credit wallet */
+  verifyWalletPayment: async (payload: {
+    razorpay_order_id: string;
+    razorpay_payment_id: string;
+    razorpay_signature: string;
+  }) => {
+    const { data } = await apiClient.post("/student/payment/wallet/verify", payload);
+    return data;
+  },
+
+  /** Step 1 for subscription/trial: create a Razorpay order on the server */
+  createSubscriptionOrder: async (payload: { planId?: string; isTrial?: boolean }) => {
+    const { data } = await apiClient.post("/student/payment/subscription/create-order", payload);
+    return data;
+  },
+
+  /** Step 2 for subscription/trial: verify payment signature & activate plan */
+  verifySubscriptionPayment: async (payload: {
+    razorpay_order_id: string;
+    razorpay_payment_id: string;
+    razorpay_signature: string;
+  }) => {
+    const { data } = await apiClient.post("/student/payment/subscription/verify", payload);
     return data;
   },
 };

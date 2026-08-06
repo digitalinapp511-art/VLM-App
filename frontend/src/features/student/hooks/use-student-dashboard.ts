@@ -109,6 +109,8 @@ export function useStudentDashboard() {
     ? false
     : isDashboardLoading;
 
+  const subscription = studentData?.subscription || {};
+
   return {
     isLoading,
     profile,
@@ -127,5 +129,6 @@ export function useStudentDashboard() {
     activeTeachersCount,
     unreadNotificationCount,
     pendingParentRequestCount,
+    subscription,
   };
 }

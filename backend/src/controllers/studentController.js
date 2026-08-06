@@ -152,7 +152,7 @@ export const getStudentProfile = asyncHandler(async (req, res) => {
   res.json({ success: true, data: studentObj });
 });export const getDashboard = asyncHandler(async (req, res) => {
   const student = await Student.findOne({ userId: req.user._id })
-    .select('firstName nickname streak totalPoints mcqPoints lastSpinActiveSeconds lastSpinDate wallet.totalPoints class board profilePhoto');
+    .select('firstName nickname streak totalPoints mcqPoints lastSpinActiveSeconds lastSpinDate wallet.totalPoints class board profilePhoto subscription');
   
   if (!student) return res.json({ success: true, data: null });
 
@@ -201,6 +201,7 @@ export const getStudentProfile = asyncHandler(async (req, res) => {
         spinCooldownHours: cooldownHours,
         class: student.class,
         board: student.board,
+        subscription: student.subscription || {},
       },
       activeTeachersCount,
       unreadNotificationCount,
@@ -1046,17 +1047,82 @@ export const toggleFavoriteTeacher = asyncHandler(async (req, res) => {
 });
 
 export const getSubjects = asyncHandler(async (req, res) => {
-  const subjects = [
-    { id: "math", name: "Mathematics" },
-    { id: "phy", name: "Physics" },
-    { id: "chem", name: "Chemistry" },
-    { id: "bio", name: "Biology" },
-    { id: "hist", name: "History" },
-    { id: "geo", name: "Geography" },
-    { id: "eng", name: "English" },
-    { id: "cs", name: "Computer Science" },
-    { id: "hin", name: "Hindi" },
-  ];
+  const { class: cls, stream } = req.query;
+
+  // Standard subjects mapping based on class and stream
+  let subjects = [];
+
+  const classNum = parseInt(String(cls || "").replace(/\D/g, ""), 10);
+
+  if (classNum === 11 || classNum === 12) {
+    const activeStream = (stream || "").toUpperCase();
+    if (activeStream === "PCM") {
+      subjects = [
+        { id: "phy", name: "Physics" },
+        { id: "chem", name: "Chemistry" },
+        { id: "math", name: "Mathematics" },
+        { id: "eng", name: "English" },
+        { id: "cs", name: "Computer Science" }
+      ];
+    } else if (activeStream === "PCB") {
+      subjects = [
+        { id: "phy", name: "Physics" },
+        { id: "chem", name: "Chemistry" },
+        { id: "bio", name: "Biology" },
+        { id: "eng", name: "English" },
+        { id: "hin", name: "Hindi" }
+      ];
+    } else if (activeStream === "COMMERCE") {
+      subjects = [
+        { id: "acc", name: "Accountancy" },
+        { id: "bst", name: "Business Studies" },
+        { id: "eco", name: "Economics" },
+        { id: "math", name: "Mathematics" },
+        { id: "eng", name: "English" }
+      ];
+    } else if (activeStream === "ARTS") {
+      subjects = [
+        { id: "hist", name: "History" },
+        { id: "geo", name: "Geography" },
+        { id: "pol", name: "Political Science" },
+        { id: "eng", name: "English" },
+        { id: "hin", name: "Hindi" }
+      ];
+    } else {
+      // If stream not selected yet or invalid, return PCM + PCB union so they can choose
+      subjects = [
+        { id: "phy", name: "Physics" },
+        { id: "chem", name: "Chemistry" },
+        { id: "math", name: "Mathematics" },
+        { id: "bio", name: "Biology" },
+        { id: "eng", name: "English" }
+      ];
+    }
+  } else {
+    // For Class 1-10
+    subjects = [
+      { id: "math", name: "Mathematics" },
+      { id: "sci", name: "Science" },
+      { id: "sst", name: "Social Science" },
+      { id: "eng", name: "English" },
+      { id: "hin", name: "Hindi" }
+    ];
+  }
+
+  // Merge extra subjects from the database if they exist for this class in StudyResource
+  try {
+    const StudyResource = (await import('../models/StudyResource.js')).default;
+    const dbSubjects = await StudyResource.distinct('subject', { className: String(classNum) });
+    for (const sub of dbSubjects) {
+      if (sub && !subjects.some(s => s.name.toLowerCase() === sub.toLowerCase())) {
+        const id = sub.toLowerCase().replace(/\s+/g, '-').slice(0, 8);
+        subjects.push({ id, name: sub });
+      }
+    }
+  } catch (err) {
+    console.error("Failed to fetch distinct subjects from StudyResource:", err);
+  }
+
   res.json({ success: true, data: subjects });
 });
 
@@ -1343,14 +1409,71 @@ export const getStudentWalletHistory = asyncHandler(async (req, res) => {
     .sort({ createdAt: -1 })
     .limit(50);
 
-  const formattedTx = walletTx.map(tx => ({
-    id: tx._id,
-    title: tx.description || 'Reward Earned',
-    type: tx.earningType || 'bonus',
-    points: tx.points,
-    change: `+${tx.points} PTS`,
-    time: tx.createdAt,
-  }));
+  const { default: PaymentOrder } = await import('../models/PaymentOrder.js');
+  const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+  const failedPayments = await PaymentOrder.find({
+    userId: req.user._id,
+    $or: [
+      { status: 'failed' },
+      { status: 'created', createdAt: { $lt: fiveMinutesAgo } }
+    ]
+  })
+    .sort({ createdAt: -1 })
+    .limit(50);
+
+  const formattedTx = walletTx.map(tx => {
+    let displayType = tx.earningType || 'bonus';
+    let points = tx.points || 0;
+    let aiCredits = tx.aiCredits || 0;
+    let humanChatCredits = tx.humanChatCredits || 0;
+    let inrAmount = tx.inrAmount || 0;
+
+    // RegEx parsing for back-compat with legacy description patterns
+    if (tx.description) {
+      if (aiCredits === 0 && humanChatCredits === 0) {
+        const match = tx.description.match(/Recharge:\s*(\d+)\s*AI\s*Credits\s*\/\s*(\d+)\s*Doubt\s*Credits/i);
+        if (match) {
+          aiCredits = parseInt(match[1], 10);
+          humanChatCredits = parseInt(match[2], 10);
+        }
+      }
+      if (inrAmount === 0) {
+        const match = tx.description.match(/Recharge\s*₹?(\d+)/i);
+        if (match) {
+          inrAmount = parseInt(match[1], 10);
+        }
+      }
+    }
+
+    let change = '';
+    if (points !== 0) {
+      change = `${points > 0 ? '+' : ''}${points} PTS`;
+    } else if (humanChatCredits > 0 && aiCredits > 0) {
+      change = `+${humanChatCredits} Doubt / +${aiCredits} AI`;
+      displayType = 'purchase';
+    } else if (humanChatCredits > 0) {
+      change = `+${humanChatCredits} Doubt`;
+      displayType = 'doubt_credits';
+    } else if (aiCredits > 0) {
+      change = `+${aiCredits} AI`;
+      displayType = 'ai_credits';
+    } else if (inrAmount !== 0) {
+      const sign = tx.type === 'debit' ? '-' : '+';
+      change = `${sign}₹${inrAmount}`;
+      displayType = 'cash';
+    } else {
+      change = '0 PTS';
+    }
+
+    return {
+      id: tx._id,
+      title: tx.description || 'Reward Earned',
+      type: displayType,
+      points: points,
+      change,
+      time: tx.createdAt,
+    };
+  });
 
   const formattedRef = referrals.map(ref => ({
     id: ref._id,
@@ -1361,9 +1484,27 @@ export const getStudentWalletHistory = asyncHandler(async (req, res) => {
     time: ref.createdAt,
   }));
 
-  const history = [...formattedTx, ...formattedRef]
+  const formattedFailed = failedPayments.map(po => {
+    let title = '';
+    if (po.type === 'wallet_recharge') {
+      const payload = po.walletPayload || {};
+      title = `Recharge Abandoned: ${payload.aiCredits || 0} AI / ${payload.humanChatCredits || 0} Doubt`;
+    } else {
+      title = `Subscription Payment Failed`;
+    }
+    return {
+      id: po._id,
+      title,
+      type: 'failed',
+      points: 0,
+      change: `₹${po.amount}`,
+      time: po.createdAt,
+    };
+  });
+
+  const history = [...formattedTx, ...formattedRef, ...formattedFailed]
     .sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime())
-    .slice(0, 50);
+    .slice(0, 100);
 
   res.json({ success: true, data: history });
 });
@@ -1867,7 +2008,7 @@ export const getActiveCashbackOffers = asyncHandler(async (req, res) => {
     isActive: true,
     $or: [{ validUntil: null }, { validUntil: { $gte: now } }],
   })
-    .select('title description recommendedText minRechargeAmount cashbackAmount cashbackPercent maxCashback')
+    .select('title description recommendedText minRechargeAmount cashbackAmount cashbackPercent maxCashback rechargeType isActive isRecommended')
     .sort({ minRechargeAmount: 1 });
 
   res.json({ success: true, data: offers });

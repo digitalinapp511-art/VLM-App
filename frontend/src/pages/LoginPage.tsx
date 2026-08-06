@@ -126,6 +126,7 @@ export default function LoginPage() {
           } else {
             sessionStorage.removeItem("vlm_sent_otp");
           }
+          sessionStorage.setItem("vlm_otp_sent_at", Date.now().toString());
           navigate(PATHS.OTP, { state: { role, email: identifier } });
         },
       }

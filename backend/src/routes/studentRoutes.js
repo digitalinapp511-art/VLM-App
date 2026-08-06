@@ -9,6 +9,10 @@ import {
   getOnboardingSlides, getStudentSubjects, getStudentSpinSettings, getActiveCashbackOffers
 } from '../controllers/studentController.js';
 import {
+  createWalletOrder, verifyWalletPayment,
+  createSubscriptionOrder, verifySubscriptionPayment,
+} from '../controllers/paymentController.js';
+import {
   getSessionHistory, getSessionMessages, sendMessage, resolveSession,
   getNotifications, markNotificationRead, markAllNotificationsRead, createTicket, getTickets, getTicket,
   replyTicket, getLiveClasses, uploadShortVideo, getShortVideos, getMyVideos,
@@ -116,8 +120,14 @@ router.get('/social/username/check', checkUsernameAvailability);
 router.post('/social/username', createPublicProfileUsername);
 router.get('/referral', getReferralData);
 router.get('/wallet/history', getStudentWalletHistory);
-router.post('/wallet/recharge', rechargeWallet);
+router.post('/wallet/recharge', rechargeWallet); // legacy / admin use only
 router.get('/wallet/cashback-offers', getActiveCashbackOffers);
+
+// ── Razorpay Payment Routes ──────────────────────────────────────────────────
+router.post('/payment/wallet/create-order', createWalletOrder);
+router.post('/payment/wallet/verify', verifyWalletPayment);
+router.post('/payment/subscription/create-order', createSubscriptionOrder);
+router.post('/payment/subscription/verify', verifySubscriptionPayment);
 router.get('/parent-requests', getParentRequests);
 router.post('/parent-requests/:parentId/approve', approveParentRequest);
 router.post('/parent-requests/:parentId/reject', rejectParentRequest);

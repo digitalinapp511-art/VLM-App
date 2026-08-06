@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { PATHS } from "@/routes/paths";
 import { 
@@ -7,16 +7,18 @@ import {
 } from "lucide-react";
 import * as LucideIcons from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useActivateTrial, useStudentProfile } from "@/hooks/use-student";
+import { useStudentProfile } from "@/hooks/use-student";
 import DashboardLoading from "@/components/basic/DashboardLoading";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
 import studentApi from "@/lib/student-api";
+import { toast } from "sonner";
+import { loadRazorpayScript, openRazorpayCheckout } from "@/lib/razorpay";
 
 export default function LearningPlan() {
   const navigate = useNavigate();
   const { data: profile, isLoading } = useStudentProfile();
-  const activateTrial = useActivateTrial();
+  const [isPaying, setIsPaying] = useState(false);
 
   // Parse student class range
   const profileData = (profile as any)?.data ?? profile;
@@ -47,12 +49,75 @@ export default function LearningPlan() {
   let trialDaysVal = activePlan ? (activePlan.trialDays ?? 3) : 3;
   let durationText = activePlan ? (activePlan.duration === "monthly" ? "Monthly Subscription" : activePlan.duration === "yearly" ? "Annual Subscription" : "Quarterly Subscription") : "Monthly Subscription";
 
-  const handleStartTrial = () => {
-    // Call activate trial API
-    activateTrial.mutate(activePlan?._id || "mock-annual-plan", {
-      onSuccess: () => navigate(PATHS.STUDENT_DASHBOARD),
-      onError: () => navigate(PATHS.STUDENT_DASHBOARD),
-    });
+  const handleStartTrial = async () => {
+    setIsPaying(true);
+    try {
+      // Step 1: Load Razorpay SDK
+      const sdkLoaded = await loadRazorpayScript();
+      if (!sdkLoaded) {
+        toast.error("Payment SDK failed to load. Check your internet connection.");
+        setIsPaying(false);
+        return;
+      }
+
+      // Step 2: Create trial order on backend (charges ₹1)
+      const orderRes = await studentApi.createSubscriptionOrder({
+        planId: activePlan?._id,
+        isTrial: true,
+      });
+
+      if (!orderRes?.success) {
+        toast.error(orderRes?.message || "Failed to create payment order. Try again.");
+        setIsPaying(false);
+        return;
+      }
+
+      const { orderId, amount, currency, keyId } = orderRes.data;
+
+      // Step 3: Open Razorpay checkout
+      const profileData2 = (profile as any)?.data ?? profile;
+      const result = await openRazorpayCheckout({
+        orderId,
+        amount,
+        currency,
+        keyId,
+        name: "VLM Academy",
+        description: `${trialDaysVal}-Day Trial — ₹${trialPriceVal}`,
+        prefillName: profileData2?.firstName ? `${profileData2.firstName} ${profileData2.lastName || ""}`.trim() : "",
+        prefillEmail: profileData2?.email || "",
+        prefillContact: profileData2?.mobile || "",
+        themeColor: "#1e3a8e",
+      });
+
+      if (!result.success) {
+        if ((result as any).error?.reason === "user_cancelled") {
+          toast.info("Payment cancelled.");
+        } else {
+          toast.error(`Payment failed: ${(result as any).error?.description || "Unknown error"}`);
+        }
+        setIsPaying(false);
+        return;
+      }
+
+      // Step 4: Verify payment & activate plan on backend
+      const verifyRes = await studentApi.verifySubscriptionPayment({
+        razorpay_order_id: result.razorpay_order_id,
+        razorpay_payment_id: result.razorpay_payment_id,
+        razorpay_signature: result.razorpay_signature,
+      });
+
+      if (verifyRes?.success) {
+        toast.success("Trial activated! Enjoy your premium features. 🎉");
+        navigate(PATHS.STUDENT_DASHBOARD);
+      } else {
+        toast.error(verifyRes?.message || "Payment verification failed. Contact support.");
+      }
+    } catch (err: any) {
+      console.error("Trial payment error:", err);
+      toast.error(err?.response?.data?.message || "Something went wrong during payment.");
+    } finally {
+      setIsPaying(false);
+    }
   };
 
   const features = activePlan && Array.isArray(activePlan.customBenefits) && activePlan.customBenefits.length > 0
@@ -216,14 +281,14 @@ export default function LearningPlan() {
         <div className="w-full max-w-md relative">
           <Button
             onClick={handleStartTrial}
-            disabled={activateTrial.isPending}
+            disabled={isPaying}
             className={cn(
               "w-full h-14 rounded-full text-base font-bold tracking-wide transition-all active:scale-[0.98] shadow-lg shadow-blue-900/10",
               "bg-blue-900 text-white hover:brightness-110",
               "border border-blue-800"
             )}
           >
-            {activateTrial.isPending ? "ACTIVATING..." : `START ${trialDaysVal}-DAY TRIAL`}
+            {isPaying ? "PROCESSING PAYMENT..." : `START ${trialDaysVal}-DAY TRIAL`}
           </Button>
         </div>
       </footer>

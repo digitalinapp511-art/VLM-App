@@ -40,9 +40,11 @@ const iconMap: Record<string, any> = {
   English: Book, "Computer Science": Monitor, Hindi: Languages,
 };
 
-const fetchSubjects = async () => {
+import { useStudentProfile } from "@/hooks/use-student";
+
+const fetchSubjects = async (clsName?: string, streamName?: string) => {
   try {
-    const response = await studentApi.getSubjectsFull();
+    const response = await studentApi.getSubjectsFull(clsName, streamName);
     const subjectsArray = response?.data || response;
     
     if (Array.isArray(subjectsArray) && subjectsArray.length > 0) {
@@ -73,12 +75,18 @@ export default function SubjectSelection() {
   const [subjects, setSubjects] = useState<SubjectItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  const { data: profile } = useStudentProfile();
+  const profileData = (profile as any)?.data || profile;
+  const className = profileData?.class || "";
+  const stream = profileData?.stream || "";
+
   useEffect(() => {
-    fetchSubjects().then(data => {
+    setIsLoading(true);
+    fetchSubjects(className, stream).then(data => {
       setSubjects(data);
       setIsLoading(false);
     });
-  }, []);
+  }, [profile, className, stream]);
 
   // Toggle selection logic
   const toggleSubject = (id: string) => {

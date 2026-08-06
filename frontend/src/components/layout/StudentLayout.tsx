@@ -6,11 +6,13 @@
  * The new StudentBottomNav matches the VLM Academy mockup design.
  */
 import { useEffect } from "react";
-import { Outlet } from "react-router-dom";
+import { Outlet, useLocation } from "react-router-dom";
 import StudentBottomNav from "@/features/student/components/layout/StudentBottomNav";
 import { studentApi } from "@/lib/student-api";
 
 export default function StudentLayout() {
+  const { pathname } = useLocation();
+
   useEffect(() => {
     // Keep track of session start time
     let sessionStartTime = Date.now();
@@ -88,6 +90,8 @@ export default function StudentLayout() {
     };
   }, []);
 
+  const hideNav = pathname === "/wallet" || pathname === "/transaction-history";
+
   return (
     <div className="flex min-h-svh flex-col bg-[#f4f6ff]">
       {/* Page content */}
@@ -95,8 +99,8 @@ export default function StudentLayout() {
         <Outlet />
       </div>
 
-      {/* Fixed bottom nav — appears on every student page */}
-      <StudentBottomNav />
+      {/* Fixed bottom nav — appears on every student page except payment flows */}
+      {!hideNav && <StudentBottomNav />}
     </div>
   );
 }

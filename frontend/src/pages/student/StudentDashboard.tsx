@@ -33,6 +33,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
 import { studentApi } from "@/lib/student-api";
+import { useStudentProfile } from "@/hooks/use-student";
 
 // Feature components
 import { useStudentDashboard } from "@/features/student/hooks/use-student-dashboard";
@@ -55,6 +56,7 @@ export default function StudentDashboard() {
   const navigate = useNavigate();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showSettingsPopup, setShowSettingsPopup] = useState(false);
+  const [showSubModal, setShowSubModal] = useState(false);
 
   const {
     isLoading,
@@ -72,7 +74,11 @@ export default function StudentDashboard() {
     activeTeachersCount,
     unreadNotificationCount,
     pendingParentRequestCount,
+    subscription,
+    profile: student,
   } = useStudentDashboard();
+
+  const isPremium = subscription.status === "active" || subscription.status === "trial";
 
   const unreadCount = unreadNotificationCount;
 
@@ -199,23 +205,33 @@ export default function StudentDashboard() {
                   </button>
                 ))}
 
-                {/* Bottom Premium Upgrade Banner */}
+                {/* Bottom Premium Upgrade/Manage Banner */}
                 <div className="mt-6 bg-gradient-to-br from-violet-600 to-indigo-700 p-5 rounded-3xl text-white relative overflow-hidden shadow-xl shadow-violet-500/20">
                   <div className="absolute -bottom-6 -right-6 w-20 h-20 rounded-full bg-white/10 blur-lg" />
                   <div className="relative z-10">
                     <div className="flex items-center gap-1.5 bg-white/20 w-fit px-2.5 py-1 rounded-full text-[9px] font-black tracking-wider uppercase mb-2">
-                      <Zap size={10} className="fill-yellow-400 text-yellow-400" /> Premium
+                      <Zap size={10} className="fill-yellow-400 text-yellow-400" /> {isPremium ? "Active Plan" : "Premium"}
                     </div>
-                    <p className="text-sm font-black leading-tight">Upgrade to VLM Premium</p>
-                    <p className="text-[10px] text-white/70 mt-1 leading-snug">Get unlimited live doubts and professional career counseling</p>
+                    <p className="text-sm font-black leading-tight">
+                      {isPremium ? "Manage VLM Premium" : "Upgrade to VLM Premium"}
+                    </p>
+                    <p className="text-[10px] text-white/70 mt-1 leading-snug">
+                      {isPremium
+                        ? `Premium active until ${subscription.expiresAt ? new Date(subscription.expiresAt).toLocaleDateString() : subscription.trialEndsAt ? new Date(subscription.trialEndsAt).toLocaleDateString() : "next billing cycle"}.`
+                        : "Get unlimited live doubts and professional career counseling"}
+                    </p>
                     <button
                       onClick={() => {
                         setIsMenuOpen(false);
-                        navigate(PATHS.PLAN_SCREEN);
+                        if (isPremium) {
+                          setShowSubModal(true);
+                        } else {
+                          navigate(PATHS.PLAN_SCREEN);
+                        }
                       }}
                       className="mt-4 w-full bg-yellow-400 hover:bg-yellow-300 text-black font-black text-xs py-2.5 rounded-2xl shadow-md transition-all active:scale-95 uppercase tracking-wider"
                     >
-                      Upgrade Now
+                      {isPremium ? "Manage Plan" : "Upgrade Now"}
                     </button>
                   </div>
                 </div>
@@ -380,6 +396,62 @@ export default function StudentDashboard() {
                     </button>
                   </div>
                 </div>
+
+                {/* 2. Subscription Details */}
+                {isPremium && (
+                  <div className="flex flex-col gap-2 text-left pt-2">
+                    <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider ml-1">My Subscription</label>
+                    {(() => {
+                      const classNum = parseInt(String(student?.class || "").replace(/\D/g, ""), 10) || 10;
+                      const priceText = subscription.status === "trial" 
+                        ? "₹1 (Trial)" 
+                        : (classNum >= 11 ? "₹99/month" : classNum >= 9 ? "₹79/month" : "₹59/month");
+                      
+                      let daysRemaining = 0;
+                      if (subscription.expiresAt) {
+                        const diffTime = new Date(subscription.expiresAt).getTime() - Date.now();
+                        daysRemaining = Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
+                      } else if (subscription.trialEndsAt) {
+                        const diffTime = new Date(subscription.trialEndsAt).getTime() - Date.now();
+                        daysRemaining = Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
+                      }
+
+                      return (
+                        <div className="bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl p-4 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-black text-slate-800 dark:text-white">
+                              {subscription.status === "trial" ? "3-Day Free Trial" : "VLM Premium"}
+                            </span>
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider bg-emerald-100 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                              Active
+                            </span>
+                          </div>
+                          
+                          <div className="grid grid-cols-2 gap-2 text-[10px]">
+                            <div>
+                              <p className="text-slate-400 font-bold uppercase tracking-wider">Price</p>
+                              <p className="font-extrabold text-slate-700 dark:text-white">{priceText}</p>
+                            </div>
+                            <div>
+                              <p className="text-slate-400 font-bold uppercase tracking-wider">Remaining</p>
+                              <p className="font-extrabold text-violet-600 dark:text-violet-400">{daysRemaining} days left</p>
+                            </div>
+                          </div>
+                          
+                          <button
+                            onClick={() => {
+                              setShowSettingsPopup(false);
+                              navigate(PATHS.PLAN_SCREEN);
+                            }}
+                            className="w-full h-9 bg-violet-600 hover:bg-violet-500 text-white font-black text-[10px] rounded-xl shadow-sm uppercase tracking-wider transition-all"
+                          >
+                            Upgrade Plan
+                          </button>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                )}
               </div>
 
               {/* Close Footer Button */}
@@ -450,6 +522,107 @@ export default function StudentDashboard() {
               >
                 Okay, Got it
               </Button>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ── SUBSCRIPTION DETAILS POPUP ── */}
+      <AnimatePresence>
+        {showSubModal && (
+          <div className="fixed inset-0 z-[150] flex items-center justify-center p-6 bg-black/60 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowSubModal(false)}
+              className="absolute inset-0"
+            />
+
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="relative w-full max-w-sm rounded-[32px] border border-slate-200 dark:border-white/10 bg-white dark:bg-[#161233] p-8 shadow-2xl text-slate-800 dark:text-slate-100 flex flex-col items-center gap-6"
+            >
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-blue-50 dark:bg-blue-950/20 text-blue-600 mb-2 border border-blue-100 dark:border-blue-900/30">
+                <Zap size={28} className="fill-blue-500 text-blue-500" />
+              </div>
+
+              {(() => {
+                const subStatus = subscription.status || "free";
+                const studentClass = student?.class || "";
+                const classNum = parseInt(String(studentClass).replace(/\D/g, ""), 10) || 10;
+                
+                let priceText = "Free";
+                if (subStatus === "active") {
+                  priceText = classNum >= 11 ? "₹99/month" : classNum >= 9 ? "₹79/month" : "₹59/month";
+                } else if (subStatus === "trial") {
+                  priceText = "₹1";
+                }
+
+                let daysRemaining = 0;
+                if (subscription.expiresAt) {
+                  const diffTime = new Date(subscription.expiresAt).getTime() - Date.now();
+                  daysRemaining = Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
+                } else if (subscription.trialEndsAt) {
+                  const diffTime = new Date(subscription.trialEndsAt).getTime() - Date.now();
+                  daysRemaining = Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
+                }
+
+                return (
+                  <div className="w-full text-center space-y-4">
+                    <div className="space-y-1">
+                      <h3 className="text-lg font-black tracking-tight">
+                        {subStatus === "trial" ? "3-Day Free Trial" : "VLM Premium Plan"}
+                      </h3>
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-100 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                        ● Active
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3 text-left bg-slate-50 dark:bg-black/20 p-4 rounded-2xl border border-slate-100 dark:border-white/5">
+                      <div>
+                        <p className="text-[9px] uppercase tracking-widest text-slate-400 font-black">Plan Cost</p>
+                        <p className="text-xs font-bold text-slate-700 dark:text-white mt-0.5">{priceText}</p>
+                      </div>
+                      <div>
+                        <p className="text-[9px] uppercase tracking-widest text-slate-400 font-black">Days Remaining</p>
+                        <p className="text-xs font-bold text-violet-600 dark:text-violet-400 mt-0.5">{daysRemaining} days left</p>
+                      </div>
+                      <div className="col-span-2 h-[1px] bg-slate-200/50 dark:bg-white/5 my-0.5" />
+                      <div>
+                        <p className="text-[9px] uppercase tracking-widest text-slate-400 font-black">Academic Range</p>
+                        <p className="text-xs font-bold text-slate-700 dark:text-white mt-0.5">
+                          {classNum >= 11 ? "Classes 11–12" : classNum >= 9 ? "Classes 9–10" : "Classes 1–8"}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-[9px] uppercase tracking-widest text-slate-400 font-black">Payment Status</p>
+                        <p className="text-xs font-bold text-slate-700 dark:text-white mt-0.5">Auto-Renewing</p>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col gap-2.5 pt-2">
+                      <Button
+                        onClick={() => {
+                          setShowSubModal(false);
+                          navigate(PATHS.PLAN_SCREEN);
+                        }}
+                        className="w-full h-11 rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-700 hover:from-violet-500 hover:to-indigo-600 text-white font-black transition-all active:scale-[0.98] shadow-sm border-none cursor-pointer"
+                      >
+                        Upgrade Plan
+                      </Button>
+                      <Button
+                        onClick={() => setShowSubModal(false)}
+                        className="w-full h-11 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 font-black transition-all active:scale-[0.98] shadow-sm"
+                      >
+                        Close
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })()}
             </motion.div>
           </div>
         )}

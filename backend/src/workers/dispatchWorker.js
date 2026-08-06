@@ -90,6 +90,7 @@ const buildRequestPayload = (request, student, timerExpiresAt) => {
     timerExpiresAt: timerExpiresAt.toISOString(),
     ratePerMinute,
     student: {
+      id: student?._id?.toString() || '',
       name: student?.fullName || student?.firstName || 'Student',
       nickname: student?.nickname || '',
       class: student?.class || '',

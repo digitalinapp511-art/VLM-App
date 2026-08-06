@@ -21,7 +21,7 @@ import {
 } from '../controllers/admin/adminPlanController.js';
 import {
   getCashbackOffers, getCashbackOffer, createCashbackOffer, updateCashbackOffer,
-  deleteCashbackOffer, toggleCashbackOffer,
+  deleteCashbackOffer, toggleCashbackOffer, setRecommendedOffer,
 } from '../controllers/admin/adminCashbackController.js';
 import {
   getPendingVerifications,
@@ -414,5 +414,6 @@ router.get('/cashback-offers/:id', getCashbackOffer);
 router.put('/cashback-offers/:id', updateCashbackOffer);
 router.delete('/cashback-offers/:id', deleteCashbackOffer);
 router.patch('/cashback-offers/:id/toggle', toggleCashbackOffer);
+router.patch('/cashback-offers/:id/recommend', setRecommendedOffer);
 
 export default router;

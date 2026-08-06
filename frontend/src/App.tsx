@@ -30,6 +30,7 @@ import ShortLiveSessions from "./pages/student/ShortLiveSession";
 import ShortVideoFeed from "./pages/student/ShortVideoFeed";
 import CreatorProfile from "./pages/student/CreatorProfile";
 import StudentWallet from "./pages/student/Wallet";
+import TransactionHistory from "./pages/student/TransactionHistory";
 import Library from "./pages/student/Library";
 import UseSubscription from "./pages/student/UseSubscription";
 import UseRecharge from "./pages/student/UseRecharge";
@@ -246,6 +247,7 @@ export default function App() {
                 <Route path={PATHS.PROFILE} element={<ProfileView />} />
                 <Route path={PATHS.EDIT_PROFILE} element={<EditProfile />} />
                 <Route path={PATHS.WALLET} element={<StudentWallet />} />
+                <Route path={PATHS.TRANSACTION_HISTORY} element={<TransactionHistory />} />
                 <Route path={PATHS.VIDEO_UPLOAD} element={<VideoUpload />} />
                 <Route path={PATHS.REFERRAL_REWARD} element={<ReferralReward />} />
               </Route>

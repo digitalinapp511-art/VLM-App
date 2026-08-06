@@ -1,4 +1,5 @@
 import jwt from 'jsonwebtoken';
+
 import User from '../models/User.js';
 import Teacher from '../models/Teacher.js';
 import Student from '../models/Student.js';
@@ -10,11 +11,37 @@ import { asyncHandler } from '../middleware/errorHandler.js';
 import { generateOtp, generateReferralCode } from '../utils/helpers.js';
 import { ROLES } from '../config/constants.js';
 import { sendOtpViaWidget, verifyOtpViaWidget } from '../services/msg91Service.js';
+import { sendEmailOtpViaSmtp } from '../services/emailService.js';
 
 
 /* ─────────────────────────────────────────────────────────────────────
  * HELPERS
  * ─────────────────────────────────────────────────────────────────────*/
+
+const maskEmail = (email) => {
+  if (!email) return '';
+  const [localPart, domain] = email.split('@');
+  if (localPart.length <= 4) {
+    if (localPart.length <= 2) {
+      return `${localPart.substring(0, 1)}*@${domain}`;
+    }
+    return `${localPart.substring(0, 1)}**${localPart.substring(localPart.length - 1)}@${domain}`;
+  }
+  const first2 = localPart.substring(0, 2);
+  const last2 = localPart.substring(localPart.length - 2);
+  const middleMask = '*'.repeat(localPart.length - 4);
+  return `${first2}${middleMask}${last2}@${domain}`;
+};
+
+const maskMobile = (mobile) => {
+  if (!mobile) return '';
+  const clean = mobile.replace(/\D/g, '');
+  if (clean.length < 4) return mobile;
+  const first2 = clean.substring(0, 2);
+  const last2 = clean.substring(clean.length - 2);
+  const middleMask = '*'.repeat(clean.length - 4);
+  return `${first2}${middleMask}${last2}`;
+};
 
 /** Return the role-specific profile model for a given role string. */
 function roleModel(role) {
@@ -106,26 +133,51 @@ export const sendOtp = asyncHandler(async (req, res) => {
   }
 
   const identifier = mobile || email;
-  let msg91Result = { success: false, message: 'Email login initiated' };
-
-  if (mobile) {
-    msg91Result = await sendOtpViaWidget(mobile);
-  }
-
   let otp;
   let reqId;
+  let sentViaSmtp = false;
 
-  if (msg91Result.success) {
-    reqId = msg91Result.reqId;
-  } else {
-    if (process.env.NODE_ENV === 'development') {
-      otp = generateOtp();
-      console.log(`\x1b[33m%s\x1b[0m`, `[DEV ONLY] Mock OTP for ${identifier}: ${otp}`);
+  const maskedIdentifier = email ? maskEmail(email) : maskMobile(mobile);
+  let message = `Verification code sent to ${maskedIdentifier}`;
+
+  // 1. Skip SMTP to use MSG91 custom template for email OTPs
+  /*
+  if (email && (process.env.SMTP_PASS || process.env.SMTP_USER)) {
+    otp = generateOtp();
+    const smtpResult = await sendEmailOtpViaSmtp(email, otp);
+    if (smtpResult.success) {
+      sentViaSmtp = true;
+      message = `Verification code sent to ${maskedIdentifier}`;
     } else {
-      return res.status(500).json({
-        success: false,
-        message: 'Failed to send OTP. Please try again later.',
-      });
+      console.warn('[AUTH] SMTP send failed, falling back to MSG91...');
+    }
+  }
+  */
+
+  // 2. If not sent via SMTP, try MSG91 (for mobile, or as fallback for email)
+  if (!sentViaSmtp) {
+    let msg91Result = { success: false, message: 'API not called' };
+    if (mobile) {
+      msg91Result = await sendOtpViaWidget(mobile);
+    } else if (email) {
+      msg91Result = await sendOtpViaWidget(email);
+    }
+
+    if (msg91Result.success) {
+      reqId = msg91Result.reqId;
+      message = `Verification code sent to ${maskedIdentifier}`;
+    } else {
+      // 3. Fallback to Mock OTP in development environment
+      if (process.env.NODE_ENV === 'development' && process.env.DISABLE_MOCK_OTP !== 'true') {
+        otp = generateOtp();
+        message = `[DEV MODE] Mock OTP generated and sent to ${maskedIdentifier}`;
+        console.log(`\x1b[33m%s\x1b[0m`, `[DEV ONLY] Mock OTP for ${identifier}: ${otp}`);
+      } else {
+        return res.status(500).json({
+          success: false,
+          message: msg91Result.message || 'Failed to send OTP. Please check your credentials or try again later.',
+        });
+      }
     }
   }
 
@@ -136,12 +188,14 @@ export const sendOtp = asyncHandler(async (req, res) => {
   if (mobile) otpFilter.mobile = mobile;
   if (email)  otpFilter.email  = email;
   await Otp.deleteMany(otpFilter);
+
+  // Store the OTP and reqId
   await Otp.create({ mobile, email, otp, reqId, purpose, expiresAt });
 
   res.json({
     success: true,
-    message: msg91Result.message || 'OTP sent successfully',
-    ...(process.env.NODE_ENV === 'development' && !mobile && { otp }),
+    message,
+    ...(process.env.NODE_ENV === 'development' && !reqId && { otp }),
   });
 });
 

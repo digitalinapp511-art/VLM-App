@@ -32,12 +32,13 @@ export const createCashbackOffer = asyncHandler(async (req, res) => {
     title, description, recommendedText,
     minRechargeAmount, cashbackAmount, cashbackPercent, maxCashback,
     isActive, validFrom, validUntil, usageLimit, perUserLimit, applicablePlans,
+    rechargeType,
   } = req.body;
 
-  if (!title || !minRechargeAmount || (!cashbackAmount && !cashbackPercent)) {
+  if (!title || !minRechargeAmount) {
     return res.status(400).json({
       success: false,
-      message: 'title, minRechargeAmount, and cashbackAmount (or cashbackPercent) are required',
+      message: 'title and minRechargeAmount are required',
     });
   }
 
@@ -55,6 +56,8 @@ export const createCashbackOffer = asyncHandler(async (req, res) => {
     usageLimit: usageLimit || 0,
     perUserLimit: perUserLimit || 0,
     applicablePlans: applicablePlans || [],
+    rechargeType: rechargeType || 'combo',
+    isRecommended: false,
     createdBy: req.user._id,
   });
 
@@ -70,6 +73,7 @@ export const updateCashbackOffer = asyncHandler(async (req, res) => {
     'title', 'description', 'recommendedText',
     'minRechargeAmount', 'cashbackAmount', 'cashbackPercent', 'maxCashback',
     'isActive', 'validFrom', 'validUntil', 'usageLimit', 'perUserLimit', 'applicablePlans',
+    'rechargeType', 'isRecommended',
   ];
   fields.forEach(f => { if (req.body[f] !== undefined) offer[f] = req.body[f]; });
   await offer.save();
@@ -82,6 +86,24 @@ export const deleteCashbackOffer = asyncHandler(async (req, res) => {
   const offer = await CashbackOffer.findByIdAndDelete(req.params.id);
   if (!offer) return res.status(404).json({ success: false, message: 'Cashback offer not found' });
   res.json({ success: true, message: 'Cashback offer deleted' });
+});
+
+// ── SET recommended (clears others of same type, toggles current) ─────────────
+export const setRecommendedOffer = asyncHandler(async (req, res) => {
+  const offer = await CashbackOffer.findById(req.params.id);
+  if (!offer) return res.status(404).json({ success: false, message: 'Cashback offer not found' });
+
+  // Clear recommendation from all others of same rechargeType
+  await CashbackOffer.updateMany(
+    { rechargeType: offer.rechargeType, _id: { $ne: offer._id } },
+    { isRecommended: false }
+  );
+
+  // Toggle: if already recommended → un-recommend; else set recommended
+  offer.isRecommended = !offer.isRecommended;
+  await offer.save();
+
+  res.json({ success: true, data: offer, message: `Offer ${offer.isRecommended ? 'marked as recommended' : 'unmarked'}` });
 });
 
 // ── TOGGLE active status ──────────────────────────────────────────────────────

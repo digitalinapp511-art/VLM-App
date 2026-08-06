@@ -1,11 +1,12 @@
 import React from "react";
 import { motion } from "framer-motion";
-import { Video, Phone, MessageCircle, Shield, Clock, XCircle, CheckCircle } from "lucide-react";
+import { Video, Phone, MessageCircle, Shield, Clock, XCircle, CheckCircle, Cpu, Award } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useCountdown } from "@/hooks/use-countdown";
 import type { IncomingRequest } from "@/hooks/use-socket";
+import { teacherApi } from "@/lib/teacher-api";
 
 function SessionTypeIcon({ type }: { type: string }) {
   if (type === "video") return <Video size={16} className="text-purple-400" />;
@@ -25,6 +26,18 @@ export function IncomingRequestPopup({
   accepting: boolean;
 }) {
   const [secondsLeft, setSecondsLeft] = React.useState(15);
+  const [stats, setStats] = React.useState<any>(null);
+
+  React.useEffect(() => {
+    if (!request.student.id) return;
+    teacherApi.getStudentStats(request.student.id)
+      .then(res => {
+        if (res) {
+          setStats(res.stats);
+        }
+      })
+      .catch(err => console.error("Error fetching stats on request popup:", err));
+  }, [request.student.id]);
   React.useEffect(() => {
     const id = setInterval(() => {
       setSecondsLeft((prev) => {
@@ -103,6 +116,16 @@ export function IncomingRequestPopup({
                 <Shield size={10} className="text-cyan-400" />
                 <span className="text-[10px] text-cyan-400 font-bold">Verified Student</span>
               </div>
+              {stats && (
+                <div className="mt-2 flex gap-1.5">
+                  <span className="text-[9px] bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 rounded-full px-2 py-0.5 font-bold flex items-center gap-0.5">
+                    <Award size={8} /> {stats.totalPoints} PTS
+                  </span>
+                  <span className="text-[9px] bg-purple-500/10 border border-purple-500/20 text-purple-400 rounded-full px-2 py-0.5 font-bold flex items-center gap-0.5">
+                    <Clock size={8} /> {Math.floor((stats.dailyAppUseSeconds || 0) / 60)}m Today
+                  </span>
+                </div>
+              )}
             </div>
           </div>
 
@@ -126,6 +149,20 @@ export function IncomingRequestPopup({
               </div>
             )}
           </div>
+
+          {stats?.aiInsight && (
+            <div className="rounded-2xl border border-[#D4AF37]/20 bg-[#D4AF37]/5 p-3 flex gap-2 items-start">
+              <div className="w-5 h-5 rounded-md bg-[#D4AF37]/10 text-[#D4AF37] flex items-center justify-center shrink-0 mt-0.5">
+                <Cpu size={12} />
+              </div>
+              <div>
+                <p className="text-[9px] text-[#D4AF37] font-bold uppercase tracking-wider leading-none">AI Student Insight</p>
+                <p className="text-[10px] text-white/80 leading-relaxed font-semibold mt-1">
+                  {stats.aiInsight}
+                </p>
+              </div>
+            </div>
+          )}
 
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5 bg-white/5 border border-white/5 rounded-full px-3 py-1.5">

@@ -16,6 +16,8 @@ const cashbackOfferSchema = new mongoose.Schema(
     usedCount: { type: Number, default: 0 },
     perUserLimit: { type: Number, default: 0 },             // 0 = unlimited per user
     applicablePlans: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Plan' }], // empty = all plans
+    rechargeType: { type: String, enum: ['combo', 'ai', 'doubt'], default: 'combo' },
+    isRecommended: { type: Boolean, default: false },
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   },
   { timestamps: true }

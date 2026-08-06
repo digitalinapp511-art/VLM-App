@@ -15,6 +15,7 @@ const studentSchema = new mongoose.Schema(
     profilePhoto: String,
     publicProfilePhoto: String,
     class: { type: String, required: true },
+    stream: { type: String, default: '' },
     board: { type: String, required: true },
     medium: { type: String, default: 'English' },
     school: String,

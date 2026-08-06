@@ -242,6 +242,11 @@ export const teacherApi = {
     return data.data;
   },
 
+  getStudentStats: async (studentId: string) => {
+    const { data } = await apiClient.get(`/teacher/students/${studentId}/stats`);
+    return data.data;
+  },
+
   getReviews: async () => {
     const { data } = await apiClient.get('/teacher/reviews');
     return data.data || [];

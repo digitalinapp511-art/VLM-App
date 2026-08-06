@@ -12,6 +12,7 @@ import {
   X,
   Check,
   ShieldCheck,
+  CreditCard,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
@@ -30,6 +31,7 @@ export default function ProfileView() {
   const queryClient = useQueryClient();
   const { data: profile, isLoading, error: profileError, refetch } = useStudentProfile();
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [showSubModal, setShowSubModal] = useState(false);
   const [copied, setCopied] = useState(false);
 
 
@@ -119,9 +121,9 @@ export default function ProfileView() {
     navigate(PATHS.LOGIN_STUDENT, { replace: true });
   };
 
-  if (isLoading) return <LoadingSkeleton />;
-
   const p = (profile as any)?.data ?? profile;
+
+  if (isLoading || !p) return <LoadingSkeleton />;
 
   return (
     <div className="relative min-h-svh w-full bg-[#f4f6ff] dark:bg-[#0b081e] text-slate-800 dark:text-slate-100 flex flex-col items-center px-5 pt-4 overflow-x-hidden pb-32 font-sans transition-colors duration-300">
@@ -317,6 +319,53 @@ export default function ProfileView() {
             </div>
             <ChevronLeft size={16} className="text-slate-400 rotate-180" />
           </div>
+
+          {(() => {
+            const subscription = p?.subscription || {};
+            const subStatus = subscription.status || "free";
+            const studentClass = p?.class || "";
+            const classNum = parseInt(String(studentClass).replace(/\D/g, ""), 10) || 10;
+            
+            let priceText = "Free";
+            if (subStatus === "active") {
+              priceText = classNum >= 11 ? "₹99/month" : classNum >= 9 ? "₹79/month" : "₹59/month";
+            } else if (subStatus === "trial") {
+              priceText = "₹1 (Trial)";
+            }
+
+            let subLabel = "Free Plan — upgrade to unlock all features";
+            if (subStatus === "active") {
+              const expDate = subscription.expiresAt ? new Date(subscription.expiresAt).toLocaleDateString("en-IN") : "";
+              subLabel = `VLM Premium (${priceText}) — active until ${expDate}`;
+            } else if (subStatus === "trial") {
+              const expDate = subscription.trialEndsAt ? new Date(subscription.trialEndsAt).toLocaleDateString("en-IN") : "";
+              subLabel = `VLM Trial (${priceText}) — active until ${expDate}`;
+            }
+
+            return (
+              <div 
+                onClick={() => {
+                  if (subStatus === "free") {
+                    navigate(PATHS.PLAN_SCREEN);
+                  } else {
+                    setShowSubModal(true);
+                  }
+                }}
+                className="flex items-center justify-between p-3 rounded-2xl border border-slate-50 dark:border-[#221c4e] bg-slate-50/50 dark:bg-slate-900/20 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-900/40 transition-all active:scale-[0.99]"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="h-9 w-9 rounded-xl bg-blue-100 dark:bg-blue-950/30 flex items-center justify-center">
+                    <CreditCard size={16} className="text-blue-600 dark:text-blue-400" />
+                  </div>
+                  <div className="text-left">
+                    <span className="text-xs font-black text-slate-800 dark:text-slate-100 block">Manage Subscription</span>
+                    <span className="text-[9px] text-slate-400 dark:text-slate-500 block mt-0.5">{subLabel}</span>
+                  </div>
+                </div>
+                <ChevronLeft size={16} className="text-slate-400 rotate-180" />
+              </div>
+            );
+          })()}
         </div>
 
         {/* ── LOGOUT CARD ── */}
@@ -379,6 +428,108 @@ export default function ProfileView() {
                   Cancel
                 </Button>
               </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ── SUBSCRIPTION DETAILS POPUP ── */}
+      <AnimatePresence>
+        {showSubModal && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/60 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowSubModal(false)}
+              className="absolute inset-0"
+            />
+
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="relative w-full max-w-sm rounded-[32px] border border-slate-250 dark:border-white/10 bg-white dark:bg-[#161233] p-8 shadow-2xl text-slate-800 dark:text-slate-100 flex flex-col items-center gap-6"
+            >
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-blue-50 dark:bg-blue-950/20 text-blue-600 mb-2 border border-blue-100 dark:border-blue-900/30">
+                <CreditCard size={28} />
+              </div>
+
+              {(() => {
+                const subscription = p?.subscription || {};
+                const subStatus = subscription.status || "free";
+                const studentClass = p?.class || "";
+                const classNum = parseInt(String(studentClass).replace(/\D/g, ""), 10) || 10;
+                
+                let priceText = "Free";
+                if (subStatus === "active") {
+                  priceText = classNum >= 11 ? "₹99/month" : classNum >= 9 ? "₹79/month" : "₹59/month";
+                } else if (subStatus === "trial") {
+                  priceText = "₹1";
+                }
+
+                let daysRemaining = 0;
+                if (subscription.expiresAt) {
+                  const diffTime = new Date(subscription.expiresAt).getTime() - Date.now();
+                  daysRemaining = Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
+                } else if (subscription.trialEndsAt) {
+                  const diffTime = new Date(subscription.trialEndsAt).getTime() - Date.now();
+                  daysRemaining = Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
+                }
+
+                return (
+                  <div className="w-full text-center space-y-4">
+                    <div className="space-y-1">
+                      <h3 className="text-lg font-black tracking-tight">
+                        {subStatus === "trial" ? "3-Day Free Trial" : "VLM Premium Plan"}
+                      </h3>
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-100 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                        ● Active
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3 text-left bg-slate-50 dark:bg-black/20 p-4 rounded-2xl border border-slate-100 dark:border-white/5">
+                      <div>
+                        <p className="text-[9px] uppercase tracking-widest text-slate-400 font-black">Plan Cost</p>
+                        <p className="text-xs font-bold text-slate-700 dark:text-white mt-0.5">{priceText}</p>
+                      </div>
+                      <div>
+                        <p className="text-[9px] uppercase tracking-widest text-slate-400 font-black">Days Remaining</p>
+                        <p className="text-xs font-bold text-violet-600 dark:text-violet-400 mt-0.5">{daysRemaining} days left</p>
+                      </div>
+                      <div className="col-span-2 h-[1px] bg-slate-200/50 dark:bg-white/5 my-0.5" />
+                      <div>
+                        <p className="text-[9px] uppercase tracking-widest text-slate-400 font-black">Academic Range</p>
+                        <p className="text-xs font-bold text-slate-700 dark:text-white mt-0.5">
+                          {classNum >= 11 ? "Classes 11–12" : classNum >= 9 ? "Classes 9–10" : "Classes 1–8"}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-[9px] uppercase tracking-widest text-slate-400 font-black">Payment Status</p>
+                        <p className="text-xs font-bold text-slate-700 dark:text-white mt-0.5">Auto-Renewing</p>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col gap-2.5 pt-2">
+                      <Button
+                        onClick={() => {
+                          setShowSubModal(false);
+                          navigate(PATHS.PLAN_SCREEN);
+                        }}
+                        className="w-full h-11 rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-700 hover:from-violet-500 hover:to-indigo-600 text-white font-black transition-all active:scale-[0.98] shadow-sm border-none cursor-pointer"
+                      >
+                        Upgrade Plan
+                      </Button>
+                      <Button
+                        onClick={() => setShowSubModal(false)}
+                        className="w-full h-11 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 font-black transition-all active:scale-[0.98] shadow-sm"
+                      >
+                        Close
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })()}
             </motion.div>
           </div>
         )}
