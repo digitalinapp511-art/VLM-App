@@ -140,8 +140,7 @@ export const sendOtp = asyncHandler(async (req, res) => {
   const maskedIdentifier = email ? maskEmail(email) : maskMobile(mobile);
   let message = `Verification code sent to ${maskedIdentifier}`;
 
-  // 1. Skip SMTP to use MSG91 custom template for email OTPs
-  /*
+  // 1. Try sending via SMTP if identifier is email and SMTP is configured
   if (email && (process.env.SMTP_PASS || process.env.SMTP_USER)) {
     otp = generateOtp();
     const smtpResult = await sendEmailOtpViaSmtp(email, otp);
@@ -152,7 +151,6 @@ export const sendOtp = asyncHandler(async (req, res) => {
       console.warn('[AUTH] SMTP send failed, falling back to MSG91...');
     }
   }
-  */
 
   // 2. If not sent via SMTP, try MSG91 (for mobile, or as fallback for email)
   if (!sentViaSmtp) {
