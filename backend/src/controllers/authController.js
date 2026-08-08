@@ -156,10 +156,7 @@ export const sendOtp = asyncHandler(async (req, res) => {
   if (!sentViaSmtp) {
     let msg91Result = { success: false, message: 'API not called' };
     
-    // BACKDOOR: If it is one of your demo numbers, use mock code to avoid MSG91 IP blocks during presentation
-    const isDemoNumber = ['8979689005', '8580567068', '6394548294', '9913317610'].includes(mobile);
-    
-    if (mobile && !isDemoNumber) {
+    if (mobile) {
       msg91Result = await sendOtpViaWidget(mobile);
     }
 
