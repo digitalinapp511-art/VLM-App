@@ -94,6 +94,13 @@ export default function OtpVerificationPage() {
     }
   }, [timer]);
 
+  // Auto-fill OTP input when demo/fallback OTP is returned in the API response
+  useEffect(() => {
+    if (sentOtp && sentOtp.length === 6 && otpValue === "") {
+      setOtpValue(sentOtp);
+    }
+  }, [sentOtp]);
+
   const handleVerify = () => {
     if (otpValue.length !== 6) return;
 
