@@ -141,6 +141,7 @@ export const sendOtp = asyncHandler(async (req, res) => {
   let message = `Verification code sent to ${maskedIdentifier}`;
 
   // 1. Send via Hostinger SMTP for all email OTPs (Bypasses MSG91 IP blocking)
+  /*
   if (email && (process.env.SMTP_PASS || process.env.SMTP_USER)) {
     otp = generateOtp();
     const smtpResult = await sendEmailOtpViaSmtp(email, otp);
@@ -149,6 +150,7 @@ export const sendOtp = asyncHandler(async (req, res) => {
       message = `Verification code sent to ${maskedIdentifier}`;
     }
   }
+  */
 
   // 2. Mobile/Fallback processing
   if (!sentViaSmtp) {
