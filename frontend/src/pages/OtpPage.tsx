@@ -47,12 +47,12 @@ export default function OtpVerificationPage() {
     const sentAt = sessionStorage.getItem("vlm_otp_sent_at");
     if (sentAt) {
       const elapsed = Math.floor((Date.now() - parseInt(sentAt, 10)) / 1000);
-      const remaining = 120 - elapsed;
+      const remaining = 15 - elapsed;
       return remaining > 0 ? remaining : 0;
     }
     const now = Date.now().toString();
     sessionStorage.setItem("vlm_otp_sent_at", now);
-    return 120;
+    return 15;
   });
   const [sentOtp, setSentOtp] = useState<string | null>(
     sessionStorage.getItem("vlm_sent_otp")
@@ -83,7 +83,7 @@ export default function OtpVerificationPage() {
           const sentAt = sessionStorage.getItem("vlm_otp_sent_at");
           if (sentAt) {
             const elapsed = Math.floor((Date.now() - parseInt(sentAt, 10)) / 1000);
-            const remaining = 120 - elapsed;
+            const remaining = 15 - elapsed;
             return remaining > 0 ? remaining : 0;
           }
           return timer - 1;
@@ -210,7 +210,7 @@ export default function OtpVerificationPage() {
                     }
                   }
                   sessionStorage.setItem("vlm_otp_sent_at", Date.now().toString());
-                  setTimer(120);
+                  setTimer(15);
                 }}
               >
                 Resend OTP
@@ -333,7 +333,7 @@ export default function OtpVerificationPage() {
                   }
                 }
                 sessionStorage.setItem("vlm_otp_sent_at", Date.now().toString());
-                setTimer(120);
+                setTimer(15);
               }}
             >
               Resend OTP

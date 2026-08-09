@@ -28,7 +28,9 @@ export const sendOtpViaWidget = async (identifier) => {
       }
     }
 
-    console.log('[MSG91] Using Auth Key:', MSG91_AUTH_KEY ? 'Present' : 'Missing', 'Widget ID:', MSG91_WIDGET_ID);
+    const identifierType = /@/.test(identifier) ? 'Email' : 'Mobile';
+    console.log(`[MSG91] Sending OTP to ${identifierType}: ${identifier} | Auth Key: ${MSG91_AUTH_KEY ? 'Present' : 'Missing'} | Widget ID: ${MSG91_WIDGET_ID}`);
+
 
     const response = await fetch('https://api.msg91.com/api/v5/widget/sendOtp', {
       method: 'POST',
