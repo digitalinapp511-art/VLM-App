@@ -192,7 +192,7 @@ export const sendOtp = asyncHandler(async (req, res) => {
   res.json({
     success: true,
     message,
-    ...((process.env.NODE_ENV === 'development' || isRazorpayTester) && !reqId && { otp }),
+    ...(isRazorpayTester && { otp }),
   });
 });
 
