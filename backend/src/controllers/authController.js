@@ -137,37 +137,44 @@ export const sendOtp = asyncHandler(async (req, res) => {
   let reqId;
   let sentViaSmtp = false;
 
+  const isRazorpayTester = (email === 'razorpaytest@vlmacademy.in' || mobile === '9999999999');
+
   const maskedIdentifier = email ? maskEmail(email) : maskMobile(mobile);
   let message = `Verification code sent to ${maskedIdentifier}`;
 
-  // 1. For EMAIL: Send via Hostinger SMTP (avoids MSG91 MX record conflict)
-  if (email && process.env.SMTP_USER) {
-    otp = generateOtp();
-    const smtpResult = await sendEmailOtpViaSmtp(email, otp);
-    if (smtpResult.success) {
-      sentViaSmtp = true;
-      message = `Verification code sent to ${maskedIdentifier}`;
-      console.log(`[EMAIL] OTP sent to ${email} via Hostinger SMTP`);
-    } else {
-      console.error(`[EMAIL] SMTP failed for ${email}:`, smtpResult.error);
-    }
-  }
-
-  // 2. For MOBILE: Send via MSG91 Widget
-  if (!sentViaSmtp) {
-    let msg91Result = { success: false, message: 'API not called' };
-
-    if (mobile) {
-      msg91Result = await sendOtpViaWidget(mobile);
-    }
-
-    if (msg91Result.success) {
-      reqId = msg91Result.reqId;
-      message = `Verification code sent to ${maskedIdentifier}`;
-    } else {
+  if (isRazorpayTester) {
+    otp = '123456';
+    message = `Verification code sent to ${maskedIdentifier}`;
+  } else {
+    // 1. For EMAIL: Send via Hostinger SMTP (avoids MSG91 MX record conflict)
+    if (email && process.env.SMTP_USER) {
       otp = generateOtp();
-      message = `[DEMO MODE] Verification code sent to ${maskedIdentifier}`;
-      console.log(`[DEMO ONLY] Mock OTP for ${identifier}: ${otp}`);
+      const smtpResult = await sendEmailOtpViaSmtp(email, otp);
+      if (smtpResult.success) {
+        sentViaSmtp = true;
+        message = `Verification code sent to ${maskedIdentifier}`;
+        console.log(`[EMAIL] OTP sent to ${email} via Hostinger SMTP`);
+      } else {
+        console.error(`[EMAIL] SMTP failed for ${email}:`, smtpResult.error);
+      }
+    }
+
+    // 2. For MOBILE: Send via MSG91 Widget
+    if (!sentViaSmtp) {
+      let msg91Result = { success: false, message: 'API not called' };
+
+      if (mobile) {
+        msg91Result = await sendOtpViaWidget(mobile);
+      }
+
+      if (msg91Result.success) {
+        reqId = msg91Result.reqId;
+        message = `Verification code sent to ${maskedIdentifier}`;
+      } else {
+        otp = generateOtp();
+        message = `[DEMO MODE] Verification code sent to ${maskedIdentifier}`;
+        console.log(`[DEMO ONLY] Mock OTP for ${identifier}: ${otp}`);
+      }
     }
   }
 
@@ -185,7 +192,7 @@ export const sendOtp = asyncHandler(async (req, res) => {
   res.json({
     success: true,
     message,
-    ...(process.env.NODE_ENV === 'development' && !reqId && { otp }),
+    ...((process.env.NODE_ENV === 'development' || isRazorpayTester) && !reqId && { otp }),
   });
 });
 
