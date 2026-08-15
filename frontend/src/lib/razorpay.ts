@@ -46,6 +46,7 @@ export interface RazorpayCheckoutOptions {
   prefillEmail?: string;
   prefillContact?: string;
   themeColor?: string;
+  webview_intent?: boolean;
 }
 
 export interface RazorpayPaymentResult {
@@ -77,6 +78,7 @@ export const openRazorpayCheckout = (
       description: options.description || "Payment",
       order_id: options.orderId,
       image: "https://pub-316f9dd6bea04824be0dafcc43132ee1.r2.dev/vlm-logo.png",
+      webview_intent: options.webview_intent !== undefined ? options.webview_intent : true,
       theme: {
         color: options.themeColor || "#1e3a8e",
       },
