@@ -30,6 +30,7 @@ const planSchema = new mongoose.Schema(
     callRate: { type: Number, default: 4 },
     isActive: { type: Boolean, default: true },
     sortOrder: { type: Number, default: 0 },
+    razorpayPlanId: { type: String, default: null },
   },
   { timestamps: true }
 );

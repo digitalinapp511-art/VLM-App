@@ -32,7 +32,15 @@ export function resolveUserProfileRoute(user: any, profile: any): string {
   const role = user?.activeRole || user?.role || localStorage.getItem("vlm_role") || "student";
 
   if (role === "student") {
-    return isStudentProfileComplete(profile) ? PATHS.STUDENT_DASHBOARD : PATHS.CREATE_PROFILE;
+    if (!isStudentProfileComplete(profile)) {
+      return PATHS.CREATE_PROFILE;
+    }
+    const subscriptionStatus = profile?.subscription?.status || "free";
+    const hasActiveSubscription = subscriptionStatus === "active" || subscriptionStatus === "trial";
+    if (!hasActiveSubscription) {
+      return PATHS.PLAN_SCREEN;
+    }
+    return PATHS.STUDENT_DASHBOARD;
   }
 
   if (role === "teacher") {

@@ -44,6 +44,7 @@ const studentSchema = new mongoose.Schema(
       trialEndsAt: Date,
       expiresAt: Date,
       autopayEnabled: { type: Boolean, default: false },
+      razorpaySubscriptionId: { type: String, default: null },
     },
     streak: { type: Number, default: 0 },
     lastActiveDate: Date,

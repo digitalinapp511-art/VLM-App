@@ -1,5 +1,5 @@
 import { asyncHandler } from '../middleware/errorHandler.js';
-import { createOrder, verifySignature } from '../services/razorpayService.js';
+import { createOrder, verifySignature, getRazorpay, verifySubscriptionSignature } from '../services/razorpayService.js';
 import { createNotification } from '../services/notificationService.js';
 import PaymentOrder from '../models/PaymentOrder.js';
 import Student from '../models/Student.js';
@@ -234,27 +234,82 @@ export const createSubscriptionOrder = asyncHandler(async (req, res) => {
     return res.status(404).json({ success: false, message: 'No active plan found for your class' });
   }
 
-  // For trial: charge trialPrice (₹1), for subscription: charge plan.price
-  const amount = isTrial ? (plan.trialPrice || 1) : plan.price;
+  // 1. Ensure Razorpay Plan exists
+  const razorpay = getRazorpay();
+  if (!plan.razorpayPlanId) {
+    let period = 'monthly';
+    let interval = 1;
+    if (plan.duration === 'quarterly') {
+      period = 'monthly';
+      interval = 3;
+    } else if (plan.duration === 'yearly') {
+      period = 'yearly';
+      interval = 1;
+    }
 
-  if (!amount || amount <= 0) {
-    return res.status(400).json({ success: false, message: 'Invalid plan price' });
+    try {
+      const rzpPlan = await razorpay.plans.create({
+        period,
+        interval,
+        item: {
+          name: plan.name,
+          amount: Math.round(plan.price * 100), // in paise
+          currency: 'INR',
+        },
+      });
+      plan.razorpayPlanId = rzpPlan.id;
+      await plan.save();
+      console.log(`[Razorpay] Plan created on Razorpay: ${rzpPlan.id} for plan ${plan._id}`);
+    } catch (err) {
+      console.error('[Razorpay] Failed to create Razorpay Plan:', err.message);
+      return res.status(500).json({ success: false, message: 'Failed to create plan on payment gateway: ' + err.message });
+    }
   }
 
-  const type = isTrial ? 'trial' : 'subscription';
-  const receipt = `sub_${req.user._id.toString().slice(-8)}_${Date.now()}`;
+  // 2. Create subscription
+  let rzpSubscription = null;
+  const trialDays = plan.trialDays || 3;
+  const totalCount = plan.duration === 'yearly' ? 5 : 60; // 5 years or 60 months
 
-  const order = await createOrder(amount, receipt, 'INR', {
-    userId: req.user._id.toString(),
-    planId: plan._id.toString(),
-    type,
-  });
+  try {
+    const subOptions = {
+      plan_id: plan.razorpayPlanId,
+      total_count: totalCount,
+      quantity: 1,
+      customer_notify: 1,
+      notes: {
+        userId: req.user._id.toString(),
+        planId: plan._id.toString(),
+        isTrial: isTrial ? 'true' : 'false',
+      }
+    };
 
+    if (isTrial) {
+      // Trial begins immediately; recurring bill starts 3 days from now
+      subOptions.start_at = Math.floor(Date.now() / 1000) + (trialDays * 24 * 60 * 60);
+      subOptions.addons = [
+        {
+          item: {
+            name: "Trial Activation Fee",
+            amount: 100, // ₹1 in paise
+            currency: "INR"
+          }
+        }
+      ];
+    }
+
+    rzpSubscription = await razorpay.subscriptions.create(subOptions);
+  } catch (err) {
+    console.error('[Razorpay] Failed to create subscription:', err.message);
+    return res.status(500).json({ success: false, message: 'Failed to create subscription on Razorpay: ' + err.message });
+  }
+
+  // Create a pending payment order record
   await PaymentOrder.create({
     userId: req.user._id,
-    type,
-    razorpayOrderId: order.id,
-    amount,
+    type: isTrial ? 'trial' : 'subscription',
+    razorpayOrderId: rzpSubscription.id, // using subscription id as unique key
+    amount: isTrial ? (plan.trialPrice || 1) : plan.price,
     currency: 'INR',
     status: 'created',
     planId: plan._id,
@@ -263,9 +318,9 @@ export const createSubscriptionOrder = asyncHandler(async (req, res) => {
   res.json({
     success: true,
     data: {
-      orderId: order.id,
-      amount: order.amount, // in paise
-      currency: order.currency,
+      subscriptionId: rzpSubscription.id,
+      amount: isTrial ? 100 : Math.round(plan.price * 100), // in paise
+      currency: 'INR',
       keyId: process.env.RAZORPAY_KEY_ID,
       planName: plan.name,
       planId: plan._id,
@@ -279,17 +334,26 @@ export const createSubscriptionOrder = asyncHandler(async (req, res) => {
 //  POST /api/student/payment/subscription/verify
 // ─────────────────────────────────────────────────────────────────────────────
 export const verifySubscriptionPayment = asyncHandler(async (req, res) => {
-  const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
+  const { razorpay_order_id, razorpay_subscription_id, razorpay_payment_id, razorpay_signature } = req.body;
+
+  const isSubscriptionFlow = !!razorpay_subscription_id;
+  const targetId = isSubscriptionFlow ? razorpay_subscription_id : razorpay_order_id;
 
   // 1. Verify signature
-  const isValid = verifySignature(razorpay_order_id, razorpay_payment_id, razorpay_signature);
+  let isValid = false;
+  if (isSubscriptionFlow) {
+    isValid = verifySubscriptionSignature(razorpay_subscription_id, razorpay_payment_id, razorpay_signature);
+  } else {
+    isValid = verifySignature(razorpay_order_id, razorpay_payment_id, razorpay_signature);
+  }
+
   if (!isValid) {
     return res.status(400).json({ success: false, message: 'Payment signature verification failed.' });
   }
 
   // 2. Find the pending order
   const paymentRecord = await PaymentOrder.findOne({
-    razorpayOrderId: razorpay_order_id,
+    razorpayOrderId: targetId,
     userId: req.user._id,
     status: 'created',
   }).populate('planId');
@@ -326,7 +390,8 @@ export const verifySubscriptionPayment = asyncHandler(async (req, res) => {
     planId: plan?._id || null,
     status: isTrial ? 'trial' : 'active',
     ...(isTrial ? { trialEndsAt: expiresAt } : { expiresAt }),
-    autopayEnabled: false,
+    autopayEnabled: true,
+    razorpaySubscriptionId: isSubscriptionFlow ? razorpay_subscription_id : null,
   };
 
   // Grant plan benefits
@@ -369,7 +434,7 @@ export const verifySubscriptionPayment = asyncHandler(async (req, res) => {
     humanChatCredits: plan?.benefits?.humanChatCredits || 0,
     inrAmount: paymentRecord.amount,
     earningType: 'purchase',
-    description: `${isTrial ? 'Trial' : 'Subscription'} activated: ${plan?.name || 'Plan'} | Payment ID: ${razorpay_payment_id}`,
+    description: `${isTrial ? 'Trial' : 'Subscription'} activated: ${plan?.name || 'Plan'} | Subscription ID: ${targetId}`,
     status: 'credited',
   });
 

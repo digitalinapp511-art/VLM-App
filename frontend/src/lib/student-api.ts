@@ -482,7 +482,8 @@ export const studentApi = {
 
   /** Step 2 for subscription/trial: verify payment signature & activate plan */
   verifySubscriptionPayment: async (payload: {
-    razorpay_order_id: string;
+    razorpay_order_id?: string;
+    razorpay_subscription_id?: string;
     razorpay_payment_id: string;
     razorpay_signature: string;
   }) => {

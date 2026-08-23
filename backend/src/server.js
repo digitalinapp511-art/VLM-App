@@ -9,6 +9,7 @@ import User from './models/User.js';
 import { connectRedis } from './services/redisService.js';
 import { startDispatchWorker } from './workers/dispatchWorker.js';
 import { startInterviewReminderScheduler } from './services/interviewReminderService.js';
+import { startSubscriptionAutopayScheduler } from './services/subscriptionAutopayService.js';
 
 const app = createApp();
 const server = http.createServer(app);
@@ -53,6 +54,9 @@ const start = async () => {
 
   // Start the onboarding interview 30-min reminder checker
   startInterviewReminderScheduler();
+
+  // Start the recurring Razorpay autopay subscription checks
+  startSubscriptionAutopayScheduler();
 
   await seedAdmin();
   initSocket(server);

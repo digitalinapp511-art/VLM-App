@@ -4,7 +4,7 @@ import crypto from 'crypto';
 // ── Initialize Razorpay Instance ──────────────────────────────────────────────
 let razorpayInstance = null;
 
-const getRazorpay = () => {
+export const getRazorpay = () => {
   if (!razorpayInstance) {
     if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
       throw new Error('RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET must be set in environment variables');
@@ -70,4 +70,26 @@ export const verifySignature = (orderId, paymentId, signature) => {
 export const fetchPayment = async (paymentId) => {
   const razorpay = getRazorpay();
   return razorpay.payments.fetch(paymentId);
+};
+
+/**
+ * Verify a Razorpay subscription payment signature.
+ * @param {string} subscriptionId    - Razorpay subscription_id
+ * @param {string} paymentId         - Razorpay payment_id
+ * @param {string} signature         - Razorpay razorpay_signature from client
+ * @returns {boolean}                - true if signature is valid
+ */
+export const verifySubscriptionSignature = (subscriptionId, paymentId, signature) => {
+  const keySecret = process.env.RAZORPAY_KEY_SECRET;
+  if (!keySecret) {
+    throw new Error('RAZORPAY_KEY_SECRET not set');
+  }
+
+  const body = `${paymentId}|${subscriptionId}`;
+  const expectedSignature = crypto
+    .createHmac('sha256', keySecret)
+    .update(body)
+    .digest('hex');
+
+  return expectedSignature === signature;
 };

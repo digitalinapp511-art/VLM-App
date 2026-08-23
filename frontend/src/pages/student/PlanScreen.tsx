@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 import { useStudentProfile } from "@/hooks/use-student";
 import DashboardLoading from "@/components/basic/DashboardLoading";
 import { Button } from "@/components/ui/button";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import studentApi from "@/lib/student-api";
 import { toast } from "sonner";
 import { loadRazorpayScript, openRazorpayCheckout } from "@/lib/razorpay";
@@ -18,6 +18,7 @@ import { useState } from "react";
 
 export default function PlanScreen() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { data: profile, isLoading } = useStudentProfile();
   const [isPaying, setIsPaying] = useState(false);
 
@@ -73,17 +74,17 @@ export default function PlanScreen() {
         return;
       }
 
-      const { orderId, amount, currency, keyId } = orderRes.data;
+      const { subscriptionId, amount, currency, keyId } = orderRes.data;
 
       // Step 3: Open Razorpay checkout
       const profileData2 = (profile as any)?.data ?? profile;
       const result = await openRazorpayCheckout({
-        orderId,
+        subscriptionId,
         amount,
         currency,
         keyId,
-        name: "VLM Academy",
-        description: `${trialDaysVal}-Day Trial — ₹${trialPriceVal}`,
+        name: "VLM Education",
+        description: "GoPay Automatic Payments Page",
         prefillName: profileData2?.firstName ? `${profileData2.firstName} ${profileData2.lastName || ""}`.trim() : "",
         prefillEmail: profileData2?.email || "",
         prefillContact: profileData2?.mobile || "",
@@ -102,13 +103,17 @@ export default function PlanScreen() {
 
       // Step 4: Verify payment & activate plan on backend
       const verifyRes = await studentApi.verifySubscriptionPayment({
-        razorpay_order_id: result.razorpay_order_id,
+        razorpay_subscription_id: result.razorpay_subscription_id,
         razorpay_payment_id: result.razorpay_payment_id,
         razorpay_signature: result.razorpay_signature,
       });
 
       if (verifyRes?.success) {
         toast.success("Trial activated! Enjoy your premium features. 🎉");
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ["currentUserSession"] }),
+          queryClient.invalidateQueries({ queryKey: ["studentProfile"] }),
+        ]);
         navigate(PATHS.STUDENT_DASHBOARD);
       } else {
         toast.error(verifyRes?.message || "Payment verification failed. Contact support.");

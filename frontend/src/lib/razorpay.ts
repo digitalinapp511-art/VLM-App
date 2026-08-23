@@ -36,8 +36,9 @@ export const loadRazorpayScript = (): Promise<boolean> => {
 };
 
 export interface RazorpayCheckoutOptions {
-  orderId: string;
-  amount: number;        // in paise (e.g., 50000 = ₹500)
+  orderId?: string;
+  subscriptionId?: string;
+  amount?: number;        // in paise (e.g., 50000 = ₹500)
   currency?: string;     // default 'INR'
   keyId: string;
   name?: string;
@@ -51,7 +52,8 @@ export interface RazorpayCheckoutOptions {
 
 export interface RazorpayPaymentResult {
   success: true;
-  razorpay_order_id: string;
+  razorpay_order_id?: string;
+  razorpay_subscription_id?: string;
   razorpay_payment_id: string;
   razorpay_signature: string;
 }
@@ -70,13 +72,10 @@ export const openRazorpayCheckout = (
   options: RazorpayCheckoutOptions
 ): Promise<RazorpayPaymentResult | RazorpayPaymentError> => {
   return new Promise((resolve) => {
-    const rzpOptions = {
+    const rzpOptions: any = {
       key: options.keyId,
-      amount: options.amount,
-      currency: options.currency || "INR",
       name: options.name || "VLM Academy",
       description: options.description || "Payment",
-      order_id: options.orderId,
       image: "https://pub-316f9dd6bea04824be0dafcc43132ee1.r2.dev/vlm-logo.png",
       webview_intent: options.webview_intent !== undefined ? options.webview_intent : true,
       theme: {
@@ -89,12 +88,14 @@ export const openRazorpayCheckout = (
       },
       handler: (response: {
         razorpay_payment_id: string;
-        razorpay_order_id: string;
+        razorpay_order_id?: string;
+        razorpay_subscription_id?: string;
         razorpay_signature: string;
       }) => {
         resolve({
           success: true,
           razorpay_order_id: response.razorpay_order_id,
+          razorpay_subscription_id: response.razorpay_subscription_id,
           razorpay_payment_id: response.razorpay_payment_id,
           razorpay_signature: response.razorpay_signature,
         });
@@ -112,6 +113,14 @@ export const openRazorpayCheckout = (
         },
       },
     };
+
+    if (options.subscriptionId) {
+      rzpOptions.subscription_id = options.subscriptionId;
+    } else {
+      rzpOptions.order_id = options.orderId;
+      rzpOptions.amount = options.amount;
+      rzpOptions.currency = options.currency || "INR";
+    }
 
     const rzp = new window.Razorpay(rzpOptions);
 
