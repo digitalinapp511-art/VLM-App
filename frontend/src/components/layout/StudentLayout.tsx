@@ -9,9 +9,15 @@ import { useEffect } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 import StudentBottomNav from "@/features/student/components/layout/StudentBottomNav";
 import { studentApi } from "@/lib/student-api";
+import { useFcm } from "@/hooks/useFcm";
+
 
 export default function StudentLayout() {
   const { pathname } = useLocation();
+
+  // Register FCM device token and listen for foreground push messages
+  useFcm();
+
 
   useEffect(() => {
     // Keep track of session start time

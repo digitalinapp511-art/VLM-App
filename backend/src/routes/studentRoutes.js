@@ -173,4 +173,45 @@ router.post('/debug-match', asyncHandler(async (req, res) => {
   });
 }));
 
+// ── Device Token (FCM) ────────────────────────────────────────────────────────
+
+/**
+ * POST /api/student/device-token
+ * Register or update the FCM device token for the logged-in user.
+ * The APK should call this on login / token refresh.
+ */
+router.post('/device-token', asyncHandler(async (req, res) => {
+  const { token, platform = 'android' } = req.body;
+  if (!token) return res.status(400).json({ success: false, message: 'token is required' });
+
+  const User = (await import('../models/User.js')).default;
+
+  // Add token only if not already present (prevent duplicates)
+  await User.updateOne(
+    { _id: req.user._id },
+    { $addToSet: { deviceTokens: token } }
+  );
+
+  res.json({ success: true, message: 'Device token registered' });
+}));
+
+/**
+ * DELETE /api/student/device-token
+ * Remove the FCM token on logout so the user stops receiving push notifications.
+ */
+router.delete('/device-token', asyncHandler(async (req, res) => {
+  const { token } = req.body;
+  if (!token) return res.status(400).json({ success: false, message: 'token is required' });
+
+  const User = (await import('../models/User.js')).default;
+
+  await User.updateOne(
+    { _id: req.user._id },
+    { $pull: { deviceTokens: token } }
+  );
+
+  res.json({ success: true, message: 'Device token removed' });
+}));
+
 export default router;
+

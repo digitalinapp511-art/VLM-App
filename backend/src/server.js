@@ -10,6 +10,8 @@ import { connectRedis } from './services/redisService.js';
 import { startDispatchWorker } from './workers/dispatchWorker.js';
 import { startInterviewReminderScheduler } from './services/interviewReminderService.js';
 import { startSubscriptionAutopayScheduler } from './services/subscriptionAutopayService.js';
+import { initFirebase } from './services/fcmService.js';
+
 
 const app = createApp();
 const server = http.createServer(app);
@@ -49,8 +51,12 @@ const start = async () => {
   await connectDB();
   await connectRedis();
 
+  // Initialize Firebase Admin SDK for push notifications
+  initFirebase();
+
   // Start the production dispatch worker (replaces legacy doubtQueue worker)
   startDispatchWorker();
+
 
   // Start the onboarding interview 30-min reminder checker
   startInterviewReminderScheduler();

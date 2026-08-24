@@ -44,6 +44,16 @@ import {
   enableAdmin2FA, verifyAdmin2FA,
 } from '../controllers/admin/adminAuthController.js';
 
+// ── Notification Controller ───────────────────────────────────────────────────
+import {
+  getAdminNotificationsList,
+  getNotificationStats,
+  sendAdminNotification,
+  previewAudienceCount,
+  deleteBroadcast,
+  getNotificationTypes,
+} from '../controllers/admin/adminNotificationController.js';
+
 // ── Dashboard Controller ─────────────────────────────────────────────────────
 import {
   getAdminDashboard, getDashboardLiveStats, getDashboardAnalytics,
@@ -349,11 +359,12 @@ router.put('/onboarding-slides/:id', checkPermission('onboarding'), upload.singl
 router.delete('/onboarding-slides/:id', checkPermission('onboarding'), deleteOnboardingSlide);
 
 // ── NOTIFICATIONS ─────────────────────────────────────────────────────────────
-router.get('/notifications', getNotifications);
-router.post('/notifications', createNotification);
-router.put('/notifications/:id', updateNotification);
-router.delete('/notifications/:id', deleteNotification);
-router.post('/broadcast', broadcastNotification);
+router.get('/notifications/types', getNotificationTypes);
+router.get('/notifications/stats', getNotificationStats);
+router.get('/notifications', getAdminNotificationsList);
+router.post('/notifications/send', sendAdminNotification);
+router.post('/notifications/preview-count', previewAudienceCount);
+router.delete('/notifications/broadcast/:broadcastId', deleteBroadcast);
 
 // ── SUPPORT ───────────────────────────────────────────────────────────────────
 router.get('/tickets', checkPermission('support'), getTickets);
