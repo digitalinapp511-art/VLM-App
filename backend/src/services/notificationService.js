@@ -5,6 +5,33 @@ import { publishSocketEvent } from './redisService.js';
 import { sendPushToTokens } from './fcmService.js';
 
 /**
+ * Keep only the latest 20 notifications for a specific user to prevent database bloat.
+ */
+export const cleanOldNotifications = async (userId) => {
+  try {
+    const LIMIT = 20;
+    const count = await Notification.countDocuments({ userId });
+    if (count > LIMIT) {
+      const oldestToKeep = await Notification.find({ userId })
+        .sort({ createdAt: -1 })
+        .skip(LIMIT - 1)
+        .limit(1)
+        .select('createdAt')
+        .lean();
+
+      if (oldestToKeep.length > 0) {
+        await Notification.deleteMany({
+          userId,
+          createdAt: { $lt: oldestToKeep[0].createdAt },
+        });
+      }
+    }
+  } catch (err) {
+    console.error('[NotificationService] Clean old notifications error:', err.message);
+  }
+};
+
+/**
  * Create a single notification, emit via Socket.io, and send FCM push.
  * @param {ObjectId} userId  - recipient's User._id
  * @param {string}   type    - notification type enum
@@ -81,6 +108,9 @@ export const createNotification = async (
     console.error('[NotificationService] FCM push error:', err.message);
   }
 
+  // Trim old notifications in the background
+  cleanOldNotifications(userId).catch(() => {});
+
   return notif;
 };
 
@@ -144,6 +174,9 @@ export const broadcastNotification = async (userIds, type, title, message, data 
     await Notification.updateMany({ broadcastId }, { fcmSent: true });
   }
 
+  // Trim old notifications for all broadcasted users in the background
+  Promise.all(userIds.map((id) => cleanOldNotifications(id))).catch(() => {});
+
   return { count: userIds.length, fcmSentCount, broadcastId };
 };
 
@@ -154,5 +187,10 @@ export const notifyMultiple = async (userIds, type, title, message, data = {}) =
   const notifications = userIds.map((userId) => ({
     userId, type, title, message, data,
   }));
-  return Notification.insertMany(notifications);
+  const inserted = await Notification.insertMany(notifications);
+  
+  // Trim old notifications in the background
+  Promise.all(userIds.map((id) => cleanOldNotifications(id))).catch(() => {});
+  
+  return inserted;
 };
