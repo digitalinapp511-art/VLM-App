@@ -31,6 +31,29 @@ export default function StudentWallet() {
   const [isAdminMode, setIsAdminMode] = useState(false);
   const [showAdminModal, setShowAdminModal] = useState(false);
   const [selectedAdminAmt, setSelectedAdminAmt] = useState<number>(0);
+  const [selectedTx, setSelectedTx] = useState<any | null>(null);
+  const [isCreatingTicket, setIsCreatingTicket] = useState(false);
+  const [ticketCreatedId, setTicketCreatedId] = useState<string | null>(null);
+  const [copiedTxId, setCopiedTxId] = useState(false);
+
+  const handleRaiseTicket = async (tx: any) => {
+    if (!tx) return;
+    setIsCreatingTicket(true);
+    try {
+      const payload = {
+        category: 'payment',
+        subject: 'Issue with Transaction ID: ' + tx.id,
+        description: 'I need support with this transaction.\n\nTransaction Details:\n- Title: ' + tx.title + '\n- Category: ' + tx.type + '\n- Date: ' + (tx.time ? new Date(tx.time).toLocaleString("en-IN") : "—") + '\n- Value: ' + tx.change + '\n- ID: ' + tx.id
+      };
+      const res = await studentApi.createTicket(payload);
+      setTicketCreatedId(res.data?._id || res.data?.id || 'Created');
+      toast.success('Support ticket raised successfully!');
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to raise support ticket');
+    } finally {
+      setIsCreatingTicket(false);
+    }
+  };
   const [adminBonusPercent, setAdminBonusPercent] = useState<number>(0);
   const [adminTag, setAdminTag] = useState<string>("");
   const [adminOfferId, setAdminOfferId] = useState<string | null>(null);
@@ -416,7 +439,11 @@ export default function StudentWallet() {
                     const isDebit = tx.change?.startsWith("-") || tx.points < 0;
                     const isFailed = tx.type === "failed";
                     return (
-                      <div key={tx.id} className="flex items-center justify-between gap-4 p-4 px-4 sm:px-6">
+                      <div 
+                        key={tx.id} 
+                        onClick={() => { setSelectedTx(tx); setTicketCreatedId(null); setCopiedTxId(false); }}
+                        className="flex items-center justify-between gap-4 p-4 px-4 sm:px-6 hover:bg-slate-50 dark:hover:bg-white/[0.02] cursor-pointer transition-colors duration-200"
+                      >
                         <div className="flex items-center gap-3 flex-1 min-w-0">
                           <div className={cn(
                             "h-9 w-9 rounded-xl flex items-center justify-center shadow-sm shrink-0",
@@ -1039,6 +1066,100 @@ export default function StudentWallet() {
                 ) : (
                   "Pay ₹" + finalPriceToPay.toFixed(2)
                 )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* ── TRANSACTION DETAIL MODAL ── */}
+      {selectedTx && (
+        <div className="fixed inset-0 z-[120] bg-black/75 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="relative w-full max-w-sm p-6 rounded-[2rem] bg-white dark:bg-[#121026] text-slate-800 dark:text-white shadow-2xl flex flex-col gap-5 text-left border border-slate-100 dark:border-slate-800">
+            <button 
+              onClick={() => setSelectedTx(null)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 dark:hover:text-white transition-colors"
+            >
+              <X size={20} />
+            </button>
+
+            <div>
+              <h3 className="text-sm font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">Transaction Details</h3>
+              <div className="mt-3 flex items-center gap-3">
+                <div className={cn(
+                  "h-10 w-10 rounded-xl flex items-center justify-center text-lg",
+                  selectedTx.type === "failed" 
+                    ? "bg-rose-50 dark:bg-rose-950/20 text-rose-500" 
+                    : "bg-emerald-50 dark:bg-emerald-950/20 text-emerald-500"
+                )}>
+                  {selectedTx.type === "failed" ? "⚠️" : "✓"}
+                </div>
+                <div>
+                  <h4 className="text-xs font-black leading-tight">{selectedTx.title}</h4>
+                  <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 capitalize">{selectedTx.type}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-3 bg-slate-50 dark:bg-[#191535] p-4 rounded-2xl border border-slate-100 dark:border-slate-800/40 text-xs">
+              <div className="flex justify-between">
+                <span className="font-bold text-slate-400 dark:text-slate-500">Amount / Change</span>
+                <span className={cn(
+                  "font-black",
+                  selectedTx.type === "failed" ? "text-rose-500" : "text-emerald-500"
+                )}>{selectedTx.change}</span>
+              </div>
+              
+              <div className="flex justify-between">
+                <span className="font-bold text-slate-400 dark:text-slate-500">Date &amp; Time</span>
+                <span className="font-black text-slate-700 dark:text-slate-200">
+                  {selectedTx.time ? new Date(selectedTx.time).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : '—'}
+                </span>
+              </div>
+
+              <div className="flex flex-col gap-1 pt-1 border-t border-slate-200/50 dark:border-slate-800/50">
+                <span className="font-bold text-slate-400 dark:text-slate-500">Transaction ID</span>
+                <div className="flex items-center justify-between gap-2 bg-white dark:bg-[#100c2a] px-3 py-2 rounded-xl border border-slate-100 dark:border-slate-800">
+                  <span className="font-black text-[10px] font-mono text-slate-500 dark:text-slate-400 select-all truncate">{selectedTx.id}</span>
+                  <button 
+                    onClick={() => {
+                      navigator.clipboard.writeText(selectedTx.id);
+                      setCopiedTxId(true);
+                      setTimeout(() => setCopiedTxId(false), 2000);
+                    }}
+                    className="text-violet-600 dark:text-violet-400 text-[10px] font-black cursor-pointer border-none bg-transparent hover:underline shrink-0"
+                  >
+                    {copiedTxId ? "Copied!" : "Copy"}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-2 pt-1">
+              {ticketCreatedId ? (
+                <div className="w-full py-3 rounded-2xl bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900/40 text-emerald-600 dark:text-emerald-400 text-[10px] font-black text-center flex items-center justify-center gap-1.5 animate-in zoom-in-95 duration-200">
+                  <Check size={14} /> Support Ticket Raised (ID: {ticketCreatedId.substring(0, 8)}...)
+                </div>
+              ) : (
+                <Button
+                  onClick={() => handleRaiseTicket(selectedTx)}
+                  disabled={isCreatingTicket}
+                  className="w-full h-11 rounded-2xl bg-gradient-to-r from-violet-600 to-fuchsia-500 hover:from-violet-500 hover:to-fuchsia-400 text-white font-black text-xs border-none shadow-md flex items-center justify-center gap-1.5 active:scale-95 transition-all"
+                >
+                  {isCreatingTicket ? (
+                    <>
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" /> Raising Ticket...
+                    </>
+                  ) : (
+                    "Raise Support Ticket"
+                  )}
+                </Button>
+              )}
+              <Button
+                onClick={() => setSelectedTx(null)}
+                variant="outline"
+                className="w-full h-11 rounded-2xl border-slate-200 dark:border-[#221c4e] bg-transparent text-slate-500 dark:text-slate-400 font-bold text-xs"
+              >
+                Close Details
               </Button>
             </div>
           </div>
