@@ -1,10 +1,12 @@
 import Teacher from '../../models/Teacher.js';
 import User from '../../models/User.js';
+import Student from '../../models/Student.js';
 import Session from '../../models/Session.js';
 import Withdrawal from '../../models/Withdrawal.js';
 import WalletTransaction from '../../models/WalletTransaction.js';
 import TeacherAvailability from '../../models/TeacherAvailability.js';
 import { asyncHandler } from '../../middleware/errorHandler.js';
+import { createNotification } from '../../services/notificationService.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // GET /api/admin/teachers
@@ -129,6 +131,35 @@ export const approveTeacher = asyncHandler(async (req, res) => {
   }
   teacher.applicationStatus = 'approved';
   await teacher.save();
+
+  // Notify students of the classes this teacher teaches
+  try {
+    const getDigits = (str) => String(str).replace(/\D/g, '');
+    const teacherClassesDigits = (teacher.classes || []).map(getDigits).filter(Boolean);
+
+    if (teacherClassesDigits.length > 0) {
+      const allStudents = await Student.find({}).select('userId class').lean();
+      const matchingStudents = allStudents.filter((student) => {
+        const studentClassDigit = getDigits(student.class);
+        return teacherClassesDigits.includes(studentClassDigit);
+      });
+
+      const subjectStr = (teacher.subjects || []).join(', ') || 'your subjects';
+      for (const student of matchingStudents) {
+        await createNotification(
+          student.userId,
+          'teacher_join_alert',
+          'New Tutor Joined! 👨‍🏫',
+          `A new educator, ${teacher.fullName}, just joined VLM Academy for ${subjectStr}! Book a doubt session now.`,
+          { teacherId: teacher._id.toString(), deepLink: '/teachers' },
+          '/teachers'
+        );
+      }
+    }
+  } catch (err) {
+    console.error('[approveTeacher Notification Error]', err.message);
+  }
+
   res.json({ success: true, message: 'Teacher approved', data: teacher });
 });
 

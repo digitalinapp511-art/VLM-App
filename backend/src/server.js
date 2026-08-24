@@ -11,6 +11,7 @@ import { startDispatchWorker } from './workers/dispatchWorker.js';
 import { startInterviewReminderScheduler } from './services/interviewReminderService.js';
 import { startSubscriptionAutopayScheduler } from './services/subscriptionAutopayService.js';
 import { initFirebase } from './services/fcmService.js';
+import { startCronNotificationScheduler } from './services/cronNotificationService.js';
 
 
 const app = createApp();
@@ -63,6 +64,9 @@ const start = async () => {
 
   // Start the recurring Razorpay autopay subscription checks
   startSubscriptionAutopayScheduler();
+
+  // Start automated cron notifications (daily trials, daily mcq, weekly leaderboard)
+  startCronNotificationScheduler();
 
   await seedAdmin();
   initSocket(server);

@@ -1207,6 +1207,7 @@ export const claimSpinReward = asyncHandler(async (req, res) => {
   const now = new Date();
   student.lastSpinDate = now;
   student.lastSpinActiveSeconds = totalActiveSeconds;
+  student.spinUnlocked = false;
 
   if (!isTryAgain) {
     if (rawType === 'coins') {
@@ -1941,6 +1942,29 @@ export const submitUsageHeartbeat = asyncHandler(async (req, res) => {
 
   const hasNeverSpun = !student.lastSpinDate;
   const canSpin = hasNeverSpun || activeSecondsSinceSpin >= 7200; // 2 hours = 7200 seconds
+
+  // Check if spin just unlocked
+  const previouslyUnlocked = student.spinUnlocked;
+  if (!previouslyUnlocked && canSpin) {
+    student.spinUnlocked = true;
+    await student.save();
+    
+    // Send background push notification
+    try {
+      const { createNotification } = await import('../services/notificationService.js');
+      await createNotification(
+        student.userId,
+        'spin_unlock_alert',
+        'Lucky Spin Unlocked! 🎰',
+        'You have unlocked a new Lucky Spin! Spin the wheel now to claim your bonus reward points.',
+        { deepLink: '/spinner' },
+        '/spinner',
+        { priority: 'medium' }
+      );
+    } catch (err) {
+      console.error('[SpinUnlock Notification Error]', err.message);
+    }
+  }
 
   res.json({
     success: true,
