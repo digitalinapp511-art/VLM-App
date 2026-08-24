@@ -1940,8 +1940,14 @@ export const submitUsageHeartbeat = asyncHandler(async (req, res) => {
   const totalActiveSeconds = await getAccumulatedActiveSeconds(student._id);
   const activeSecondsSinceSpin = totalActiveSeconds - (student.lastSpinActiveSeconds || 0);
 
+  // Fetch dynamic spin cooldown configuration (in hours) from AdminSettings
+  const { default: AdminSettings } = await import('../models/AdminSettings.js');
+  const cooldownSetting = await AdminSettings.findOne({ key: 'spin_cooldown_hours' });
+  const cooldownHours = cooldownSetting ? parseFloat(cooldownSetting.value) || 2 : 2;
+  const cooldownSeconds = cooldownHours * 60 * 60; // Convert hours to seconds
+
   const hasNeverSpun = !student.lastSpinDate;
-  const canSpin = hasNeverSpun || activeSecondsSinceSpin >= 7200; // 2 hours = 7200 seconds
+  const canSpin = hasNeverSpun || activeSecondsSinceSpin >= cooldownSeconds;
 
   // Check if spin just unlocked
   const previouslyUnlocked = student.spinUnlocked;
