@@ -102,10 +102,11 @@ export default function OtpVerificationPage() {
   }, [sentOtp]);
 
   const handleVerify = () => {
-    if (otpValue.length !== 6) return;
+    const cleanOtp = otpValue.trim();
+    if (cleanOtp.length !== 6 || verifyMutation.isPending) return;
 
     verifyMutation.mutate(
-      { email, otp: otpValue, role },
+      { email, otp: cleanOtp, role },
       {
         onSuccess: (data) => {
           navigate(resolvePostOtpPath(role, data.isNewUser, data), { replace: true });
@@ -132,8 +133,14 @@ export default function OtpVerificationPage() {
             <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">A 6-digit code has been sent</p>
           </div>
 
-          {/* OTP Card */}
-          <div className="w-full bg-white/80 backdrop-blur-xl border border-slate-200/80 rounded-[2rem] p-6 sm:p-8 shadow-xl flex flex-col items-center space-y-5">
+          {/* OTP Card Form */}
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleVerify();
+            }}
+            className="w-full bg-white/80 backdrop-blur-xl border border-slate-200/80 rounded-[2rem] p-6 sm:p-8 shadow-xl flex flex-col items-center space-y-5"
+          >
             <div className="text-center space-y-1.5 w-full">
               <h3 className="text-slate-400 text-[10px] font-black uppercase tracking-wider">
                 Verifying Credentials
@@ -144,7 +151,6 @@ export default function OtpVerificationPage() {
                 </span>
                 <CheckCircle2 size={16} className="text-green-500" />
               </div>
-
             </div>
 
             {/* OTP Slots */}
@@ -192,6 +198,7 @@ export default function OtpVerificationPage() {
                 Didn't receive code?
               </span>
               <Button
+                type="button"
                 variant="link"
                 disabled={timer > 0}
                 className="text-violet-600 text-xs font-black p-0 h-auto underline underline-offset-2 hover:text-violet-500 mt-0.5 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -219,13 +226,13 @@ export default function OtpVerificationPage() {
 
             {/* Submit Button */}
             <Button
-              disabled={otpValue.length !== 6 || verifyMutation.isPending}
-              onClick={handleVerify}
-              className="w-full h-12 rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-700 hover:from-violet-500 hover:to-indigo-600 text-white font-black text-xs uppercase tracking-widest shadow-md shadow-violet-500/10 active:scale-[0.98] transition-all cursor-pointer disabled:opacity-50 mt-2 border-none"
+              type="submit"
+              disabled={otpValue.trim().length !== 6 || verifyMutation.isPending}
+              className="w-full h-12 rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-700 hover:from-violet-500 hover:to-indigo-600 text-white font-black text-xs uppercase tracking-widest shadow-md shadow-violet-500/10 active:scale-[0.98] transition-all cursor-pointer disabled:opacity-50 mt-2 border-none touch-manipulation"
             >
               {verifyMutation.isPending ? "Verifying..." : "Verify & Log In"}
             </Button>
-          </div>
+          </form>
         </div>
       </div>
     );
@@ -344,10 +351,11 @@ export default function OtpVerificationPage() {
           <div className="mt-5 w-full relative">
             <div className="absolute inset-x-0 bottom-1 h-10 bg-blue-600/10 blur-[15px] rounded-full pointer-events-none" />
             <Button
-              disabled={otpValue.length !== 6 || verifyMutation.isPending}
+              type="button"
+              disabled={otpValue.trim().length !== 6 || verifyMutation.isPending}
               onClick={handleVerify}
               className={cn(
-                "relative w-full h-12 rounded-xl text-sm font-bold tracking-wide transition-all active:scale-[0.98]",
+                "relative w-full h-12 rounded-xl text-sm font-bold tracking-wide transition-all active:scale-[0.98] touch-manipulation",
                 "bg-gradient-to-r from-[#1e3a8e] to-[#0f172a] hover:brightness-110",
                 "border border-blue-500/40 text-white shadow-xl"
               )}
