@@ -72,7 +72,7 @@ const PREMIUM_BENEFITS = [
 
 interface SubscriptionGateProps {
   feature: GatedFeature;
-  children: React.ReactNode;
+  children?: React.ReactNode;
   onClose?: () => void;
 }
 

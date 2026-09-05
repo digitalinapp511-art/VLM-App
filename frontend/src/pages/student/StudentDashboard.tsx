@@ -31,7 +31,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { studentApi } from "@/lib/student-api";
 import { useStudentProfile } from "@/hooks/use-student";
 import { useSubscription } from "@/hooks/use-subscription";
@@ -55,6 +55,7 @@ import { toast } from "sonner";
 
 export default function StudentDashboard() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showSettingsPopup, setShowSettingsPopup] = useState(false);
   const [showSubModal, setShowSubModal] = useState(false);
