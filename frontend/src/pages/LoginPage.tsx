@@ -86,30 +86,30 @@ export default function LoginPage() {
 
   const roleLabel = role.charAt(0).toUpperCase() + role.slice(1);
   const onSubmit = async () => {
-    const emailVal = (emailRef.current?.value || email).trim();
-    const phoneVal = (phoneRef.current?.value || phone).trim();
-
-    if (!phoneVal && !emailVal) {
-      toast.error("Please enter your Phone Number or Email Address");
-      return;
+    const emailVal = (emailRef.current?.value || email).trim().toLowerCase();
+    let rawPhone = (phoneRef.current?.value || phone).replace(/\D/g, "");
+    if (rawPhone.length === 12 && rawPhone.startsWith("91")) {
+      rawPhone = rawPhone.slice(2);
+    } else if (rawPhone.length === 11 && rawPhone.startsWith("0")) {
+      rawPhone = rawPhone.slice(1);
     }
 
     let identifier = "";
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-    if (phoneVal) {
-      const phoneRegex = /^[5-9]\d{9}$/;
-      if (!phoneRegex.test(phoneVal)) {
-        toast.error("Please enter a valid 10-digit phone number");
-        return;
-      }
-      identifier = phoneVal;
-    } else if (emailVal) {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(emailVal)) {
-        toast.error("Please enter a valid email address");
-        return;
-      }
+    if (rawPhone.length === 10) {
+      identifier = rawPhone;
+    } else if (emailVal && emailRegex.test(emailVal)) {
       identifier = emailVal;
+    } else if (rawPhone.length > 0) {
+      toast.error("Please enter a valid 10-digit phone number");
+      return;
+    } else if (emailVal.length > 0) {
+      toast.error("Please enter a valid email address");
+      return;
+    } else {
+      toast.error("Please enter your Phone Number or Email Address");
+      return;
     }
 
     sessionStorage.setItem("vlm_email", identifier);
@@ -152,8 +152,14 @@ export default function LoginPage() {
             <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">VLM Digital Academy</p>
           </div>
 
-          {/* Login Card */}
-          <div className="w-full bg-white/80 backdrop-blur-xl border border-slate-200/80 rounded-[2rem] p-6 sm:p-8 shadow-xl space-y-5">
+          {/* Login Card Form */}
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              onSubmit();
+            }}
+            className="w-full bg-white/80 backdrop-blur-xl border border-slate-200/80 rounded-[2rem] p-6 sm:p-8 shadow-xl space-y-5"
+          >
             <h2 className="text-xs font-black text-slate-400 uppercase tracking-widest text-center">
               Login with OTP
             </h2>
@@ -198,15 +204,13 @@ export default function LoginPage() {
 
             {/* Submit Button */}
             <Button
-              onClick={onSubmit}
+              type="submit"
               disabled={loginMutation.isPending}
-              className="w-full h-12 rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-700 hover:from-violet-500 hover:to-indigo-600 text-white font-black text-xs uppercase tracking-widest shadow-md shadow-violet-500/10 active:scale-[0.98] transition-all cursor-pointer disabled:opacity-50 mt-2 border-none"
+              className="w-full h-12 rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-700 hover:from-violet-500 hover:to-indigo-600 text-white font-black text-xs uppercase tracking-widest shadow-md shadow-violet-500/10 active:scale-[0.98] transition-all cursor-pointer disabled:opacity-50 mt-2 border-none touch-manipulation"
             >
               {loginMutation.isPending ? "Sending OTP..." : "Get OTP Verification"}
             </Button>
-          </div>
-
-
+          </form>
         </div>
       </div>
     );
