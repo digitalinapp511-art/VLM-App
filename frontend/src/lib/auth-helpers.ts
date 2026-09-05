@@ -2,7 +2,6 @@ import { PATHS } from "@/routes/paths";
 
 export function isStudentProfileComplete(profile: any): boolean {
   if (!profile) return false;
-  if (profile.onboardingCompleted === false) return false;
   const fn = (profile.firstName || "").trim().toLowerCase();
   if (!fn || fn === "student") return false;
   if (!profile.class || !profile.board) return false;
