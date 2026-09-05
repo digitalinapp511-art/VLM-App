@@ -8,6 +8,12 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
     allowedHosts: true, // Allow localtunnel domains to access the dev server
+    proxy: {
+      "/api": {
+        target: "http://localhost:5000",
+        changeOrigin: true,
+      },
+    },
   },
   resolve: {  
     alias: {
