@@ -77,15 +77,6 @@ export default function ProtectedRoute() {
     if (!isComplete && !isOnboardingPath) {
       return <Navigate to={PATHS.CREATE_PROFILE} replace />;
     }
-
-    if (isComplete) {
-      const subscriptionStatus = profile?.subscription?.status || "free";
-      const hasActiveSubscription = subscriptionStatus === "active" || subscriptionStatus === "trial";
-
-      if (!hasActiveSubscription && !isOnboardingPath) {
-        return <Navigate to={PATHS.PLAN_SCREEN} replace />;
-      }
-    }
   }
 
   // Teacher Profile Completeness Check

@@ -8,10 +8,13 @@
  * student screen. The center "Ask Doubt" button is a floating action button
  * with a purple gradient circle.
  */
+import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { PATHS } from "@/routes/paths";
-import { Home, BookOpen, Play, ClipboardList, User } from "lucide-react";
+import { Home, BookOpen, Play, ClipboardList, User, Crown, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useSubscription } from "@/hooks/use-subscription";
+import SubscriptionGate, { type GatedFeature } from "@/components/subscription/SubscriptionGate";
 
 interface NavItem {
   label: string;
@@ -49,8 +52,6 @@ const NAV_ITEMS: NavItem[] = [
   },
 ];
 
-import { Plus } from "lucide-react";
-
 interface StudentBottomNavProps {
   onFabClick?: () => void;
 }
@@ -58,53 +59,78 @@ interface StudentBottomNavProps {
 export default function StudentBottomNav({ onFabClick }: StudentBottomNavProps) {
   const navigate = useNavigate();
   const { pathname } = useLocation();
+  const { isPremium } = useSubscription();
+  const [selectedGatedFeature, setSelectedGatedFeature] = useState<GatedFeature | null>(null);
   const isShortsPage = pathname === PATHS.SHORT_VIDEO_FEED;
 
   return (
-    <nav className="fixed bottom-0 inset-x-0 z-[100] bg-white dark:bg-[#110d2c] border-t border-slate-100 dark:border-[#221c4e] shadow-[0_-4px_20px_rgba(0,0,0,0.06)] transition-colors duration-300">
-      <div className="max-w-3xl mx-auto flex items-center justify-around px-4 py-2.5">
-        {NAV_ITEMS.map((item) => {
-          const isActive = pathname === item.to;
+    <>
+      <nav className="fixed bottom-0 inset-x-0 z-[100] bg-white dark:bg-[#110d2c] border-t border-slate-100 dark:border-[#221c4e] shadow-[0_-4px_20px_rgba(0,0,0,0.06)] transition-colors duration-300">
+        <div className="max-w-3xl mx-auto flex items-center justify-around px-4 py-2.5">
+          {NAV_ITEMS.map((item) => {
+            const isActive = pathname === item.to;
+            const isGated = !isPremium && (item.label === "My Courses" || item.label === "Test Series");
 
-          if (item.isFab) {
-            const label = isShortsPage ? "Add" : item.label;
-            const icon = isShortsPage ? <Plus size={22} /> : item.icon;
-            const clickHandler = (isShortsPage && onFabClick) ? onFabClick : () => navigate(item.to);
+            if (item.isFab) {
+              const label = isShortsPage ? "Add" : item.label;
+              const icon = isShortsPage ? <Plus size={22} /> : item.icon;
+              const clickHandler = (isShortsPage && onFabClick) ? onFabClick : () => navigate(item.to);
+
+              return (
+                <button
+                  key={item.label}
+                  onClick={clickHandler}
+                  className="relative flex flex-col items-center justify-end h-12 pb-0.5 w-16 active:scale-95 transition-transform"
+                >
+                  {/* FAB circle - Half submerged with white/dark border cutout */}
+                  <div className="absolute -top-6 h-11 w-11 rounded-full flex items-center justify-center text-white border-4 border-white dark:border-[#110d2c] shadow-sm"
+                    style={{ background: "linear-gradient(135deg, #7c3aed, #a855f7)" }}
+                  >
+                    {icon}
+                  </div>
+                  <span className="text-[9px] font-black text-violet-600 dark:text-violet-400">
+                    {label}
+                  </span>
+                </button>
+              );
+            }
 
             return (
               <button
                 key={item.label}
-                onClick={clickHandler}
-                className="relative flex flex-col items-center justify-end h-12 pb-0.5 w-16 active:scale-95 transition-transform"
+                onClick={() => {
+                  if (isGated) {
+                    setSelectedGatedFeature(item.label === "My Courses" ? "library" : "quiz");
+                  } else {
+                    navigate(item.to);
+                  }
+                }}
+                className={cn(
+                  "relative flex flex-col items-center justify-center gap-1 py-1 px-2 rounded-xl transition-all cursor-pointer",
+                  isActive ? "text-violet-600 dark:text-violet-400" : "text-slate-400 dark:text-slate-500"
+                )}
               >
-                {/* FAB circle - Half submerged with white/dark border cutout */}
-                <div className="absolute -top-6 h-11 w-11 rounded-full flex items-center justify-center text-white border-4 border-white dark:border-[#110d2c] shadow-sm"
-                  style={{ background: "linear-gradient(135deg, #7c3aed, #a855f7)" }}
-                >
-                  {icon}
+                <div className="relative">
+                  {item.icon}
+                  {isGated && (
+                    <span className="absolute -top-1.5 -right-2 h-3.5 w-3.5 rounded-full bg-amber-500 text-white flex items-center justify-center shadow-xs">
+                      <Crown size={9} strokeWidth={2.5} fill="currentColor" />
+                    </span>
+                  )}
                 </div>
-                <span className="text-[9px] font-black text-violet-600 dark:text-violet-400">
-                  {label}
-                </span>
+                <span className="text-[9px] font-black">{item.label}</span>
               </button>
             );
-          }
+          })}
+        </div>
+      </nav>
 
-          return (
-            <button
-              key={item.label}
-              onClick={() => navigate(item.to)}
-              className={cn(
-                "flex flex-col items-center justify-center gap-1.5 py-1.5 rounded-xl transition-all",
-                isActive ? "text-violet-600 dark:text-violet-400" : "text-slate-400 dark:text-slate-500"
-              )}
-            >
-              {item.icon}
-              <span className="text-[9px] font-black">{item.label}</span>
-            </button>
-          );
-        })}
-      </div>
-    </nav>
+      {/* Render Gated Feature Drop-up Modal if triggered */}
+      {selectedGatedFeature && (
+        <SubscriptionGate feature={selectedGatedFeature} onClose={() => setSelectedGatedFeature(null)}>
+          <div />
+        </SubscriptionGate>
+      )}
+    </>
   );
 }

@@ -210,6 +210,40 @@ export const verifyWalletPayment = asyncHandler(async (req, res) => {
 export const createSubscriptionOrder = asyncHandler(async (req, res) => {
   const { planId, isTrial } = req.body;
 
+  // ── 1. Load student first (needed for checks below) ──────────────────────
+  const student = await Student.findOne({ userId: req.user._id });
+  if (!student) return res.status(404).json({ success: false, message: 'Student not found' });
+
+  // ── 2. GUARD: Block duplicate ₹1 trial (root cause of timeout errors) ────
+  if (isTrial && student.subscription?.hasUsedTrial) {
+    return res.status(400).json({
+      success: false,
+      message: 'TRIAL_ALREADY_USED',
+      hint: 'You have already used the free trial. Please purchase the full subscription.',
+    });
+  }
+
+  // ── 3. GUARD: Block creating duplicate subscription when one is active ────
+  const existingSubId = student.subscription?.razorpaySubscriptionId;
+  if (existingSubId && ['trial', 'active'].includes(student.subscription?.status)) {
+    // Double-check with Razorpay live status
+    try {
+      const razorpay = getRazorpay();
+      const rzpSub = await razorpay.subscriptions.fetch(existingSubId);
+      if (['created', 'authenticated', 'active'].includes(rzpSub.status)) {
+        return res.status(400).json({
+          success: false,
+          message: 'SUBSCRIPTION_ALREADY_ACTIVE',
+          hint: 'You already have an active subscription. No need to pay again.',
+        });
+      }
+    } catch (err) {
+      // If fetch fails, allow proceeding (sub may have been deleted from Razorpay)
+      console.warn(`[Payment] Could not verify existing subscription ${existingSubId}:`, err.message);
+    }
+  }
+
+  // ── 4. Load plan ──────────────────────────────────────────────────────────
   let plan = null;
   try {
     if (planId) plan = await Plan.findById(planId);
@@ -219,9 +253,6 @@ export const createSubscriptionOrder = asyncHandler(async (req, res) => {
 
   // Fallback: find active monthly plan for student's class
   if (!plan) {
-    const student = await Student.findOne({ userId: req.user._id });
-    if (!student) return res.status(404).json({ success: false, message: 'Student not found' });
-
     const classNum = parseInt((student.class || '10').replace(/\D/g, ''), 10) || 10;
     let classRange = '9-10';
     if (classNum >= 1 && classNum <= 8) classRange = '1-8';
@@ -330,6 +361,22 @@ export const createSubscriptionOrder = asyncHandler(async (req, res) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+//  SUBSCRIPTION — Log Payment Failure / Cancellation
+//  POST /api/student/payment/subscription/log-failure
+// ─────────────────────────────────────────────────────────────────────────────
+export const logPaymentFailure = asyncHandler(async (req, res) => {
+  const { subscriptionId, orderId, reason, description } = req.body;
+  const targetId = subscriptionId || orderId;
+  if (targetId) {
+    await PaymentOrder.updateOne(
+      { razorpayOrderId: targetId, userId: req.user._id, status: 'created' },
+      { $set: { status: 'failed', failureReason: reason || description || 'user_cancelled' } }
+    );
+  }
+  res.json({ success: true, message: 'Payment failure logged.' });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 //  SUBSCRIPTION — Verify Payment & Activate Plan
 //  POST /api/student/payment/subscription/verify
 // ─────────────────────────────────────────────────────────────────────────────
@@ -370,7 +417,7 @@ export const verifySubscriptionPayment = asyncHandler(async (req, res) => {
     return res.status(404).json({ success: false, message: 'Student not found' });
   }
 
-  // 3. Activate plan / trial
+  // ── 3. Activate plan / trial ──────────────────────────────────────────────
   const classNum = parseInt((student.class || '10').replace(/\D/g, ''), 10) || 10;
   const trialDays = plan ? (plan.trialDays ?? 3) : 3;
 
@@ -389,9 +436,15 @@ export const verifySubscriptionPayment = asyncHandler(async (req, res) => {
   student.subscription = {
     planId: plan?._id || null,
     status: isTrial ? 'trial' : 'active',
-    ...(isTrial ? { trialEndsAt: expiresAt } : { expiresAt }),
+    trialEndsAt: isTrial ? expiresAt : student.subscription?.trialEndsAt,
+    expiresAt: isTrial ? (student.subscription?.expiresAt || null) : expiresAt,
     autopayEnabled: true,
     razorpaySubscriptionId: isSubscriptionFlow ? razorpay_subscription_id : null,
+    // Permanently mark trial as used so they can never get ₹1 trial again
+    hasUsedTrial: Boolean(student.subscription?.hasUsedTrial || isTrial),
+    cancelledAt: null,
+    cancelAtPeriodEnd: false,
+    lastRenewalAt: isTrial ? null : new Date(),
   };
 
   // Grant plan benefits
@@ -439,19 +492,175 @@ export const verifySubscriptionPayment = asyncHandler(async (req, res) => {
   });
 
   // 6. Send notification
-  await createNotification(
-    req.user._id,
-    'student',
-    isTrial ? '🎓 Trial Activated!' : '🎉 Subscription Active!',
-    isTrial
-      ? `Your ${trialDays}-day trial has started. Enjoy all premium features!`
-      : `Your ${plan?.name || 'subscription'} is now active until ${expiresAt.toLocaleDateString('en-IN')}.`,
-    { type: 'reward' }
-  );
+  try {
+    await createNotification(
+      req.user._id,
+      'subscription_renewal',
+      isTrial ? '🎓 Trial Activated!' : '🎉 Subscription Active!',
+      isTrial
+        ? `Your ${trialDays}-day trial has started. Enjoy all premium features!`
+        : `Your ${plan?.name || 'subscription'} is now active until ${expiresAt.toLocaleDateString('en-IN')}.`,
+      { deepLink: '/student-dashboard' },
+      '/student-dashboard'
+    );
+  } catch (notifErr) {
+    console.error('[Payment Notification Error]:', notifErr.message);
+  }
 
   res.json({
     success: true,
     message: isTrial ? 'Trial activated successfully!' : 'Subscription activated successfully!',
     data: student,
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  SUBSCRIPTION — Get Live Status (sync Razorpay → DB on app open)
+//  GET /api/student/payment/subscription/status
+// ─────────────────────────────────────────────────────────────────────────────
+export const getSubscriptionStatus = asyncHandler(async (req, res) => {
+  const student = await Student.findOne({ userId: req.user._id }).populate('subscription.planId');
+  if (!student) return res.status(404).json({ success: false, message: 'Student not found' });
+
+  const sub = student.subscription;
+  const now = new Date();
+
+  // ── Fix ghost-premium: if dates say expired but status still says active ──
+  let statusChanged = false;
+  if (sub.status === 'trial' && sub.trialEndsAt && sub.trialEndsAt <= now) {
+    // Trial date passed — check Razorpay to see if autopay charged
+    if (sub.razorpaySubscriptionId) {
+      try {
+        const razorpay = getRazorpay();
+        const rzpSub = await razorpay.subscriptions.fetch(sub.razorpaySubscriptionId);
+        if (rzpSub.status === 'active') {
+          // Autopay charged successfully — update DB (webhook may have missed)
+          const plan = sub.planId;
+          const durationMap = { monthly: 30, quarterly: 90, yearly: 365 };
+          const days = plan ? (durationMap[plan.duration] || 30) : 30;
+          const expiresAt = new Date();
+          expiresAt.setDate(expiresAt.getDate() + days);
+          student.subscription.status = 'active';
+          student.subscription.expiresAt = expiresAt;
+          student.subscription.trialEndsAt = undefined;
+          student.subscription.lastRenewalAt = now;
+          statusChanged = true;
+        } else if (['halted', 'cancelled', 'expired'].includes(rzpSub.status)) {
+          student.subscription.status = 'expired';
+          statusChanged = true;
+        }
+      } catch (err) {
+        console.warn('[SubscriptionStatus] Razorpay fetch failed:', err.message);
+        // Fall through — don't crash the app open
+      }
+    } else {
+      student.subscription.status = 'expired';
+      statusChanged = true;
+    }
+  } else if (sub.status === 'active' && sub.expiresAt && sub.expiresAt <= now) {
+    // Active subscription date passed — check Razorpay for renewal
+    if (sub.razorpaySubscriptionId) {
+      try {
+        const razorpay = getRazorpay();
+        const rzpSub = await razorpay.subscriptions.fetch(sub.razorpaySubscriptionId);
+        if (rzpSub.status === 'active') {
+          // Renewed — extend expiresAt (webhook may have missed)
+          const plan = sub.planId;
+          const durationMap = { monthly: 30, quarterly: 90, yearly: 365 };
+          const days = plan ? (durationMap[plan.duration] || 30) : 30;
+          const expiresAt = new Date();
+          expiresAt.setDate(expiresAt.getDate() + days);
+          student.subscription.expiresAt = expiresAt;
+          student.subscription.lastRenewalAt = now;
+          statusChanged = true;
+        } else if (['halted', 'cancelled', 'expired', 'completed'].includes(rzpSub.status)) {
+          student.subscription.status = 'expired';
+          statusChanged = true;
+        }
+      } catch (err) {
+        console.warn('[SubscriptionStatus] Razorpay fetch failed:', err.message);
+      }
+    } else {
+      student.subscription.status = 'expired';
+      statusChanged = true;
+    }
+  }
+
+  // If cancelAtPeriodEnd and the period is now over, mark as cancelled
+  if (sub.cancelAtPeriodEnd && sub.expiresAt && sub.expiresAt <= now) {
+    student.subscription.status = 'cancelled';
+    statusChanged = true;
+  }
+
+  if (statusChanged) {
+    student.markModified('subscription');
+    await student.save();
+  }
+
+  const updatedSub = student.subscription;
+  const plan = updatedSub.planId;
+
+  res.json({
+    success: true,
+    data: {
+      status: updatedSub.status,
+      isPremium: ['trial', 'active'].includes(updatedSub.status),
+      hasUsedTrial: updatedSub.hasUsedTrial || false,
+      autopayEnabled: updatedSub.autopayEnabled || false,
+      expiresAt: updatedSub.expiresAt || null,
+      trialEndsAt: updatedSub.trialEndsAt || null,
+      cancelledAt: updatedSub.cancelledAt || null,
+      cancelAtPeriodEnd: updatedSub.cancelAtPeriodEnd || false,
+      lastRenewalAt: updatedSub.lastRenewalAt || null,
+      plan: plan ? { id: plan._id, name: plan.name, price: plan.price, duration: plan.duration } : null,
+    },
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  SUBSCRIPTION — Cancel (self-service cancel at period end)
+//  POST /api/student/payment/subscription/cancel
+// ─────────────────────────────────────────────────────────────────────────────
+export const cancelSubscription = asyncHandler(async (req, res) => {
+  const student = await Student.findOne({ userId: req.user._id });
+  if (!student) return res.status(404).json({ success: false, message: 'Student not found' });
+
+  const sub = student.subscription;
+
+  // 1. If Razorpay subscription ID exists, attempt cancellation via Razorpay API
+  if (sub?.razorpaySubscriptionId) {
+    try {
+      const razorpay = getRazorpay();
+      // cancel_at_cycle_end: 1 → user keeps access until current period ends
+      await razorpay.subscriptions.cancel(sub.razorpaySubscriptionId, { cancel_at_cycle_end: 1 });
+    } catch (err) {
+      console.warn('[CancelSubscription] Razorpay cancel notice (proceeding with DB update):', err.message);
+    }
+  }
+
+  // 2. Always update local database state to cancel auto-pay & stop auto-renewal
+  if (student.subscription) {
+    student.subscription.cancelAtPeriodEnd = true;
+    student.subscription.cancelledAt = new Date();
+    student.subscription.autopayEnabled = false;
+    student.markModified('subscription');
+    await student.save();
+  }
+
+  const rawExp = sub?.expiresAt || sub?.trialEndsAt;
+  let formattedDate = null;
+  if (rawExp && !isNaN(new Date(rawExp).getTime())) {
+    formattedDate = new Date(rawExp).toLocaleDateString('en-IN');
+  }
+
+  res.json({
+    success: true,
+    message: formattedDate
+      ? `Auto-pay cancelled successfully. You will maintain premium access until ${formattedDate}.`
+      : 'Auto-pay cancelled successfully.',
+    data: {
+      cancelAtPeriodEnd: true,
+      accessUntil: rawExp || null,
+    },
   });
 });

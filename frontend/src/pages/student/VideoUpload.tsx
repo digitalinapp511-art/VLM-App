@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { 
   ChevronLeft, Bell, Upload, Video, Play, 
-  Pencil, Calendar, Book, FileText, Info, ArrowRight 
+  Pencil, Calendar, Book, FileText, Info, ArrowRight, Crown 
 } from "lucide-react";
 import { bgCss } from "@/helper/CssHelper";
 // Official Shadcn Components
@@ -17,8 +17,11 @@ import { PATHS } from "@/routes/paths";
 
 import { studentApi } from "@/lib/student-api";
 import { useMutation } from "@tanstack/react-query";
+import SubscriptionGate from "@/components/subscription/SubscriptionGate";
+import { useSubscription } from "@/hooks/use-subscription";
 
 export default function VideoUpload() {
+  const { isPremium } = useSubscription();
   const [title, setTitle] = useState("");
   const [topic, setTopic] = useState("");
   const [selectedClass, setSelectedClass] = useState("");
@@ -50,7 +53,8 @@ export default function VideoUpload() {
   });
 
   return (
-    <div className={`${bgCss}relative flex min-h-svh w-full flex-col items-center bg-[#050505] px-6 pt-5 overflow-x-hidden text-white pb-10`}>
+    <SubscriptionGate feature="uploadVideo">
+      <div className={`${bgCss}relative flex min-h-svh w-full flex-col items-center bg-[#050505] px-6 pt-5 overflow-x-hidden text-white pb-10`}>
       <div className="max-w-xl">
 
       
@@ -151,14 +155,16 @@ export default function VideoUpload() {
         {/* SUBMIT BUTTON */}
         <div className="pt-6 relative">
             <div className="absolute inset-x-0 bottom-0 top-6 bg-blue-600/20 blur-3xl rounded-full" />
-            <Button onClick={() => submitMutation.mutate()} disabled={submitMutation.isPending || !title.trim()} className="relative w-full h-16 rounded-full bg-gradient-to-r from-[#1e3a8e] to-[#0f172a] border border-blue-400/40 text-white font-black tracking-widest text-lg shadow-2xl hover:brightness-110 active:scale-[0.98]">
-              {submitMutation.isPending ? "SUBMITTING..." : "SUBMIT VIDEO"} <ArrowRight size={20} className="ml-2" />
+            <Button onClick={() => submitMutation.mutate()} disabled={submitMutation.isPending || !title.trim()} className="relative w-full h-16 rounded-full bg-gradient-to-r from-[#1e3a8e] to-[#0f172a] border border-blue-400/40 text-white font-black tracking-widest text-lg shadow-2xl hover:brightness-110 active:scale-[0.98] flex items-center justify-center gap-2">
+              {!isPremium && <Crown className="h-5 w-5 text-amber-300 animate-pulse" fill="currentColor" />}
+              {submitMutation.isPending ? "SUBMITTING..." : "SUBMIT VIDEO"} <ArrowRight size={20} />
             </Button>
         </div>
 
       </main>
     </div>
     </div>
+    </SubscriptionGate>
   );
 }
 

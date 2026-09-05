@@ -5,8 +5,11 @@
  * Each tile has a colored circular icon background, label, and navigates to
  * the corresponding page.
  */
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { PATHS } from "@/routes/paths";
+import { useSubscription } from "@/hooks/use-subscription";
+import SubscriptionGate from "@/components/subscription/SubscriptionGate";
 import {
   MessageCircle,
   Video,
@@ -19,6 +22,7 @@ import {
   Brain,
   Star,
   History,
+  Crown,
 } from "lucide-react";
 
 interface QuickTile {
@@ -31,28 +35,36 @@ interface QuickTile {
 
 export default function QuickAccessGrid() {
   const navigate = useNavigate();
+  const { isPremium } = useSubscription();
+  const [selectedGatedFeature, setSelectedGatedFeature] = useState<any>(null);
 
-  const tiles: QuickTile[] = [
+  const tiles: (QuickTile & { requiresPremium?: boolean; featureKey?: string })[] = [
     {
       label: "Live Doubt",
       icon: <MessageCircle size={22} className="text-green-600 dark:text-green-400" />,
       bg: "bg-green-100 dark:bg-green-950/40",
       to: PATHS.ASK_DOUBT,
-      state: { type: "chat" }
+      state: { type: "chat" },
+      requiresPremium: true,
+      featureKey: "humanChat",
     },
     {
       label: "Video",
       icon: <Video size={22} className="text-blue-600 dark:text-blue-400" />,
       bg: "bg-blue-100 dark:bg-blue-950/40",
       to: PATHS.ASK_DOUBT,
-      state: { type: "video" }
+      state: { type: "video" },
+      requiresPremium: true,
+      featureKey: "video",
     },
     {
       label: "Voice",
       icon: <Mic size={22} className="text-purple-600 dark:text-purple-400" />,
       bg: "bg-purple-100 dark:bg-purple-950/40",
       to: PATHS.ASK_DOUBT,
-      state: { type: "audio" }
+      state: { type: "audio" },
+      requiresPremium: true,
+      featureKey: "call",
     },
     {
       label: "AI Tutor",
@@ -65,30 +77,40 @@ export default function QuickAccessGrid() {
       icon: <FileText size={22} className="text-yellow-600 dark:text-yellow-400" />,
       bg: "bg-yellow-100 dark:bg-yellow-950/40",
       to: PATHS.LIBRARY,
+      requiresPremium: true,
+      featureKey: "library",
     },
     {
       label: "MCQ",
       icon: <ClipboardList size={22} className="text-cyan-600 dark:text-cyan-400" />,
       bg: "bg-cyan-100 dark:bg-cyan-950/40",
       to: PATHS.MCQ,
+      requiresPremium: true,
+      featureKey: "quiz",
     },
     {
       label: "Quizzes",
       icon: <Brain size={22} className="text-pink-600 dark:text-pink-400" />,
       bg: "bg-pink-100 dark:bg-pink-950/40",
       to: PATHS.MCQ,
+      requiresPremium: true,
+      featureKey: "quiz",
     },
     {
       label: "Imp Qs",
       icon: <Star size={22} className="text-orange-500 dark:text-orange-400" />,
       bg: "bg-orange-100 dark:bg-orange-950/40",
       to: PATHS.LIBRARY,
+      requiresPremium: true,
+      featureKey: "library",
     },
     {
       label: "NCERT Solutions",
       icon: <BookOpen size={22} className="text-emerald-600 dark:text-emerald-400" />,
       bg: "bg-emerald-100 dark:bg-emerald-950/40",
       to: PATHS.LIBRARY,
+      requiresPremium: true,
+      featureKey: "library",
     },
     {
       label: "History",
@@ -113,23 +135,44 @@ export default function QuickAccessGrid() {
 
       {/* 5-col grid */}
       <div className="grid grid-cols-5 gap-3">
-        {tiles.map((tile) => (
-          <button
-            key={tile.label}
-            onClick={() => navigate(tile.to, { state: tile.state })}
-            className="flex flex-col items-center gap-1.5 group"
-          >
-            <div
-              className={`h-12 w-12 rounded-2xl ${tile.bg} flex items-center justify-center shadow-sm group-active:scale-90 transition-transform`}
+        {tiles.map((tile) => {
+          const isGated = !isPremium && tile.requiresPremium;
+          return (
+            <button
+              key={tile.label}
+              onClick={() => {
+                if (isGated && tile.featureKey) {
+                  setSelectedGatedFeature(tile.featureKey);
+                } else {
+                  navigate(tile.to, { state: tile.state });
+                }
+              }}
+              className="flex flex-col items-center gap-1.5 group relative cursor-pointer"
             >
-              {tile.icon}
-            </div>
-            <span className="text-[9px] font-bold text-slate-600 dark:text-slate-300 text-center leading-tight">
-              {tile.label}
-            </span>
-          </button>
-        ))}
+              <div
+                className={`relative h-12 w-12 rounded-2xl ${tile.bg} flex items-center justify-center shadow-sm group-active:scale-90 transition-transform`}
+              >
+                {tile.icon}
+                {isGated && (
+                  <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-amber-500 text-white flex items-center justify-center shadow-md">
+                    <Crown size={10} strokeWidth={2.5} fill="currentColor" />
+                  </span>
+                )}
+              </div>
+              <span className="text-[9px] font-bold text-slate-600 dark:text-slate-300 text-center leading-tight">
+                {tile.label}
+              </span>
+            </button>
+          );
+        })}
       </div>
+
+      {/* Render Gated Drop-up Popup on Quick Access Tile Click */}
+      {selectedGatedFeature && (
+        <SubscriptionGate feature={selectedGatedFeature} onClose={() => setSelectedGatedFeature(null)}>
+          <div />
+        </SubscriptionGate>
+      )}
     </div>
   );
 }

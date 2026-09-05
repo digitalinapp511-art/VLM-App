@@ -45,6 +45,13 @@ const studentSchema = new mongoose.Schema(
       expiresAt: Date,
       autopayEnabled: { type: Boolean, default: false },
       razorpaySubscriptionId: { type: String, default: null },
+      // Permanent flag — once true, never reset. Prevents duplicate ₹1 trials.
+      hasUsedTrial: { type: Boolean, default: false },
+      // Set when user cancels; if cancelAtPeriodEnd=true, access continues until expiresAt
+      cancelledAt: { type: Date, default: null },
+      cancelAtPeriodEnd: { type: Boolean, default: false },
+      // Updated by webhook on every successful autopay charge
+      lastRenewalAt: { type: Date, default: null },
     },
     streak: { type: Number, default: 0 },
     lastActiveDate: Date,

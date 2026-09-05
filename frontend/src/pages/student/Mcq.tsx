@@ -23,6 +23,7 @@ import { bgCss } from "@/helper/CssHelper";
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
+import SubscriptionGate from "@/components/subscription/SubscriptionGate";
 
 type McqOption = {
   id: string;
@@ -215,7 +216,8 @@ export default function Mcq() {
     const todayDayIndex = new Date().getDay();
 
     return (
-      <div className="relative flex min-h-svh w-full flex-col items-center bg-[#f4f6ff] dark:bg-[#0b081e] px-6 py-8 overflow-hidden text-slate-800 dark:text-slate-100 transition-colors duration-300">
+      <SubscriptionGate feature="quiz">
+        <div className="relative flex min-h-svh w-full flex-col items-center bg-[#f4f6ff] dark:bg-[#0b081e] px-6 py-8 overflow-hidden text-slate-800 dark:text-slate-100 transition-colors duration-300">
         <div className="max-w-xl w-full flex flex-col min-h-svh pb-24">
 
           {/* Header */}
@@ -643,6 +645,7 @@ export default function Mcq() {
           )}
         </AnimatePresence>
       </div>
+      </SubscriptionGate>
     );
   }
 

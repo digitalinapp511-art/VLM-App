@@ -4,9 +4,12 @@
  * The green "24x7 Live Teacher Support" strip.
  * Shows active teachers count from backend and navigates to AskDoubt.
  */
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { PATHS } from "@/routes/paths";
-import { Headphones } from "lucide-react";
+import { Headphones, Crown } from "lucide-react";
+import { useSubscription } from "@/hooks/use-subscription";
+import SubscriptionGate from "@/components/subscription/SubscriptionGate";
 
 interface LiveSupportBannerProps {
   activeTeachersCount: number;
@@ -16,6 +19,8 @@ export default function LiveSupportBanner({
   activeTeachersCount,
 }: LiveSupportBannerProps) {
   const navigate = useNavigate();
+  const { isPremium } = useSubscription();
+  const [showGate, setShowGate] = useState(false);
 
   return (
     <div className="mx-0 w-full bg-[#f0fdf4] rounded-2xl border border-green-100 shadow-sm p-3 sm:p-4 flex items-center justify-between gap-2 sm:gap-3">
@@ -54,11 +59,29 @@ export default function LiveSupportBanner({
 
       {/* CTA */}
       <button
-        onClick={() => navigate(PATHS.ASK_DOUBT)}
-        className="bg-green-500 hover:bg-green-600 text-white font-black text-[10px] sm:text-xs px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl shrink-0 transition-all active:scale-95 shadow-md shadow-green-500/30"
+        onClick={() => {
+          if (!isPremium) {
+            setShowGate(true);
+          } else {
+            navigate(PATHS.ASK_DOUBT);
+          }
+        }}
+        className={`font-black text-[10px] sm:text-xs px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl shrink-0 transition-all active:scale-95 shadow-md flex items-center gap-1.5 cursor-pointer ${
+          !isPremium
+            ? "bg-amber-500 hover:bg-amber-600 text-white shadow-amber-500/20"
+            : "bg-green-500 hover:bg-green-600 text-white shadow-green-500/30"
+        }`}
       >
-        Ask Now
+        {!isPremium && <Crown size={12} strokeWidth={2.5} fill="currentColor" />}
+        <span>{!isPremium ? "Get Plan" : "Ask Now"}</span>
       </button>
+
+      {/* Subscription Drop-up Modal for Free Users */}
+      {showGate && (
+        <SubscriptionGate feature="humanChat" onClose={() => setShowGate(false)}>
+          <div />
+        </SubscriptionGate>
+      )}
     </div>
   );
 }

@@ -15,12 +15,14 @@ import studentApi from "@/lib/student-api";
 import { toast } from "sonner";
 import { loadRazorpayScript, openRazorpayCheckout } from "@/lib/razorpay";
 import { useState } from "react";
+import { useSubscription } from "@/hooks/use-subscription";
 
 export default function PlanScreen() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { data: profile, isLoading } = useStudentProfile();
   const [isPaying, setIsPaying] = useState(false);
+  const { hasUsedTrial, isPremium } = useSubscription();
 
   // Parse student class range
   const profileData = (profile as any)?.data ?? profile;
@@ -69,6 +71,22 @@ export default function PlanScreen() {
       });
 
       if (!orderRes?.success) {
+        // Handle specific known error codes from backend
+        if (orderRes?.message === 'TRIAL_ALREADY_USED') {
+          toast.error("You've already used the free trial. Redirecting to full subscription...");
+          // Small delay then navigate — don't leave user stuck
+          setTimeout(() => setIsPaying(false), 500);
+          return;
+        }
+        if (orderRes?.message === 'SUBSCRIPTION_ALREADY_ACTIVE') {
+          toast.success("Your subscription is already active! Redirecting to dashboard...");
+          await Promise.all([
+            queryClient.invalidateQueries({ queryKey: ["subscriptionStatus"] }),
+            queryClient.invalidateQueries({ queryKey: ["studentProfile"] }),
+          ]);
+          navigate(PATHS.STUDENT_DASHBOARD);
+          return;
+        }
         toast.error(orderRes?.message || "Failed to create payment order. Try again.");
         setIsPaying(false);
         return;
@@ -92,10 +110,17 @@ export default function PlanScreen() {
       });
 
       if (!result.success) {
-        if ((result as any).error?.reason === "user_cancelled") {
+        const errObj = (result as any).error;
+        studentApi.logPaymentFailure({
+          subscriptionId,
+          reason: errObj?.reason,
+          description: errObj?.description,
+        }).catch(() => {});
+
+        if (errObj?.reason === "user_cancelled") {
           toast.info("Payment cancelled.");
         } else {
-          toast.error(`Payment failed: ${(result as any).error?.description || "Unknown error"}`);
+          toast.error(`Payment failed: ${errObj?.description || "Unknown error"}`);
         }
         setIsPaying(false);
         return;
@@ -111,6 +136,7 @@ export default function PlanScreen() {
       if (verifyRes?.success) {
         toast.success("Trial activated! Enjoy your premium features. 🎉");
         await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ["subscriptionStatus"] }),
           queryClient.invalidateQueries({ queryKey: ["currentUserSession"] }),
           queryClient.invalidateQueries({ queryKey: ["studentProfile"] }),
         ]);
@@ -119,8 +145,100 @@ export default function PlanScreen() {
         toast.error(verifyRes?.message || "Payment verification failed. Contact support.");
       }
     } catch (err: any) {
-      console.error("Trial payment error:", err);
-      toast.error(err?.response?.data?.message || "Something went wrong during payment.");
+      const errMsg = err?.response?.data?.message || err?.message || "Something went wrong during payment.";
+      if (errMsg === 'TRIAL_ALREADY_USED') {
+        toast.error("Trial already used. Please choose the full subscription plan.");
+      } else if (errMsg === 'SUBSCRIPTION_ALREADY_ACTIVE') {
+        toast.success("Your subscription is already active!");
+        navigate(PATHS.STUDENT_DASHBOARD);
+        return;
+      } else {
+        toast.error(errMsg);
+      }
+    } finally {
+      setIsPaying(false);
+    }
+  };
+
+  // ── Full subscription flow (for users who already used the trial) ──────────
+  const handleSubscribeFullPlan = async () => {
+    setIsPaying(true);
+    try {
+      const sdkLoaded = await loadRazorpayScript();
+      if (!sdkLoaded) {
+        toast.error("Payment SDK failed to load. Check your internet connection.");
+        setIsPaying(false);
+        return;
+      }
+
+      const orderRes = await studentApi.createSubscriptionOrder({
+        planId: activePlan?._id,
+        isTrial: false,
+      });
+
+      if (!orderRes?.success) {
+        if (orderRes?.message === 'SUBSCRIPTION_ALREADY_ACTIVE') {
+          toast.success("Your subscription is already active!");
+          navigate(PATHS.STUDENT_DASHBOARD);
+          return;
+        }
+        toast.error(orderRes?.message || "Failed to create subscription. Try again.");
+        setIsPaying(false);
+        return;
+      }
+
+      const { subscriptionId, amount, currency, keyId } = orderRes.data;
+      const profileData2 = (profile as any)?.data ?? profile;
+
+      const result = await openRazorpayCheckout({
+        subscriptionId,
+        amount,
+        currency,
+        keyId,
+        name: "VLM Education",
+        description: `Monthly Subscription — ₹${priceVal}/month`,
+        prefillName: profileData2?.firstName ? `${profileData2.firstName} ${profileData2.lastName || ""}`.trim() : "",
+        prefillEmail: profileData2?.email || "",
+        prefillContact: profileData2?.mobile || "",
+        themeColor: "#1e3a8e",
+      });
+
+      if (!result.success) {
+        const errObj = (result as any).error;
+        studentApi.logPaymentFailure({
+          subscriptionId,
+          reason: errObj?.reason,
+          description: errObj?.description,
+        }).catch(() => {});
+
+        if (errObj?.reason === "user_cancelled") {
+          toast.info("Payment cancelled.");
+        } else {
+          toast.error(`Payment failed: ${errObj?.description || "Unknown error"}`);
+        }
+        setIsPaying(false);
+        return;
+      }
+
+      const verifyRes = await studentApi.verifySubscriptionPayment({
+        razorpay_subscription_id: result.razorpay_subscription_id,
+        razorpay_payment_id: result.razorpay_payment_id,
+        razorpay_signature: result.razorpay_signature,
+      });
+
+      if (verifyRes?.success) {
+        toast.success("Subscription activated! Welcome to premium. 🎉");
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ["subscriptionStatus"] }),
+          queryClient.invalidateQueries({ queryKey: ["currentUserSession"] }),
+          queryClient.invalidateQueries({ queryKey: ["studentProfile"] }),
+        ]);
+        navigate(PATHS.STUDENT_DASHBOARD);
+      } else {
+        toast.error(verifyRes?.message || "Payment verification failed. Contact support.");
+      }
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || err?.message || "Something went wrong.");
     } finally {
       setIsPaying(false);
     }
@@ -176,20 +294,20 @@ export default function PlanScreen() {
       ];
 
   return (
-    <div className="min-h-screen w-full bg-[#d6ebff] text-slate-800 flex flex-col items-center pb-32 overflow-x-hidden font-sans relative">
+    <div className="min-h-screen w-full bg-[#d6ebff] text-slate-800 flex flex-col items-center pb-44 overflow-x-hidden font-sans relative">
       
       {/* Header */}
-      <header className="w-full max-w-md pt-6 px-4 flex items-center justify-between z-10">
+      <header className="w-full max-w-md pt-6 px-4 flex items-center justify-between z-10 relative">
         <button
-          onClick={() => navigate(-1)}
-          className="flex items-center justify-center w-9 h-9 rounded-xl bg-white border border-slate-200/80 shadow-sm hover:bg-slate-50 transition-colors shrink-0"
+          onClick={() => navigate(PATHS.STUDENT_DASHBOARD)}
+          className="flex items-center justify-center w-9 h-9 rounded-xl bg-white border border-slate-200/80 shadow-sm hover:bg-slate-50 transition-colors z-10 shrink-0"
+          aria-label="Back to dashboard"
         >
           <ChevronLeft className="h-5 w-5 text-slate-600" />
         </button>
-        <div className="flex flex-col items-center flex-grow -mr-9">
-          <div className="flex items-center gap-1.5">
-            <span className="text-xl font-black text-blue-900 tracking-tighter uppercase">VLM Academy</span>
-          </div>
+        
+        <div className="absolute inset-x-0 flex justify-center items-center pointer-events-none">
+          <span className="text-xl font-black text-blue-900 tracking-tighter uppercase whitespace-nowrap pointer-events-auto">VLM Academy</span>
         </div>
       </header>
 
@@ -236,15 +354,15 @@ export default function PlanScreen() {
           {/* Feature List */}
           <div className="w-full space-y-4 pt-4 border-t border-slate-100">
             {features.map((feat: any, idx: number) => (
-              <div key={idx} className="flex gap-3.5 items-start">
-                <div className="w-6 h-6 rounded-lg bg-blue-550/10 flex items-center justify-center shrink-0 mt-0.5 text-blue-900">
-                  <feat.icon size={16} strokeWidth={2.5} />
+              <div key={idx} className="flex gap-3.5 items-start text-left">
+                <div className="w-7 h-7 rounded-xl bg-blue-900/10 flex items-center justify-center shrink-0 text-blue-900 mt-0.5">
+                  <feat.icon size={15} strokeWidth={2.2} />
                 </div>
-                <div className="space-y-0.5">
-                  <h4 className="text-[11px] font-black text-slate-800 tracking-wide uppercase">
+                <div className="flex-1 min-w-0 space-y-0.5 pt-0.5">
+                  <h4 className="text-[11px] font-black text-slate-800 tracking-wide uppercase leading-tight">
                     {feat.title}
                   </h4>
-                  <p className="text-[10px] text-slate-500 font-medium leading-relaxed">
+                  <p className="text-[10px] text-slate-500 font-medium leading-normal">
                     {feat.desc}
                   </p>
                 </div>
@@ -254,24 +372,24 @@ export default function PlanScreen() {
         </div>
 
         {/* Optional Extras Card */}
-        <div className="bg-white border border-slate-200/80 rounded-[20px] shadow-sm p-4 flex flex-col gap-3">
+        <div className="bg-white border border-slate-200/80 rounded-[20px] shadow-sm p-4 flex flex-col gap-3 text-left">
           <div className="space-y-0.5">
-            <span className="text-[9px] font-black text-blue-800 tracking-wider uppercase">
+            <span className="text-[9px] font-black text-blue-800 tracking-wider uppercase block">
               Optional Extras
             </span>
-            <h3 className="text-sm font-black text-slate-800">
+            <h3 className="text-sm font-black text-slate-800 leading-tight">
               Live One-on-One Support
             </h3>
           </div>
-          <div className="flex items-center gap-3 bg-blue-50/50 p-3 rounded-xl border border-blue-100/50">
-            <div className="w-10 h-10 rounded-full bg-blue-900 flex items-center justify-center text-white shrink-0">
+          <div className="flex items-center gap-3 bg-blue-50/60 p-3 rounded-xl border border-blue-100/60">
+            <div className="w-10 h-10 rounded-full bg-blue-900 flex items-center justify-center text-white shrink-0 shadow-sm">
               <VideoIcon size={20} />
             </div>
-            <div>
-              <p className="text-[11px] font-black text-slate-700 uppercase">
+            <div className="flex-1 min-w-0">
+              <p className="text-[11px] font-black text-slate-700 uppercase leading-snug">
                 Video Call, Call & Chat Support
               </p>
-              <p className="text-base font-black text-[#d5a848]">
+              <p className="text-sm font-black text-[#d5a848] leading-tight">
                 {extraPriceText}
               </p>
             </div>
@@ -280,24 +398,56 @@ export default function PlanScreen() {
       </div>
 
       {/* Sticky Action Footer */}
-      <footer className="fixed bottom-0 left-0 w-full px-4 pb-6 pt-4 bg-gradient-to-t from-[#d6ebff] via-[#d6ebff]/95 to-transparent flex flex-col items-center gap-2 z-50">
-        <p className="text-slate-600 text-[11px] font-bold uppercase tracking-wider">
-          Activate trial for <span className="text-blue-900 font-black">₹{trialPriceVal}</span>
-        </p>
-        <div className="w-full max-w-md relative">
-          <Button
-            onClick={handleStartTrial}
-            disabled={isPaying}
-            className={cn(
-              "w-full h-14 rounded-full text-base font-bold tracking-wide transition-all active:scale-[0.98] shadow-lg shadow-blue-900/10",
-              "bg-blue-900 text-white hover:brightness-110",
-              "border border-blue-800"
-            )}
-          >
-            {isPaying ? "PROCESSING PAYMENT..." : `START ${trialDaysVal}-DAY TRIAL`}
-          </Button>
-        </div>
+      <footer className="fixed bottom-0 left-0 w-full px-4 pb-8 pt-5 bg-gradient-to-t from-[#d6ebff] via-[#d6ebff]/95 to-transparent flex flex-col items-center gap-3.5 z-50">
+        {!hasUsedTrial ? (
+          // ── NEW USER: Show ₹1 trial ──────────────────────────────────────
+          <>
+            <p className="text-slate-600 text-[11px] font-bold uppercase tracking-wider text-center">
+              Activate trial for <span className="text-blue-900 font-black">₹{trialPriceVal}</span> · then ₹{priceVal}/month
+            </p>
+            <div className="w-full max-w-md relative">
+              <Button
+                onClick={handleStartTrial}
+                disabled={isPaying}
+                className={cn(
+                  "w-full h-14 rounded-full text-base font-bold tracking-wide transition-all active:scale-[0.98] shadow-xl shadow-blue-900/20",
+                  "bg-blue-900 text-white hover:brightness-110",
+                  "border border-blue-800"
+                )}
+              >
+                {isPaying ? "PROCESSING PAYMENT..." : `START ${trialDaysVal}-DAY TRIAL — ₹${trialPriceVal}`}
+              </Button>
+            </div>
+            <p className="text-[9px] text-slate-400 font-medium text-center">
+              Autopay will charge ₹{priceVal}/month after trial. Cancel anytime.
+            </p>
+          </>
+        ) : (
+          // ── RETURNING USER (already used trial): Show full plan price ────
+          <>
+            <p className="text-slate-600 text-[11px] font-bold uppercase tracking-wider text-center">
+              Monthly subscription — <span className="text-blue-900 font-black">₹{priceVal}/month</span>
+            </p>
+            <div className="w-full max-w-md relative">
+              <Button
+                onClick={handleSubscribeFullPlan}
+                disabled={isPaying}
+                className={cn(
+                  "w-full h-14 rounded-full text-base font-bold tracking-wide transition-all active:scale-[0.98] shadow-xl shadow-blue-900/20",
+                  "bg-blue-900 text-white hover:brightness-110",
+                  "border border-blue-800"
+                )}
+              >
+                {isPaying ? "PROCESSING PAYMENT..." : `SUBSCRIBE — ₹${priceVal}/MONTH`}
+              </Button>
+            </div>
+            <p className="text-[9px] text-slate-400 font-medium text-center">
+              Monthly autopay. Cancel anytime from your profile.
+            </p>
+          </>
+        )}
       </footer>
+
     </div>
   );
 }

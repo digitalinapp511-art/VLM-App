@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { PATHS } from "@/routes/paths";
+import { useSubscription } from "@/hooks/use-subscription";
+import { Crown } from "lucide-react";
 
 interface RewardsBannerProps {
   lastSpinDate?: string | null;
@@ -10,6 +12,7 @@ interface RewardsBannerProps {
 
 export default function RewardsBanner({ lastSpinDate, spinCooldownHours = 2, onLockedClick }: RewardsBannerProps) {
   const navigate = useNavigate();
+  const { isPremium } = useSubscription();
   const [secondsLeft, setSecondsLeft] = useState(0);
 
   useEffect(() => {
@@ -40,10 +43,6 @@ export default function RewardsBanner({ lastSpinDate, spinCooldownHours = 2, onL
   };
 
   const handleNavigation = () => {
-    if (!canSpin) {
-      onLockedClick?.();
-      return;
-    }
     navigate(PATHS.SPINNER);
   };
 
@@ -75,13 +74,22 @@ export default function RewardsBanner({ lastSpinDate, spinCooldownHours = 2, onL
         {/* CTA */}
         <button
           onClick={handleNavigation}
-          className={`font-black text-[10px] px-3 py-2 rounded-xl transition-all active:scale-95 shrink-0 whitespace-nowrap border cursor-pointer ${
-            canSpin
+          className={`font-black text-[10px] px-3 py-2 rounded-xl transition-all active:scale-95 shrink-0 whitespace-nowrap border cursor-pointer flex items-center gap-1.5 ${
+            canSpin && isPremium
               ? "bg-white/20 hover:bg-white/30 text-white border-white/30"
-              : "bg-white/10 text-white/50 border-white/10"
+              : "bg-amber-500/90 hover:bg-amber-500 text-white border-amber-400"
           }`}
         >
-          {canSpin ? "Spin Now" : "Locked"}
+          {!isPremium ? (
+            <>
+              <Crown size={11} strokeWidth={2.5} fill="currentColor" />
+              <span>Get Plan</span>
+            </>
+          ) : canSpin ? (
+            "Spin Now"
+          ) : (
+            "Cooldown"
+          )}
         </button>
       </div>
     </div>

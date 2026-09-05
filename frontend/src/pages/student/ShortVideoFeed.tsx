@@ -3,7 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { PATHS } from "@/routes/paths";
 import { 
   ChevronLeft, Heart, MessageSquare, Share2, 
-  UserPlus, UserMinus, Play, Volume2, VolumeX, Eye, Upload, X, Send, Trash2, UserCheck, Settings
+  UserPlus, UserMinus, Play, Volume2, VolumeX, Eye, Upload, X, Send, Trash2, UserCheck, Settings, Crown
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -11,6 +11,8 @@ import { cn } from "@/lib/utils";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { studentApi } from "@/lib/student-api";
 import { useStudentProfile } from "@/hooks/use-student";
+import { useSubscription } from "@/hooks/use-subscription";
+import SubscriptionGate from "@/components/subscription/SubscriptionGate";
 import { toast } from "sonner";
 import StudentBottomNav from "@/features/student/components/layout/StudentBottomNav";
 
@@ -95,6 +97,9 @@ export default function ShortVideoFeed() {
   const { id: sharedShortId } = useParams();
   const queryClient = useQueryClient();
   
+  const { isPremium } = useSubscription();
+  const [showUploadGate, setShowUploadGate] = useState(false);
+
   const [isMuted, setIsMuted] = useState(false);
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [videoFile, setVideoFile] = useState<File | null>(null);
@@ -496,6 +501,10 @@ export default function ShortVideoFeed() {
   };
 
   const handleUploadSubmit = () => {
+    if (!isPremium) {
+      setShowUploadGate(true);
+      return;
+    }
     if (!videoFile) {
       toast.error("Please select a video file!");
       return;
@@ -1169,13 +1178,21 @@ export default function ShortVideoFeed() {
               <Button
                 onClick={handleUploadSubmit}
                 disabled={uploadMutation.isPending}
-                className="flex-1 h-11 rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-500 hover:from-violet-500 hover:to-fuchsia-400 text-white font-black text-xs border-none shadow-[0_0_15px_rgba(124,58,237,0.3)]"
+                className="flex-1 h-11 rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-500 hover:from-violet-500 hover:to-fuchsia-400 text-white font-black text-xs border-none shadow-[0_0_15px_rgba(124,58,237,0.3)] flex items-center justify-center gap-1.5"
               >
+                {!isPremium && <Crown className="h-4 w-4 text-amber-300 animate-pulse" fill="currentColor" />}
                 {uploadMutation.isPending ? "Uploading..." : "Upload Now"}
               </Button>
             </div>
           </div>
         </div>
+      )}
+
+      {showUploadGate && (
+        <SubscriptionGate
+          feature="uploadVideo"
+          onClose={() => setShowUploadGate(false)}
+        />
       )}
        {/* ── PUBLIC PROFILE SETTINGS MODAL ── */}
        {isSettingsOpen && (

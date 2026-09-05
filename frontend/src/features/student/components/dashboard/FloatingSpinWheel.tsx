@@ -4,6 +4,8 @@ import { PATHS } from "@/routes/paths";
 import { motion } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
 import { studentApi } from "@/lib/student-api";
+import { useSubscription } from "@/hooks/use-subscription";
+import { Crown } from "lucide-react";
 
 interface FloatingSpinWheelProps {
   lastSpinDate?: string | null;
@@ -13,6 +15,7 @@ interface FloatingSpinWheelProps {
 
 export default function FloatingSpinWheel({ lastSpinDate, onLockedClick }: FloatingSpinWheelProps) {
   const navigate = useNavigate();
+  const { isPremium } = useSubscription();
   const [secondsLeft, setSecondsLeft] = useState(0);
 
   // 1. Fetch spin settings from DB to get dynamic cooldown hours
@@ -55,10 +58,6 @@ export default function FloatingSpinWheel({ lastSpinDate, onLockedClick }: Float
   };
 
   const handleClick = () => {
-    if (!canSpin) {
-      onLockedClick?.();
-      return;
-    }
     navigate(PATHS.SPINNER);
   };
 
@@ -96,10 +95,17 @@ export default function FloatingSpinWheel({ lastSpinDate, onLockedClick }: Float
         </div>
 
         {/* Active notification indicator */}
-        {canSpin && (
+        {canSpin && isPremium && (
           <span className="absolute top-0 right-0 flex h-3.5 w-3.5">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-pink-400 opacity-75"></span>
             <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-pink-500"></span>
+          </span>
+        )}
+
+        {/* Lock indicator for non-premium */}
+        {!isPremium && (
+          <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-amber-500 text-white flex items-center justify-center shadow-lg border border-white dark:border-slate-900 z-20">
+            <Crown size={10} strokeWidth={2.5} fill="currentColor" />
           </span>
         )}
       </motion.button>

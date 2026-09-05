@@ -166,7 +166,11 @@ export const submitApplication = asyncHandler(async (req, res) => {
   teacher.onboardingStep = 10;
   await teacher.save();
 
-  await createNotification(req.user._id, 'profile_update', 'Application Submitted', 'Your application is under review.');
+  try {
+    await createNotification(req.user._id, 'info', 'Application Submitted', 'Your application is under review.');
+  } catch (e) {
+    console.error('[Teacher Notification Error]:', e.message);
+  }
 
   res.json({ success: true, data: teacher, message: 'Application submitted for verification' });
 });

@@ -1,197 +1,213 @@
+/**
+ * subscriptionAutopayService.js
+ *
+ * REPLACED: The old broken 10-minute polling setInterval loop.
+ *
+ * NEW ARCHITECTURE:
+ * - Primary: Razorpay Webhooks (webhookController.js) handle all real-time events instantly.
+ * - Fallback: This daily recovery cron runs once at 2 AM to catch any subscriptions
+ *   that webhooks may have missed (network failures, server downtime, etc.).
+ *
+ * This approach eliminates the race condition where users are shown the subscription
+ * page because the 10-min poller hasn't run yet after Razorpay charges them.
+ */
+
 import Student from '../models/Student.js';
 import Plan from '../models/Plan.js';
 import { getRazorpay } from './razorpayService.js';
 import { createNotification } from './notificationService.js';
 import WalletTransaction from '../models/WalletTransaction.js';
 
-export const startSubscriptionAutopayScheduler = () => {
-  console.log('[SubscriptionAutopayScheduler] Initializing autopay subscription checker (every 10 minutes)...');
+// ─────────────────────────────────────────────────────────────────────────────
+//  Helper: Compute next run time at 2 AM IST
+// ─────────────────────────────────────────────────────────────────────────────
+const getNextRunDelay = () => {
+  const now = new Date();
+  // IST = UTC + 5:30
+  const istOffset = 5.5 * 60 * 60 * 1000;
+  const istNow = new Date(now.getTime() + istOffset);
 
-  setInterval(async () => {
-    try {
-      const now = new Date();
-      // Find students whose subscription status is 'trial' or 'active' (active but close to expiry or expired)
-      // and who have a razorpaySubscriptionId.
-      const trialOrActiveStudents = await Student.find({
-        'subscription.status': { $in: ['trial', 'active'] },
-        'subscription.razorpaySubscriptionId': { $ne: null }
-      }).populate('subscription.planId');
+  const target = new Date(istNow);
+  target.setUTCHours(20, 30, 0, 0); // 20:30 UTC = 02:00 IST
 
-      for (const student of trialOrActiveStudents) {
-        const sub = student.subscription;
-        const razorpay = getRazorpay();
+  if (target <= istNow) {
+    // Already past 2 AM today — run tomorrow
+    target.setUTCDate(target.getUTCDate() + 1);
+  }
 
+  // Convert back to UTC delay
+  return target.getTime() - istNow.getTime();
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  Daily Recovery Job — reconcile missed webhook events
+// ─────────────────────────────────────────────────────────────────────────────
+const runDailyRecovery = async () => {
+  console.log('[SubscriptionRecovery] Starting daily subscription reconciliation...');
+
+  try {
+    const now = new Date();
+    const razorpay = getRazorpay();
+
+    // Find students whose trial or subscription dates have passed but status hasn't been updated
+    // (indicates a missed webhook)
+    const staleStudents = await Student.find({
+      $or: [
+        // Trial ended but status still 'trial'
+        { 'subscription.status': 'trial', 'subscription.trialEndsAt': { $lte: now } },
+        // Active subscription expired but status still 'active' (no autopay)
+        {
+          'subscription.status': 'active',
+          'subscription.expiresAt': { $lte: now },
+          'subscription.cancelAtPeriodEnd': false,
+        },
+        // CancelAtPeriodEnd and period has ended
+        {
+          'subscription.status': 'active',
+          'subscription.expiresAt': { $lte: now },
+          'subscription.cancelAtPeriodEnd': true,
+        },
+      ],
+    }).populate('subscription.planId');
+
+    let processed = 0;
+    let errors = 0;
+
+    for (const student of staleStudents) {
+      const sub = student.subscription;
+
+      try {
+        // ── Handle cancelAtPeriodEnd expiry ────────────────────────────────
+        if (sub.cancelAtPeriodEnd && sub.expiresAt && sub.expiresAt <= now) {
+          student.subscription.status = 'cancelled';
+          student.markModified('subscription');
+          await student.save();
+          console.log(`[SubscriptionRecovery] Student ${student._id} cancel-at-period-end completed`);
+          processed++;
+          continue;
+        }
+
+        if (!sub.razorpaySubscriptionId) {
+          // No Razorpay sub — just expire
+          student.subscription.status = 'expired';
+          student.markModified('subscription');
+          await student.save();
+          processed++;
+          continue;
+        }
+
+        // ── Fetch live status from Razorpay ───────────────────────────────
         let rzpSub;
         try {
           rzpSub = await razorpay.subscriptions.fetch(sub.razorpaySubscriptionId);
         } catch (err) {
-          console.error(`[SubscriptionAutopayScheduler] Failed to fetch subscription ${sub.razorpaySubscriptionId} from Razorpay:`, err.message);
+          console.error(`[SubscriptionRecovery] Failed to fetch ${sub.razorpaySubscriptionId}:`, err.message);
+          errors++;
           continue;
         }
 
-        // Razorpay Subscription statuses: created, authenticated, active, pending, halted, cancelled, completed, expired
-        if (sub.status === 'trial') {
-          // If trial has ended, we check if the subscription is active/charged
-          const hasTrialEnded = sub.trialEndsAt && sub.trialEndsAt <= now;
-          
-          if (hasTrialEnded) {
-            // Check if Razorpay shows it as active/authenticated and at least one billing cycle has started or charge succeeded
-            if (rzpSub.status === 'active' || rzpSub.status === 'authenticated') {
-              const plan = sub.planId;
-              if (plan) {
-                const durationMap = { monthly: 30, quarterly: 90, yearly: 365 };
-                const days = durationMap[plan.duration] || 30;
-                
-                const expiresAt = new Date();
-                expiresAt.setDate(expiresAt.getDate() + days);
+        const plan = sub.planId;
+        const durationMap = { monthly: 30, quarterly: 90, yearly: 365 };
+        const days = plan ? (durationMap[plan.duration] || 30) : 30;
 
-                student.subscription.status = 'active';
-                student.subscription.expiresAt = expiresAt;
-                student.subscription.trialEndsAt = undefined;
-                student.markModified('subscription');
+        if (rzpSub.status === 'active') {
+          // ── Autopay charged and renewed — update DB ─────────────────────
+          const expiresAt = new Date();
+          expiresAt.setDate(expiresAt.getDate() + days);
 
-                // Grant plan benefits (for the actual plan since the charge happened!)
-                const classNum = parseInt((student.class || '10').replace(/\D/g, ''), 10) || 10;
-                let aiCredits = plan.benefits?.aiCredits ?? (classNum >= 11 ? 3000 : classNum >= 9 ? 2000 : 1000);
+          const wasOnTrial = sub.status === 'trial';
+          student.subscription.status = 'active';
+          student.subscription.expiresAt = expiresAt;
+          student.subscription.lastRenewalAt = now;
+          student.subscription.trialEndsAt = undefined;
+          student.subscription.autopayEnabled = true;
+          student.markModified('subscription');
 
-                student.wallet.aiCredits = (student.wallet.aiCredits || 0) + aiCredits;
-                if (plan.benefits?.humanChatCredits) {
-                  student.wallet.humanChatCredits = (student.wallet.humanChatCredits || 0) + plan.benefits.humanChatCredits;
-                }
-                if (plan.benefits?.audioMinutes) {
-                  student.wallet.audioMinutes = (student.wallet.audioMinutes || 0) + plan.benefits.audioMinutes;
-                }
-                if (plan.benefits?.videoMinutes) {
-                  student.wallet.videoMinutes = (student.wallet.videoMinutes || 0) + plan.benefits.videoMinutes;
-                }
-                student.markModified('wallet');
-                await student.save();
+          // Grant plan benefits
+          const classNum = parseInt((student.class || '10').replace(/\D/g, ''), 10) || 10;
+          const aiCredits = plan?.benefits?.aiCredits ?? (classNum >= 11 ? 3000 : classNum >= 9 ? 2000 : 1000);
+          student.wallet.aiCredits = (student.wallet.aiCredits || 0) + aiCredits;
+          if (plan?.benefits?.humanChatCredits) student.wallet.humanChatCredits = (student.wallet.humanChatCredits || 0) + plan.benefits.humanChatCredits;
+          if (plan?.benefits?.audioMinutes) student.wallet.audioMinutes = (student.wallet.audioMinutes || 0) + plan.benefits.audioMinutes;
+          if (plan?.benefits?.videoMinutes) student.wallet.videoMinutes = (student.wallet.videoMinutes || 0) + plan.benefits.videoMinutes;
+          student.markModified('wallet');
+          await student.save();
 
-                // Record transaction
-                await WalletTransaction.create({
-                  userId: student.userId,
-                  role: 'student',
-                  type: 'credit',
-                  points: plan.grantPoints || 0,
-                  aiCredits: aiCredits || 0,
-                  humanChatCredits: plan.benefits?.humanChatCredits || 0,
-                  inrAmount: plan.price,
-                  earningType: 'purchase',
-                  description: `Autopay Subscription Charge Succeeded: ${plan.name} | Subscription ID: ${sub.razorpaySubscriptionId}`,
-                  status: 'credited',
-                });
+          await WalletTransaction.create({
+            userId: student.userId,
+            role: 'student',
+            type: 'credit',
+            points: plan?.grantPoints || 0,
+            aiCredits,
+            humanChatCredits: plan?.benefits?.humanChatCredits || 0,
+            inrAmount: plan?.price || 0,
+            earningType: 'purchase',
+            description: `[Recovery] ${wasOnTrial ? 'Trial→Active' : 'Renewal'}: ${plan?.name || 'Plan'} | ${sub.razorpaySubscriptionId}`,
+            status: 'credited',
+          });
 
-                // Notify student
-                await createNotification(
-                  student.userId,
-                  'student',
-                  '💳 Autopay Payment Successful!',
-                  `Your trial has ended and subscription plan "${plan.name}" is now active. Enjoy premium features!`,
-                  { type: 'reward' }
-                );
+          await createNotification(
+            student.userId,
+            'student',
+            wasOnTrial ? "🎉 You're Now Premium!" : '🔄 Subscription Renewed!',
+            wasOnTrial
+              ? `Your subscription "${plan?.name || 'Premium'}" is active until ${expiresAt.toLocaleDateString('en-IN')}.`
+              : `Your plan renewed. Active until ${expiresAt.toLocaleDateString('en-IN')}.`,
+            { type: 'reward' }
+          );
 
-                console.log(`[SubscriptionAutopayScheduler] Student ${student._id} trial ended and subscription activated via Autopay.`);
-              }
-            } else if (['cancelled', 'expired', 'halted'].includes(rzpSub.status)) {
-              // Mandate failed or was cancelled
-              student.subscription.status = 'expired';
-              student.subscription.trialEndsAt = undefined;
-              student.markModified('subscription');
-              await student.save();
+          console.log(`[SubscriptionRecovery] Student ${student._id} updated to active (${wasOnTrial ? 'trial→active' : 'renewal'})`);
 
-              // Notify student
-              await createNotification(
-                student.userId,
-                'student',
-                '⚠️ Autopay Payment Failed',
-                `Your trial has ended, but we couldn't charge your card/UPI for the subscription. Please subscribe again.`,
-                { type: 'alert' }
-              );
+        } else if (['halted', 'cancelled', 'expired', 'completed'].includes(rzpSub.status)) {
+          // ── Autopay failed or subscription ended ──────────────────────
+          student.subscription.status = 'expired';
+          student.subscription.autopayEnabled = false;
+          student.markModified('subscription');
+          await student.save();
 
-              console.log(`[SubscriptionAutopayScheduler] Student ${student._id} trial ended, autopay failed.`);
-            }
-          }
-        } else if (sub.status === 'active') {
-          // If active subscription is expired, check if it has been renewed or cancelled
-          const hasExpired = sub.expiresAt && sub.expiresAt <= now;
-          if (hasExpired) {
-            if (rzpSub.status === 'active') {
-              // Subscription has renewed (new cycle started)
-              const plan = sub.planId;
-              if (plan) {
-                const durationMap = { monthly: 30, quarterly: 90, yearly: 365 };
-                const days = durationMap[plan.duration] || 30;
-                
-                const expiresAt = new Date();
-                expiresAt.setDate(expiresAt.getDate() + days);
+          await createNotification(
+            student.userId,
+            'student',
+            '⌛ Subscription Expired',
+            'Your subscription has expired. Resubscribe to continue learning!',
+            { type: 'alert' }
+          );
 
-                student.subscription.expiresAt = expiresAt;
-                student.markModified('subscription');
-
-                // Grant plan benefits for the new cycle
-                const classNum = parseInt((student.class || '10').replace(/\D/g, ''), 10) || 10;
-                let aiCredits = plan.benefits?.aiCredits ?? (classNum >= 11 ? 3000 : classNum >= 9 ? 2000 : 1000);
-
-                student.wallet.aiCredits = (student.wallet.aiCredits || 0) + aiCredits;
-                if (plan.benefits?.humanChatCredits) {
-                  student.wallet.humanChatCredits = (student.wallet.humanChatCredits || 0) + plan.benefits.humanChatCredits;
-                }
-                if (plan.benefits?.audioMinutes) {
-                  student.wallet.audioMinutes = (student.wallet.audioMinutes || 0) + plan.benefits.audioMinutes;
-                }
-                if (plan.benefits?.videoMinutes) {
-                  student.wallet.videoMinutes = (student.wallet.videoMinutes || 0) + plan.benefits.videoMinutes;
-                }
-                student.markModified('wallet');
-                await student.save();
-
-                // Record transaction
-                await WalletTransaction.create({
-                  userId: student.userId,
-                  role: 'student',
-                  type: 'credit',
-                  points: plan.grantPoints || 0,
-                  aiCredits: aiCredits || 0,
-                  humanChatCredits: plan.benefits?.humanChatCredits || 0,
-                  inrAmount: plan.price,
-                  earningType: 'purchase',
-                  description: `Autopay Subscription Renewal Succeeded: ${plan.name} | Subscription ID: ${sub.razorpaySubscriptionId}`,
-                  status: 'credited',
-                });
-
-                // Notify
-                await createNotification(
-                  student.userId,
-                  'student',
-                  '🔄 Subscription Renewed!',
-                  `Your monthly subscription for "${plan.name}" has renewed successfully.`,
-                  { type: 'reward' }
-                );
-
-                console.log(`[SubscriptionAutopayScheduler] Student ${student._id} active subscription renewed via Autopay.`);
-              }
-            } else {
-              // Razorpay subscription is no longer active, so mark as expired
-              student.subscription.status = 'expired';
-              student.markModified('subscription');
-              await student.save();
-
-              // Notify
-              await createNotification(
-                student.userId,
-                'student',
-                '⌛ Subscription Expired',
-                `Your subscription has expired. Please renew to continue learning.`,
-                { type: 'alert' }
-              );
-
-              console.log(`[SubscriptionAutopayScheduler] Student ${student._id} subscription expired.`);
-            }
-          }
+          console.log(`[SubscriptionRecovery] Student ${student._id} marked expired (Razorpay status: ${rzpSub.status})`);
         }
+        // If status is 'pending' or 'authenticated', leave it — Razorpay is still processing
+
+        processed++;
+      } catch (innerErr) {
+        console.error(`[SubscriptionRecovery] Error processing student ${student._id}:`, innerErr.message);
+        errors++;
       }
-    } catch (err) {
-      console.error('[SubscriptionAutopayScheduler] Error in subscription checker loop:', err);
     }
-  }, 10 * 60 * 1000); // Check every 10 minutes
+
+    console.log(`[SubscriptionRecovery] Done. Processed: ${processed}, Errors: ${errors}, Total stale: ${staleStudents.length}`);
+
+  } catch (err) {
+    console.error('[SubscriptionRecovery] Fatal error in daily job:', err.message);
+  }
+
+  // Schedule next run
+  const nextDelay = getNextRunDelay();
+  const nextRunAt = new Date(Date.now() + nextDelay);
+  console.log(`[SubscriptionRecovery] Next run scheduled at: ${nextRunAt.toISOString()} (in ${Math.round(nextDelay / 3600000)}h)`);
+  setTimeout(runDailyRecovery, nextDelay);
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  Start the Daily Recovery Scheduler
+// ─────────────────────────────────────────────────────────────────────────────
+export const startSubscriptionAutopayScheduler = () => {
+  console.log('[SubscriptionRecovery] Initializing daily recovery scheduler...');
+  console.log('[SubscriptionRecovery] Primary sync: Razorpay Webhooks (POST /api/webhooks/razorpay)');
+  console.log('[SubscriptionRecovery] Fallback sync: Daily job at 2:00 AM IST');
+
+  const firstRunDelay = getNextRunDelay();
+  const firstRunAt = new Date(Date.now() + firstRunDelay);
+  console.log(`[SubscriptionRecovery] First run scheduled at: ${firstRunAt.toISOString()}`);
+
+  setTimeout(runDailyRecovery, firstRunDelay);
 };

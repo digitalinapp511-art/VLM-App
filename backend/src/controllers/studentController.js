@@ -1368,11 +1368,17 @@ export const rechargeWallet = asyncHandler(async (req, res) => {
     });
 
     // Push in-app notification
-    await createNotification(req.user._id, 'student', {
-      title: '🎉 Cashback Credited!',
-      message: `₹${appliedCashback} cashback from "${cashbackOfferApplied.title}" has been added to your wallet.`,
-      type: 'reward',
-    });
+    try {
+      await createNotification(
+        req.user._id,
+        'success',
+        '🎉 Cashback Credited!',
+        `₹${appliedCashback} cashback from "${cashbackOfferApplied.title}" has been added to your wallet.`,
+        { deepLink: '/wallet' }
+      );
+    } catch (e) {
+      console.error('[Cashback Notification Error]:', e.message);
+    }
   }
 
   // Create wallet transaction for redeemed points

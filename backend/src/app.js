@@ -12,6 +12,7 @@ import studentRoutes from './routes/studentRoutes.js';
 import parentRoutes from './routes/parentRoutes.js';
 import sessionRoutes from './routes/sessionRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
+import webhookRoutes from './routes/webhookRoutes.js';
 
 dotenv.config();  
 
@@ -42,6 +43,19 @@ export const createApp = () => {
     },
     credentials: true,
   }));
+
+  // ── Raw body capture for Razorpay webhook signature verification ──────────
+  // Must be registered BEFORE express.json() so the webhook route gets the
+  // raw Buffer. All other routes still use JSON parsing via the middleware below.
+  app.use('/api/webhooks', (req, res, next) => {
+    let chunks = [];
+    req.on('data', (chunk) => chunks.push(chunk));
+    req.on('end', () => {
+      req.rawBody = Buffer.concat(chunks);
+      next();
+    });
+    req.on('error', next);
+  });
 
   app.use(express.json({ limit: '10mb' }));
   app.use(express.urlencoded({ extended: true }));
@@ -97,6 +111,9 @@ export const createApp = () => {
       });
     }
   });
+
+  // Public webhook endpoint — no auth, verified by HMAC signature
+  app.use('/api/webhooks', webhookRoutes);
 
   app.use('/api/auth', authRoutes);
   app.use('/api/teacher', teacherRoutes);

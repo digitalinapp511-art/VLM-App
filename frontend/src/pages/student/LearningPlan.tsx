@@ -175,21 +175,28 @@ export default function LearningPlan() {
       ];
 
   return (
-    <div className="min-h-screen w-full bg-[#d6ebff] text-slate-800 flex flex-col items-center pb-32 overflow-x-hidden font-sans relative">
+    <div className="min-h-screen w-full bg-[#d6ebff] text-slate-800 flex flex-col items-center pb-44 overflow-x-hidden font-sans relative">
       
       {/* Header */}
-      <header className="w-full max-w-md pt-6 px-4 flex items-center justify-between z-10">
+      <header className="w-full max-w-md pt-6 px-4 flex items-center justify-between z-10 relative">
         <button
           onClick={() => navigate(-1)}
-          className="flex items-center justify-center w-9 h-9 rounded-xl bg-white border border-slate-200/80 shadow-sm hover:bg-slate-50 transition-colors shrink-0"
+          className="flex items-center justify-center w-9 h-9 rounded-xl bg-white border border-slate-200/80 shadow-sm hover:bg-slate-50 transition-colors z-10 shrink-0"
+          aria-label="Go back"
         >
           <ChevronLeft className="h-5 w-5 text-slate-600" />
         </button>
-        <div className="flex flex-col items-center flex-grow -mr-9">
-          <div className="flex items-center gap-1.5">
-            <span className="text-xl font-black text-blue-900 tracking-tighter uppercase">VLM Academy</span>
-          </div>
+        
+        <div className="absolute inset-x-0 flex justify-center items-center pointer-events-none">
+          <span className="text-xl font-black text-blue-900 tracking-tighter uppercase whitespace-nowrap pointer-events-auto">VLM Academy</span>
         </div>
+
+        <button
+          onClick={() => navigate(PATHS.STUDENT_DASHBOARD)}
+          className="px-3.5 py-1.5 rounded-full bg-white/80 hover:bg-white text-xs font-bold text-slate-700 border border-slate-200/80 shadow-sm transition-all hover:shadow active:scale-95 z-10 shrink-0"
+        >
+          Skip
+        </button>
       </header>
 
       {/* Main Container */}
@@ -235,15 +242,15 @@ export default function LearningPlan() {
           {/* Feature List */}
           <div className="w-full space-y-4 pt-4 border-t border-slate-100">
             {features.map((feat: any, idx: number) => (
-              <div key={idx} className="flex gap-3.5 items-start">
-                <div className="w-6 h-6 rounded-lg bg-blue-550/10 flex items-center justify-center shrink-0 mt-0.5 text-blue-900">
-                  <feat.icon size={16} strokeWidth={2.5} />
+              <div key={idx} className="flex gap-3.5 items-start text-left">
+                <div className="w-7 h-7 rounded-xl bg-blue-900/10 flex items-center justify-center shrink-0 text-blue-900 mt-0.5">
+                  <feat.icon size={15} strokeWidth={2.2} />
                 </div>
-                <div className="space-y-0.5">
-                  <h4 className="text-[11px] font-black text-slate-800 tracking-wide uppercase">
+                <div className="flex-1 min-w-0 space-y-0.5 pt-0.5">
+                  <h4 className="text-[11px] font-black text-slate-800 tracking-wide uppercase leading-tight">
                     {feat.title}
                   </h4>
-                  <p className="text-[10px] text-slate-500 font-medium leading-relaxed">
+                  <p className="text-[10px] text-slate-500 font-medium leading-normal">
                     {feat.desc}
                   </p>
                 </div>
@@ -253,24 +260,24 @@ export default function LearningPlan() {
         </div>
 
         {/* Optional Extras Card */}
-        <div className="bg-white border border-slate-200/80 rounded-[20px] shadow-sm p-4 flex flex-col gap-3">
+        <div className="bg-white border border-slate-200/80 rounded-[20px] shadow-sm p-4 flex flex-col gap-3 text-left">
           <div className="space-y-0.5">
-            <span className="text-[9px] font-black text-blue-800 tracking-wider uppercase">
+            <span className="text-[9px] font-black text-blue-800 tracking-wider uppercase block">
               Optional Extras
             </span>
-            <h3 className="text-sm font-black text-slate-800">
+            <h3 className="text-sm font-black text-slate-800 leading-tight">
               Live One-on-One Support
             </h3>
           </div>
-          <div className="flex items-center gap-3 bg-blue-50/50 p-3 rounded-xl border border-blue-100/50">
-            <div className="w-10 h-10 rounded-full bg-blue-900 flex items-center justify-center text-white shrink-0">
+          <div className="flex items-center gap-3 bg-blue-50/60 p-3 rounded-xl border border-blue-100/60">
+            <div className="w-10 h-10 rounded-full bg-blue-900 flex items-center justify-center text-white shrink-0 shadow-sm">
               <VideoIcon size={20} />
             </div>
-            <div>
-              <p className="text-[11px] font-black text-slate-700 uppercase">
+            <div className="flex-1 min-w-0">
+              <p className="text-[11px] font-black text-slate-700 uppercase leading-snug">
                 Video Call, Call & Chat Support
               </p>
-              <p className="text-base font-black text-[#d5a848]">
+              <p className="text-sm font-black text-[#d5a848] leading-tight">
                 {extraPriceText}
               </p>
             </div>
@@ -279,8 +286,8 @@ export default function LearningPlan() {
       </div>
 
       {/* Sticky Action Footer */}
-      <footer className="fixed bottom-0 left-0 w-full px-4 pb-6 pt-4 bg-gradient-to-t from-[#d6ebff] via-[#d6ebff]/95 to-transparent flex flex-col items-center gap-2 z-50">
-        <p className="text-slate-600 text-[11px] font-bold uppercase tracking-wider">
+      <footer className="fixed bottom-0 left-0 w-full px-4 pb-8 pt-5 bg-gradient-to-t from-[#d6ebff] via-[#d6ebff]/95 to-transparent flex flex-col items-center gap-3.5 z-50">
+        <p className="text-slate-600 text-[11px] font-bold uppercase tracking-wider text-center">
           Activate trial for <span className="text-blue-900 font-black">₹{trialPriceVal}</span>
         </p>
         <div className="w-full max-w-md relative">
@@ -288,12 +295,12 @@ export default function LearningPlan() {
             onClick={handleStartTrial}
             disabled={isPaying}
             className={cn(
-              "w-full h-14 rounded-full text-base font-bold tracking-wide transition-all active:scale-[0.98] shadow-lg shadow-blue-900/10",
+              "w-full h-14 rounded-full text-base font-bold tracking-wide transition-all active:scale-[0.98] shadow-xl shadow-blue-900/20",
               "bg-blue-900 text-white hover:brightness-110",
               "border border-blue-800"
             )}
           >
-            {isPaying ? "PROCESSING PAYMENT..." : `START ${trialDaysVal}-DAY TRIAL`}
+            {isPaying ? "PROCESSING PAYMENT..." : `START ${trialDaysVal}-DAY TRIAL — ₹${trialPriceVal}`}
           </Button>
         </div>
       </footer>

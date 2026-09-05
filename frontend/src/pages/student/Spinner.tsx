@@ -9,6 +9,8 @@ import { PATHS } from "@/routes/paths";
 import { useStudentProfile } from "@/hooks/use-student";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
+import { useSubscription } from "@/hooks/use-subscription";
+import SubscriptionGate from "@/components/subscription/SubscriptionGate";
 
 const renderSegmentIcon = (iconName: string, label: string, sub: string, size = 28) => {
   const iconClass = "text-white mb-1 drop-shadow-[0_2px_4px_rgba(0,0,0,0.35)]";
@@ -58,57 +60,123 @@ const renderSegmentIcon = (iconName: string, label: string, sub: string, size = 
   return <FaGift size={size} className={iconClass} color="#ffffff" />;
 };
 
-const playClickSound = () => {
+// ── Reliable High-Fidelity Audio Sound Engine (Persistent Web Audio API) ──
+let globalAudioCtx: AudioContext | null = null;
+
+const getAudioContext = (): AudioContext | null => {
   try {
-    const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
-    if (!AudioContext) return;
-    const ctx = new AudioContext();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    
-    osc.type = "sine";
-    osc.frequency.setValueAtTime(800, ctx.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(100, ctx.currentTime + 0.05);
-    
-    gain.gain.setValueAtTime(0.35, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.05);
-    
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    
-    osc.start();
-    osc.stop(ctx.currentTime + 0.05);
+    const AudioCtxClass = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioCtxClass) return null;
+    if (!globalAudioCtx || globalAudioCtx.state === "closed") {
+      globalAudioCtx = new AudioCtxClass();
+    }
+    if (globalAudioCtx.state === "suspended") {
+      globalAudioCtx.resume();
+    }
+    return globalAudioCtx;
   } catch (e) {
-    console.error(e);
+    console.error("AudioContext initialization failed:", e);
+    return null;
   }
 };
 
+// Real mechanical wheel tick sound (Percussive click + pitch pop)
+const playClickSound = () => {
+  try {
+    const ctx = getAudioContext();
+    if (!ctx) return;
+
+    const t = ctx.currentTime;
+
+    // 1. Wood-peg click transient (burst of filtered noise)
+    const bufferSize = ctx.sampleRate * 0.015; // 15ms burst
+    const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const output = noiseBuffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) {
+      output[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufferSize * 0.3));
+    }
+
+    const whiteNoise = ctx.createBufferSource();
+    whiteNoise.buffer = noiseBuffer;
+
+    const filter = ctx.createBiquadFilter();
+    filter.type = "bandpass";
+    filter.frequency.setValueAtTime(1800 + Math.random() * 200, t);
+    filter.Q.setValueAtTime(3.0, t);
+
+    const noiseGain = ctx.createGain();
+    noiseGain.gain.setValueAtTime(0.4, t);
+    noiseGain.gain.exponentialRampToValueAtTime(0.001, t + 0.015);
+
+    whiteNoise.connect(filter);
+    filter.connect(noiseGain);
+    noiseGain.connect(ctx.destination);
+
+    whiteNoise.start(t);
+    whiteNoise.stop(t + 0.015);
+
+    // 2. Wheel peg snap pop (low sine bump)
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = "triangle";
+    osc.frequency.setValueAtTime(650, t);
+    osc.frequency.exponentialRampToValueAtTime(120, t + 0.025);
+
+    gain.gain.setValueAtTime(0.3, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.025);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc.start(t);
+    osc.stop(t + 0.025);
+  } catch (e) {
+    console.error("Click sound playback error:", e);
+  }
+};
+
+// Rich Multi-Note Celebration Fanfare (Victory C-Major Arpeggio + Brass Chord)
 const playWinSound = () => {
   try {
-    const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
-    if (!AudioContext) return;
-    const ctx = new AudioContext();
-    
-    const playNote = (freq: number, start: number, duration: number) => {
+    const ctx = getAudioContext();
+    if (!ctx) return;
+
+    const startT = ctx.currentTime + 0.05;
+
+    // Victory Notes Arpeggio: C4 -> E4 -> G4 -> C5 -> E5 -> G5 -> Big C6 Chord
+    const notes = [
+      { freq: 261.63, delay: 0.00, dur: 0.12, type: "sine" as OscillatorType },
+      { freq: 329.63, delay: 0.09, dur: 0.12, type: "sine" as OscillatorType },
+      { freq: 392.00, delay: 0.18, dur: 0.14, type: "sine" as OscillatorType },
+      { freq: 523.25, delay: 0.27, dur: 0.18, type: "triangle" as OscillatorType },
+      { freq: 659.25, delay: 0.38, dur: 0.22, type: "triangle" as OscillatorType },
+      // Grand Final Triumph Chord (C5 + G5 + C6)
+      { freq: 523.25, delay: 0.52, dur: 0.85, type: "triangle" as OscillatorType },
+      { freq: 783.99, delay: 0.52, dur: 0.85, type: "triangle" as OscillatorType },
+      { freq: 1046.50, delay: 0.52, dur: 1.10, type: "sine" as OscillatorType },
+    ];
+
+    notes.forEach((n) => {
+      const noteTime = startT + n.delay;
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
-      osc.type = "triangle";
-      osc.frequency.setValueAtTime(freq, ctx.currentTime + start);
-      gain.gain.setValueAtTime(0, ctx.currentTime + start);
-      gain.gain.linearRampToValueAtTime(0.4, ctx.currentTime + start + 0.05);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + start + duration);
+
+      osc.type = n.type;
+      osc.frequency.setValueAtTime(n.freq, noteTime);
+
+      gain.gain.setValueAtTime(0, noteTime);
+      gain.gain.linearRampToValueAtTime(0.35, noteTime + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, noteTime + n.dur);
+
       osc.connect(gain);
       gain.connect(ctx.destination);
-      osc.start(ctx.currentTime + start);
-      osc.stop(ctx.currentTime + start + duration);
-    };
 
-    playNote(261.63, 0, 0.15); // C4
-    playNote(329.63, 0.1, 0.15); // E4
-    playNote(392.00, 0.2, 0.15); // G4
-    playNote(523.25, 0.3, 0.45); // C5
+      osc.start(noteTime);
+      osc.stop(noteTime + n.dur);
+    });
   } catch (e) {
-    console.error(e);
+    console.error("Win sound playback error:", e);
   }
 };
 
@@ -190,10 +258,16 @@ export default function SpinnerPage() {
   };
   const { h, m, s } = formatTime(secondsLeft);
 
+  const { isPremium } = useSubscription();
+  const [showSubscriptionGate, setShowSubscriptionGate] = useState(false);
   const canSpin = secondsLeft <= 0;
 
   // ── Secure Backend-Driven Spin Logic ──
   const handleSpin = async () => {
+    if (!isPremium) {
+      setShowSubscriptionGate(true);
+      return;
+    }
     if (isSpinning || !canSpin) return;
 
     // Immediately kick off the spin animation locally so there is zero latency/pause
@@ -525,9 +599,9 @@ export default function SpinnerPage() {
             <button 
               className="center-btn-inner" 
               onClick={handleSpin}
-              disabled={!canSpin || isSpinning}
+              disabled={isSpinning || (isPremium && !canSpin)}
             >
-              SPIN
+              {!isPremium ? "LOCK" : "SPIN"}
             </button>
           </div>
         </div>
@@ -537,18 +611,21 @@ export default function SpinnerPage() {
           <div className="absolute inset-0 bg-violet-600/10 dark:bg-violet-600/20 blur-3xl rounded-full" />
           <Button
             onClick={handleSpin}
-            disabled={!canSpin || isSpinning}
-            className={`relative w-full h-14 rounded-full text-base font-black tracking-widest transition-all active:scale-95 text-white border-none shadow-[0_4px_25px_rgba(109,40,217,0.4)] ${canSpin
-              ? "bg-[#6140EA] hover:bg-[#5031d1]"
-              : "bg-gradient-to-b from-neutral-850 to-neutral-950 cursor-not-allowed opacity-60 shadow-none"
-              }`}
+            disabled={isSpinning || (isPremium && !canSpin)}
+            className={`relative w-full h-14 rounded-full text-base font-black tracking-widest transition-all active:scale-95 text-white border-none shadow-[0_4px_25px_rgba(109,40,217,0.4)] ${
+              !isPremium
+                ? "bg-amber-500 hover:bg-amber-600 shadow-amber-500/20"
+                : canSpin
+                  ? "bg-[#6140EA] hover:bg-[#5031d1]"
+                  : "bg-gradient-to-b from-neutral-850 to-neutral-950 cursor-not-allowed opacity-60 shadow-none"
+            }`}
           >
             <div className="flex flex-col">
               <span className="leading-none tracking-[0.1em]">
-                {!canSpin ? "SPIN TODAY" : "SPIN NOW"}
+                {!isPremium ? "UNLOCK SPIN WHEEL" : !canSpin ? "SPIN TODAY" : "SPIN NOW"}
               </span>
               <span className="text-[9px] font-medium opacity-50 tracking-normal mt-1 italic capitalize">
-                {!canSpin ? "Come back tomorrow!" : "Daily free spin!"}
+                {!isPremium ? "Subscription required to claim rewards" : !canSpin ? "Come back tomorrow!" : "Daily free spin!"}
               </span>
             </div>
           </Button>
@@ -646,6 +723,13 @@ export default function SpinnerPage() {
           </div>
         )}
       </AnimatePresence>
+
+      {/* Subscription Drop-up Modal for Free Users */}
+      {showSubscriptionGate && (
+        <SubscriptionGate feature="quiz" onClose={() => setShowSubscriptionGate(false)}>
+          <div />
+        </SubscriptionGate>
+      )}
     </div>
   );
 }

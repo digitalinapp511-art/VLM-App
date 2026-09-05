@@ -42,6 +42,13 @@ export const publishSocketEvent = async (room, event, data) => {
     const redis = getRedisClient();
     await redis.publish('socket_events', JSON.stringify({ room, event, data }));
   } catch (err) {
-    console.error('[Redis Pub] Failed to publish socket event:', err.message);
+    console.error('[Redis Pub] Failed to publish socket event, falling back to local socket:', err.message);
+    try {
+      const { getIo } = await import('../socket/index.js');
+      const io = getIo();
+      if (io) io.to(room).emit(event, data);
+    } catch (fallbackErr) {
+      console.error('[Socket Local Fallback Error]:', fallbackErr.message);
+    }
   }
 };

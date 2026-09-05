@@ -26,7 +26,7 @@ import DashboardLoading from "@/components/basic/DashboardLoading";
 import { useNavigate } from "react-router-dom";
 import { PATHS } from "@/routes/paths";
 import {
-  Bell, Menu, X, Home as HomeIcon, BookOpen, Tv, Gift, Compass, Settings, Zap, ChevronRight, Wallet
+  Bell, Menu, X, Home as HomeIcon, BookOpen, Tv, Gift, Compass, Settings, Crown, ChevronRight, Wallet
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -34,6 +34,7 @@ import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
 import { studentApi } from "@/lib/student-api";
 import { useStudentProfile } from "@/hooks/use-student";
+import { useSubscription } from "@/hooks/use-subscription";
 
 // Feature components
 import { useStudentDashboard } from "@/features/student/hooks/use-student-dashboard";
@@ -57,6 +58,8 @@ export default function StudentDashboard() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showSettingsPopup, setShowSettingsPopup] = useState(false);
   const [showSubModal, setShowSubModal] = useState(false);
+  const [showCancelConfirmModal, setShowCancelConfirmModal] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
 
   const {
     isLoading,
@@ -78,7 +81,9 @@ export default function StudentDashboard() {
     profile: student,
   } = useStudentDashboard();
 
-  const isPremium = subscription.status === "active" || subscription.status === "trial";
+  // ── Use the central hook for date-aware premium check ───────────────────
+  const subState = useSubscription();
+  const isPremium = subState.isPremium;
 
   const unreadCount = unreadNotificationCount;
 
@@ -210,7 +215,7 @@ export default function StudentDashboard() {
                   <div className="absolute -bottom-6 -right-6 w-20 h-20 rounded-full bg-white/10 blur-lg" />
                   <div className="relative z-10">
                     <div className="flex items-center gap-1.5 bg-white/20 w-fit px-2.5 py-1 rounded-full text-[9px] font-black tracking-wider uppercase mb-2">
-                      <Zap size={10} className="fill-yellow-400 text-yellow-400" /> {isPremium ? "Active Plan" : "Premium"}
+                      <Crown size={10} className="fill-yellow-400 text-yellow-400" /> {isPremium ? "Active Plan" : "Premium"}
                     </div>
                     <p className="text-sm font-black leading-tight">
                       {isPremium ? "Manage VLM Premium" : "Upgrade to VLM Premium"}
@@ -398,35 +403,35 @@ export default function StudentDashboard() {
                 </div>
 
                 {/* 2. Subscription Details */}
-                {isPremium && (
-                  <div className="flex flex-col gap-2 text-left pt-2">
-                    <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider ml-1">My Subscription</label>
-                    {(() => {
-                      const classNum = parseInt(String(student?.class || "").replace(/\D/g, ""), 10) || 10;
-                      const priceText = subscription.status === "trial" 
-                        ? "₹1 (Trial)" 
-                        : (classNum >= 11 ? "₹99/month" : classNum >= 9 ? "₹79/month" : "₹59/month");
-                      
-                      let daysRemaining = 0;
-                      if (subscription.expiresAt) {
-                        const diffTime = new Date(subscription.expiresAt).getTime() - Date.now();
-                        daysRemaining = Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
-                      } else if (subscription.trialEndsAt) {
-                        const diffTime = new Date(subscription.trialEndsAt).getTime() - Date.now();
-                        daysRemaining = Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
-                      }
+                <div className="flex flex-col gap-2 text-left pt-2">
+                  <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider ml-1">My Subscription</label>
+                  {(() => {
+                    const classNum = parseInt(String(student?.class || "").replace(/\D/g, ""), 10) || 10;
+                    const priceText = subscription.status === "trial" 
+                      ? "₹1 (Trial)" 
+                      : (classNum >= 11 ? "₹99/month" : classNum >= 9 ? "₹79/month" : "₹59/month");
+                    
+                    let daysRemaining = subState.daysLeft ?? 0;
 
-                      return (
-                        <div className="bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl p-4 space-y-3">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-black text-slate-800 dark:text-white">
-                              {subscription.status === "trial" ? "3-Day Free Trial" : "VLM Premium"}
-                            </span>
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider bg-emerald-100 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-                              Active
-                            </span>
-                          </div>
-                          
+                    return (
+                      <div className="bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl p-4 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-black text-slate-800 dark:text-white">
+                            {isPremium 
+                              ? (subscription.status === "trial" ? "3-Day Free Trial" : "VLM Premium") 
+                              : "Free Plan"}
+                          </span>
+                          <span className={cn(
+                            "inline-flex items-center px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider",
+                            isPremium 
+                              ? "bg-emerald-100 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                              : "bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400"
+                          )}>
+                            {isPremium ? "Active" : "Free"}
+                          </span>
+                        </div>
+                        
+                        {isPremium && (
                           <div className="grid grid-cols-2 gap-2 text-[10px]">
                             <div>
                               <p className="text-slate-400 font-bold uppercase tracking-wider">Price</p>
@@ -437,21 +442,33 @@ export default function StudentDashboard() {
                               <p className="font-extrabold text-violet-600 dark:text-violet-400">{daysRemaining} days left</p>
                             </div>
                           </div>
-                          
+                        )}
+                        
+                        {isPremium ? (
+                          <button
+                            onClick={() => {
+                              setShowSettingsPopup(false);
+                              setShowSubModal(true);
+                            }}
+                            className="w-full h-9 bg-gradient-to-r from-violet-600 to-indigo-700 hover:from-violet-500 hover:to-indigo-600 text-white font-black text-[10px] rounded-xl shadow-sm uppercase tracking-wider transition-all flex items-center justify-center gap-1.5"
+                          >
+                            <Crown size={12} className="fill-amber-400 text-amber-400" /> Manage Subscription
+                          </button>
+                        ) : (
                           <button
                             onClick={() => {
                               setShowSettingsPopup(false);
                               navigate(PATHS.PLAN_SCREEN);
                             }}
-                            className="w-full h-9 bg-violet-600 hover:bg-violet-500 text-white font-black text-[10px] rounded-xl shadow-sm uppercase tracking-wider transition-all"
+                            className="w-full h-9 bg-gradient-to-r from-violet-600 to-indigo-700 hover:from-violet-500 hover:to-indigo-600 text-white font-black text-[10px] rounded-xl shadow-sm uppercase tracking-wider transition-all flex items-center justify-center gap-1.5"
                           >
-                            Upgrade Plan
+                            <Crown size={12} className="fill-amber-400 text-amber-400" /> Upgrade Plan
                           </button>
-                        </div>
-                      );
-                    })()}
-                  </div>
-                )}
+                        )}
+                      </div>
+                    );
+                  })()}
+                </div>
               </div>
 
               {/* Close Footer Button */}
@@ -546,39 +563,58 @@ export default function StudentDashboard() {
               className="relative w-full max-w-sm rounded-[32px] border border-slate-200 dark:border-white/10 bg-white dark:bg-[#161233] p-8 shadow-2xl text-slate-800 dark:text-slate-100 flex flex-col items-center gap-6"
             >
               <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-blue-50 dark:bg-blue-950/20 text-blue-600 mb-2 border border-blue-100 dark:border-blue-900/30">
-                <Zap size={28} className="fill-blue-500 text-blue-500" />
+                <Crown size={28} className="fill-amber-400 text-amber-500" />
               </div>
 
               {(() => {
-                const subStatus = subscription.status || "free";
                 const studentClass = student?.class || "";
                 const classNum = parseInt(String(studentClass).replace(/\D/g, ""), 10) || 10;
-                
+
+                // ── Use subState from useSubscription for correct date-aware values ────
+                const isCurrentlyActive = subState.isPremium;
+                const isCancelled = subState.cancelAtPeriodEnd;
+                const subStatus = isCurrentlyActive
+                  ? (subState.isTrial ? "trial" : "active")
+                  : (subscription.status || "free");
+
                 let priceText = "Free";
                 if (subStatus === "active") {
                   priceText = classNum >= 11 ? "₹99/month" : classNum >= 9 ? "₹79/month" : "₹59/month";
                 } else if (subStatus === "trial") {
-                  priceText = "₹1";
+                  priceText = "₹1 (Trial)";
                 }
 
-                let daysRemaining = 0;
-                if (subscription.expiresAt) {
-                  const diffTime = new Date(subscription.expiresAt).getTime() - Date.now();
-                  daysRemaining = Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
-                } else if (subscription.trialEndsAt) {
-                  const diffTime = new Date(subscription.trialEndsAt).getTime() - Date.now();
-                  daysRemaining = Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
-                }
+                const daysRemaining = subState.daysLeft ?? 0;
+
+                const paymentStatusText = isCancelled
+                  ? "Cancelled (access until expiry)"
+                  : subState.autopayEnabled
+                  ? "Auto-Renewing"
+                  : "Manual";
 
                 return (
                   <div className="w-full text-center space-y-4">
                     <div className="space-y-1">
                       <h3 className="text-lg font-black tracking-tight">
-                        {subStatus === "trial" ? "3-Day Free Trial" : "VLM Premium Plan"}
+                        {subStatus === "trial" ? "3-Day Free Trial" : isCurrentlyActive ? "VLM Premium Plan" : "Subscription Expired"}
                       </h3>
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-100 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-                        ● Active
-                      </span>
+
+                      {/* ── Status badge: green=active, amber=expiring, red=expired ── */}
+                      {isCurrentlyActive ? (
+                        daysRemaining <= 3 ? (
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-100 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                            ⚡ Expiring Soon
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-100 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                            ● Active
+                          </span>
+                        )
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-red-100 dark:bg-red-500/10 text-red-600 dark:text-red-400">
+                          ✕ Expired
+                        </span>
+                      )}
                     </div>
 
                     <div className="grid grid-cols-2 gap-3 text-left bg-slate-50 dark:bg-black/20 p-4 rounded-2xl border border-slate-100 dark:border-white/5">
@@ -588,7 +624,13 @@ export default function StudentDashboard() {
                       </div>
                       <div>
                         <p className="text-[9px] uppercase tracking-widest text-slate-400 font-black">Days Remaining</p>
-                        <p className="text-xs font-bold text-violet-600 dark:text-violet-400 mt-0.5">{daysRemaining} days left</p>
+                        <p className={`text-xs font-bold mt-0.5 ${
+                          !isCurrentlyActive ? "text-red-500" :
+                          daysRemaining <= 3 ? "text-amber-500" :
+                          "text-violet-600 dark:text-violet-400"
+                        }`}>
+                          {!isCurrentlyActive ? "Expired" : `${daysRemaining} day${daysRemaining !== 1 ? "s" : ""} left`}
+                        </p>
                       </div>
                       <div className="col-span-2 h-[1px] bg-slate-200/50 dark:bg-white/5 my-0.5" />
                       <div>
@@ -599,20 +641,37 @@ export default function StudentDashboard() {
                       </div>
                       <div>
                         <p className="text-[9px] uppercase tracking-widest text-slate-400 font-black">Payment Status</p>
-                        <p className="text-xs font-bold text-slate-700 dark:text-white mt-0.5">Auto-Renewing</p>
+                        <p className={`text-xs font-bold mt-0.5 ${
+                          isCancelled ? "text-red-500" : "text-slate-700 dark:text-white"
+                        }`}>
+                          {paymentStatusText}
+                        </p>
                       </div>
                     </div>
 
                     <div className="flex flex-col gap-2.5 pt-2">
-                      <Button
-                        onClick={() => {
-                          setShowSubModal(false);
-                          navigate(PATHS.PLAN_SCREEN);
-                        }}
-                        className="w-full h-11 rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-700 hover:from-violet-500 hover:to-indigo-600 text-white font-black transition-all active:scale-[0.98] shadow-sm border-none cursor-pointer"
-                      >
-                        Upgrade Plan
-                      </Button>
+                      {/* ── CTA changes based on status ── */}
+                      {isCurrentlyActive && !isCancelled ? (
+                        <div className="space-y-2 w-full">
+                          <Button
+                            onClick={() => {
+                              setShowSubModal(false);
+                              setShowCancelConfirmModal(true);
+                            }}
+                            className="w-full h-11 rounded-2xl bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-900/30 font-black transition-all active:scale-[0.98] cursor-pointer"
+                          >
+                            Cancel Auto-Pay
+                          </Button>
+                        </div>
+                      ) : (
+                        // Expired, cancelled, or 0 days → resubscribe
+                        <Button
+                          onClick={() => { setShowSubModal(false); navigate(PATHS.PLAN_SCREEN); }}
+                          className="w-full h-11 rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-700 hover:from-violet-500 hover:to-indigo-600 text-white font-black transition-all active:scale-[0.98] shadow-md border-none cursor-pointer"
+                        >
+                          {subState.hasUsedTrial ? "Re-subscribe Now" : "Start Free Trial"}
+                        </Button>
+                      )}
                       <Button
                         onClick={() => setShowSubModal(false)}
                         className="w-full h-11 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 font-black transition-all active:scale-[0.98] shadow-sm"
@@ -623,6 +682,74 @@ export default function StudentDashboard() {
                   </div>
                 );
               })()}
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Custom In-App Auto-Pay Cancel Confirmation Popup Modal ────────────── */}
+      <AnimatePresence>
+        {showCancelConfirmModal && (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm"
+              onClick={() => !isCancelling && setShowCancelConfirmModal(false)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              className="relative w-full max-w-sm rounded-[32px] border border-slate-200 dark:border-white/10 bg-white dark:bg-[#161233] p-7 shadow-2xl text-slate-800 dark:text-slate-100 flex flex-col items-center text-center gap-5 z-10"
+            >
+              <div className="h-16 w-16 rounded-full bg-red-100 dark:bg-red-500/10 text-red-500 flex items-center justify-center border border-red-200 dark:border-red-900/30">
+                <X size={32} strokeWidth={2.5} />
+              </div>
+
+              <div className="space-y-2">
+                <h3 className="text-xl font-black tracking-tight text-slate-900 dark:text-white">
+                  Cancel Auto-Pay?
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                  Are you sure you want to stop automatic renewal? You will keep full premium access until your current period ends.
+                </p>
+              </div>
+
+              <div className="w-full flex flex-col gap-2.5 pt-2">
+                <Button
+                  disabled={isCancelling}
+                  onClick={async () => {
+                    setIsCancelling(true);
+                    try {
+                      const res = await studentApi.cancelSubscription();
+                      if (res?.success) {
+                        toast.success(res.message || "Auto-pay cancelled successfully.");
+                        await queryClient.invalidateQueries({ queryKey: ["subscriptionStatus"] });
+                        setShowCancelConfirmModal(false);
+                      } else {
+                        toast.error(res?.message || "Failed to cancel subscription.");
+                      }
+                    } catch (err: any) {
+                      toast.error(err?.response?.data?.message || "Error cancelling auto-pay.");
+                    } finally {
+                      setIsCancelling(false);
+                    }
+                  }}
+                  className="w-full h-12 rounded-2xl bg-red-600 hover:bg-red-700 text-white font-black transition-all active:scale-[0.98] shadow-md border-none cursor-pointer"
+                >
+                  {isCancelling ? "Cancelling..." : "Yes, Cancel Auto-Pay"}
+                </Button>
+                <Button
+                  disabled={isCancelling}
+                  onClick={() => setShowCancelConfirmModal(false)}
+                  variant="outline"
+                  className="w-full h-12 rounded-2xl border border-slate-200 dark:border-slate-800 bg-transparent text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 font-bold transition-all active:scale-[0.98]"
+                >
+                  Keep Subscription
+                </Button>
+              </div>
             </motion.div>
           </div>
         )}

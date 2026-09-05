@@ -30,6 +30,7 @@ import { Separator } from "@/components/ui/separator";
 import { Card, CardContent } from "@/components/ui/card";
 import { useStudentProfile } from "@/hooks/use-student";
 import { motion, AnimatePresence } from "framer-motion";
+import SubscriptionGate from "@/components/subscription/SubscriptionGate";
 
 const COLORS = ["#0f172a", "#ef4444", "#3b82f6", "#10b981", "#f59e0b"];
 
@@ -521,7 +522,8 @@ export default function VideoCallSession() {
   }, [showWhiteboard]);
 
   return (
-    <div className="relative flex min-h-svh w-full flex-col bg-[#f4f6ff] dark:bg-[#0b081e] text-slate-800 dark:text-slate-100 transition-colors duration-300 overflow-hidden font-sans">
+    <SubscriptionGate feature={isAudioOnly ? "call" : "video"}>
+      <div className="relative flex min-h-svh w-full flex-col bg-[#f4f6ff] dark:bg-[#0b081e] text-slate-800 dark:text-slate-100 transition-colors duration-300 overflow-hidden font-sans">
       
       <div className="flex-1 flex flex-col relative">
         {/* Top Panel (Floating Header Bar like Zoom) */}
@@ -864,5 +866,6 @@ export default function VideoCallSession() {
         </AnimatePresence>
       </div>
     </div>
+    </SubscriptionGate>
   );
 }

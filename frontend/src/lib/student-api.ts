@@ -490,6 +490,32 @@ export const studentApi = {
     const { data } = await apiClient.post("/student/payment/subscription/verify", payload);
     return data;
   },
+
+  /** Log payment failure / cancellation on backend */
+  logPaymentFailure: async (payload: {
+    subscriptionId?: string;
+    orderId?: string;
+    reason?: string;
+    description?: string;
+  }) => {
+    const { data } = await apiClient.post("/student/payment/subscription/log-failure", payload);
+    return data;
+  },
+
+  /**
+   * Sync live Razorpay subscription status to DB.
+   * Call this on every app open to fix the "charged but app doesn't know" bug.
+   */
+  getSubscriptionStatus: async () => {
+    const { data } = await apiClient.get("/student/payment/subscription/status");
+    return data;
+  },
+
+  /** Self-service cancel — cancels autopay at end of current billing period */
+  cancelSubscription: async () => {
+    const { data } = await apiClient.post("/student/payment/subscription/cancel");
+    return data;
+  },
 };
 
 export default studentApi;

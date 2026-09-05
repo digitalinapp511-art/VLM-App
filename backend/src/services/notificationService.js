@@ -77,8 +77,6 @@ export const createNotification = async (
   // ── Socket.io real-time (in-app) ──────────────────────────────────────────
   try {
     const room = `user:${userId.toString()}`;
-    const io = getIo();
-    if (io) io.to(room).emit('new_notification', payload);
     await publishSocketEvent(room, 'new_notification', payload);
   } catch (err) {
     console.error('[NotificationService] Socket emit error:', err.message);

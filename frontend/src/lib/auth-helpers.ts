@@ -35,11 +35,6 @@ export function resolveUserProfileRoute(user: any, profile: any): string {
     if (!isStudentProfileComplete(profile)) {
       return PATHS.CREATE_PROFILE;
     }
-    const subscriptionStatus = profile?.subscription?.status || "free";
-    const hasActiveSubscription = subscriptionStatus === "active" || subscriptionStatus === "trial";
-    if (!hasActiveSubscription) {
-      return PATHS.PLAN_SCREEN;
-    }
     return PATHS.STUDENT_DASHBOARD;
   }
 

@@ -13,6 +13,7 @@ import {
   Check,
   ShieldCheck,
   CreditCard,
+  Crown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
@@ -21,7 +22,9 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { useQueryClient } from "@tanstack/react-query";
 import { authApi } from "@/lib/auth-api";
+import { studentApi } from "@/lib/student-api";
 import { useStudentProfile } from "@/hooks/use-student";
+import { useSubscription } from "@/hooks/use-subscription";
 import LoadingSkeleton from "@/components/basic/student/LoadingSkeleton";
 import { toast } from "sonner";
 import { apiClient } from "@/lib/api-client";
@@ -32,7 +35,12 @@ export default function ProfileView() {
   const { data: profile, isLoading, error: profileError, refetch } = useStudentProfile();
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [showSubModal, setShowSubModal] = useState(false);
+  const [showCancelConfirmModal, setShowCancelConfirmModal] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
   const [copied, setCopied] = useState(false);
+
+  const subState = useSubscription();
+  const isPremium = subState.isPremium;
 
 
   const [verifyingType, setVerifyingType] = useState<"email" | "mobile" | null>(null);
@@ -322,7 +330,11 @@ export default function ProfileView() {
 
           {(() => {
             const subscription = p?.subscription || {};
-            const subStatus = subscription.status || "free";
+            const isCurrentlyActive = subState.isPremium;
+            const isCancelled = subState.cancelAtPeriodEnd;
+            const subStatus = isCurrentlyActive
+              ? (subState.isTrial ? "trial" : "active")
+              : (subscription.status || "free");
             const studentClass = p?.class || "";
             const classNum = parseInt(String(studentClass).replace(/\D/g, ""), 10) || 10;
             
@@ -334,18 +346,19 @@ export default function ProfileView() {
             }
 
             let subLabel = "Free Plan — upgrade to unlock all features";
-            if (subStatus === "active") {
-              const expDate = subscription.expiresAt ? new Date(subscription.expiresAt).toLocaleDateString("en-IN") : "";
+            if (isCurrentlyActive) {
+              const expDate = subscription.expiresAt 
+                ? new Date(subscription.expiresAt).toLocaleDateString("en-IN") 
+                : subscription.trialEndsAt 
+                ? new Date(subscription.trialEndsAt).toLocaleDateString("en-IN") 
+                : "";
               subLabel = `VLM Premium (${priceText}) — active until ${expDate}`;
-            } else if (subStatus === "trial") {
-              const expDate = subscription.trialEndsAt ? new Date(subscription.trialEndsAt).toLocaleDateString("en-IN") : "";
-              subLabel = `VLM Trial (${priceText}) — active until ${expDate}`;
             }
 
             return (
               <div 
                 onClick={() => {
-                  if (subStatus === "free") {
+                  if (!isCurrentlyActive) {
                     navigate(PATHS.PLAN_SCREEN);
                   } else {
                     setShowSubModal(true);
@@ -354,8 +367,8 @@ export default function ProfileView() {
                 className="flex items-center justify-between p-3 rounded-2xl border border-slate-50 dark:border-[#221c4e] bg-slate-50/50 dark:bg-slate-900/20 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-900/40 transition-all active:scale-[0.99]"
               >
                 <div className="flex items-center gap-3">
-                  <div className="h-9 w-9 rounded-xl bg-blue-100 dark:bg-blue-950/30 flex items-center justify-center">
-                    <CreditCard size={16} className="text-blue-600 dark:text-blue-400" />
+                  <div className="h-9 w-9 rounded-xl bg-amber-100 dark:bg-amber-950/30 flex items-center justify-center">
+                    <Crown size={18} className="fill-amber-400 text-amber-500" />
                   </div>
                   <div className="text-left">
                     <span className="text-xs font-black text-slate-800 dark:text-slate-100 block">Manage Subscription</span>
@@ -436,7 +449,7 @@ export default function ProfileView() {
       {/* ── SUBSCRIPTION DETAILS POPUP ── */}
       <AnimatePresence>
         {showSubModal && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/60 backdrop-blur-sm">
+          <div className="fixed inset-0 z-[150] flex items-center justify-center p-6 bg-black/60 backdrop-blur-sm">
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -449,43 +462,61 @@ export default function ProfileView() {
               initial={{ opacity: 0, scale: 0.95, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 10 }}
-              className="relative w-full max-w-sm rounded-[32px] border border-slate-250 dark:border-white/10 bg-white dark:bg-[#161233] p-8 shadow-2xl text-slate-800 dark:text-slate-100 flex flex-col items-center gap-6"
+              className="relative w-full max-w-sm rounded-[32px] border border-slate-200 dark:border-white/10 bg-white dark:bg-[#161233] p-8 shadow-2xl text-slate-800 dark:text-slate-100 flex flex-col items-center gap-6"
             >
               <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-blue-50 dark:bg-blue-950/20 text-blue-600 mb-2 border border-blue-100 dark:border-blue-900/30">
-                <CreditCard size={28} />
+                <Crown size={28} className="fill-amber-400 text-amber-500" />
               </div>
 
               {(() => {
-                const subscription = p?.subscription || {};
-                const subStatus = subscription.status || "free";
                 const studentClass = p?.class || "";
                 const classNum = parseInt(String(studentClass).replace(/\D/g, ""), 10) || 10;
-                
+
+                // ── Use subState from useSubscription for correct date-aware values ────
+                const isCurrentlyActive = subState.isPremium;
+                const isCancelled = subState.cancelAtPeriodEnd;
+                const subStatus = isCurrentlyActive
+                  ? (subState.isTrial ? "trial" : "active")
+                  : (p?.subscription?.status || "free");
+
                 let priceText = "Free";
                 if (subStatus === "active") {
                   priceText = classNum >= 11 ? "₹99/month" : classNum >= 9 ? "₹79/month" : "₹59/month";
                 } else if (subStatus === "trial") {
-                  priceText = "₹1";
+                  priceText = "₹1 (Trial)";
                 }
 
-                let daysRemaining = 0;
-                if (subscription.expiresAt) {
-                  const diffTime = new Date(subscription.expiresAt).getTime() - Date.now();
-                  daysRemaining = Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
-                } else if (subscription.trialEndsAt) {
-                  const diffTime = new Date(subscription.trialEndsAt).getTime() - Date.now();
-                  daysRemaining = Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
-                }
+                const daysRemaining = subState.daysLeft ?? 0;
+
+                const paymentStatusText = isCancelled
+                  ? "Cancelled (access until expiry)"
+                  : subState.autopayEnabled
+                  ? "Auto-Renewing"
+                  : "Manual";
 
                 return (
                   <div className="w-full text-center space-y-4">
                     <div className="space-y-1">
                       <h3 className="text-lg font-black tracking-tight">
-                        {subStatus === "trial" ? "3-Day Free Trial" : "VLM Premium Plan"}
+                        {subStatus === "trial" ? "3-Day Free Trial" : isCurrentlyActive ? "VLM Premium Plan" : "Subscription Expired"}
                       </h3>
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-100 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-                        ● Active
-                      </span>
+
+                      {/* ── Status badge: green=active, amber=expiring, red=expired ── */}
+                      {isCurrentlyActive ? (
+                        daysRemaining <= 3 ? (
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-100 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                            ⚡ Expiring Soon
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-100 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                            ● Active
+                          </span>
+                        )
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-red-100 dark:bg-red-500/10 text-red-600 dark:text-red-400">
+                          ✕ Expired
+                        </span>
+                      )}
                     </div>
 
                     <div className="grid grid-cols-2 gap-3 text-left bg-slate-50 dark:bg-black/20 p-4 rounded-2xl border border-slate-100 dark:border-white/5">
@@ -495,7 +526,13 @@ export default function ProfileView() {
                       </div>
                       <div>
                         <p className="text-[9px] uppercase tracking-widest text-slate-400 font-black">Days Remaining</p>
-                        <p className="text-xs font-bold text-violet-600 dark:text-violet-400 mt-0.5">{daysRemaining} days left</p>
+                        <p className={`text-xs font-bold mt-0.5 ${
+                          !isCurrentlyActive ? "text-red-500" :
+                          daysRemaining <= 3 ? "text-amber-500" :
+                          "text-violet-600 dark:text-violet-400"
+                        }`}>
+                          {!isCurrentlyActive ? "Expired" : `${daysRemaining} day${daysRemaining !== 1 ? "s" : ""} left`}
+                        </p>
                       </div>
                       <div className="col-span-2 h-[1px] bg-slate-200/50 dark:bg-white/5 my-0.5" />
                       <div>
@@ -506,20 +543,37 @@ export default function ProfileView() {
                       </div>
                       <div>
                         <p className="text-[9px] uppercase tracking-widest text-slate-400 font-black">Payment Status</p>
-                        <p className="text-xs font-bold text-slate-700 dark:text-white mt-0.5">Auto-Renewing</p>
+                        <p className={`text-xs font-bold mt-0.5 ${
+                          isCancelled ? "text-red-500" : "text-slate-700 dark:text-white"
+                        }`}>
+                          {paymentStatusText}
+                        </p>
                       </div>
                     </div>
 
                     <div className="flex flex-col gap-2.5 pt-2">
-                      <Button
-                        onClick={() => {
-                          setShowSubModal(false);
-                          navigate(PATHS.PLAN_SCREEN);
-                        }}
-                        className="w-full h-11 rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-700 hover:from-violet-500 hover:to-indigo-600 text-white font-black transition-all active:scale-[0.98] shadow-sm border-none cursor-pointer"
-                      >
-                        Upgrade Plan
-                      </Button>
+                      {/* ── CTA changes based on status ── */}
+                      {isCurrentlyActive && !isCancelled ? (
+                        <div className="space-y-2 w-full">
+                          <Button
+                            onClick={() => {
+                              setShowSubModal(false);
+                              setShowCancelConfirmModal(true);
+                            }}
+                            className="w-full h-11 rounded-2xl bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-900/30 font-black transition-all active:scale-[0.98] cursor-pointer"
+                          >
+                            Cancel Auto-Pay
+                          </Button>
+                        </div>
+                      ) : (
+                        // Expired, cancelled, or 0 days → resubscribe
+                        <Button
+                          onClick={() => { setShowSubModal(false); navigate(PATHS.PLAN_SCREEN); }}
+                          className="w-full h-11 rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-700 hover:from-violet-500 hover:to-indigo-600 text-white font-black transition-all active:scale-[0.98] shadow-md border-none cursor-pointer"
+                        >
+                          {subState.hasUsedTrial ? "Re-subscribe Now" : "Start Free Trial"}
+                        </Button>
+                      )}
                       <Button
                         onClick={() => setShowSubModal(false)}
                         className="w-full h-11 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 font-black transition-all active:scale-[0.98] shadow-sm"
@@ -530,6 +584,74 @@ export default function ProfileView() {
                   </div>
                 );
               })()}
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Custom In-App Auto-Pay Cancel Confirmation Popup Modal ────────────── */}
+      <AnimatePresence>
+        {showCancelConfirmModal && (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm"
+              onClick={() => !isCancelling && setShowCancelConfirmModal(false)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              className="relative w-full max-w-sm rounded-[32px] border border-slate-200 dark:border-white/10 bg-white dark:bg-[#161233] p-7 shadow-2xl text-slate-800 dark:text-slate-100 flex flex-col items-center text-center gap-5 z-10"
+            >
+              <div className="h-16 w-16 rounded-full bg-red-100 dark:bg-red-500/10 text-red-500 flex items-center justify-center border border-red-200 dark:border-red-900/30">
+                <X size={32} strokeWidth={2.5} />
+              </div>
+
+              <div className="space-y-2">
+                <h3 className="text-xl font-black tracking-tight text-slate-900 dark:text-white">
+                  Cancel Auto-Pay?
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                  Are you sure you want to stop automatic renewal? You will keep full premium access until your current period ends.
+                </p>
+              </div>
+
+              <div className="w-full flex flex-col gap-2.5 pt-2">
+                <Button
+                  disabled={isCancelling}
+                  onClick={async () => {
+                    setIsCancelling(true);
+                    try {
+                      const res = await studentApi.cancelSubscription();
+                      if (res?.success) {
+                        toast.success(res.message || "Auto-pay cancelled successfully.");
+                        await queryClient.invalidateQueries({ queryKey: ["subscriptionStatus"] });
+                        setShowCancelConfirmModal(false);
+                      } else {
+                        toast.error(res?.message || "Failed to cancel subscription.");
+                      }
+                    } catch (err: any) {
+                      toast.error(err?.response?.data?.message || "Error cancelling auto-pay.");
+                    } finally {
+                      setIsCancelling(false);
+                    }
+                  }}
+                  className="w-full h-12 rounded-2xl bg-red-600 hover:bg-red-700 text-white font-black transition-all active:scale-[0.98] shadow-md border-none cursor-pointer"
+                >
+                  {isCancelling ? "Cancelling..." : "Yes, Cancel Auto-Pay"}
+                </Button>
+                <Button
+                  disabled={isCancelling}
+                  onClick={() => setShowCancelConfirmModal(false)}
+                  variant="outline"
+                  className="w-full h-12 rounded-2xl border border-slate-200 dark:border-slate-800 bg-transparent text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 font-bold transition-all active:scale-[0.98]"
+                >
+                  Keep Subscription
+                </Button>
+              </div>
             </motion.div>
           </div>
         )}

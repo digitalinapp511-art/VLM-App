@@ -10,7 +10,8 @@ import {
 } from '../controllers/studentController.js';
 import {
   createWalletOrder, verifyWalletPayment,
-  createSubscriptionOrder, verifySubscriptionPayment,
+  createSubscriptionOrder, verifySubscriptionPayment, logPaymentFailure,
+  getSubscriptionStatus, cancelSubscription,
 } from '../controllers/paymentController.js';
 import {
   getSessionHistory, getSessionMessages, sendMessage, resolveSession,
@@ -128,6 +129,9 @@ router.post('/payment/wallet/create-order', createWalletOrder);
 router.post('/payment/wallet/verify', verifyWalletPayment);
 router.post('/payment/subscription/create-order', createSubscriptionOrder);
 router.post('/payment/subscription/verify', verifySubscriptionPayment);
+router.post('/payment/subscription/log-failure', logPaymentFailure);
+router.get('/payment/subscription/status', getSubscriptionStatus);
+router.post('/payment/subscription/cancel', cancelSubscription);
 router.get('/parent-requests', getParentRequests);
 router.post('/parent-requests/:parentId/approve', approveParentRequest);
 router.post('/parent-requests/:parentId/reject', rejectParentRequest);

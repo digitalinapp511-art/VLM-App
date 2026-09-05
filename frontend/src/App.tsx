@@ -106,6 +106,7 @@ import { useEffect, useState } from "react";
 import { connectSocket, disconnectSocket, getSocket } from "@/lib/socket";
 import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
+import { useSubscriptionSync } from "@/hooks/use-subscription";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -116,6 +117,19 @@ const queryClient = new QueryClient({
     },
   },
 });
+
+/**
+ * SubscriptionSyncInitializer
+ * Runs on every app open (when user is authenticated) and syncs the live
+ * Razorpay subscription status to the DB. This eliminates the 10-minute gap
+ * between "Razorpay charged" and "app knows about it".
+ */
+function SubscriptionSyncInitializer() {
+  const token = localStorage.getItem("vlm_token");
+  // Only sync if logged in — useSubscriptionSync internally checks token too
+  useSubscriptionSync();
+  return null;
+}
 
 function SocketInitializer({ setActiveRequest }: { setActiveRequest: (data: any) => void }) {
   const location = useLocation();
@@ -215,6 +229,7 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <SocketInitializer setActiveRequest={setActiveRequest} />
+        <SubscriptionSyncInitializer />
         <Toaster position="top-center" />
         <Routes>
           {/* Public auth */}

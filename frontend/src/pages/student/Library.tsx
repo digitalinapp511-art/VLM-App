@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { useQuery } from "@tanstack/react-query";
 import { studentApi } from "@/lib/student-api";
 import { cn } from "@/lib/utils";
+import SubscriptionGate from "@/components/subscription/SubscriptionGate";
 
 export default function Library() {
   const navigate = useNavigate();
@@ -260,9 +261,10 @@ export default function Library() {
           </div>
         )}
 
-        {/* STEP 3: FILES LIST */}
+        {/* STEP 3: FILES LIST (Gated for non-premium users) */}
         {currentStep() === "files" && (
-          <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <SubscriptionGate feature="library">
+            <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
             {getFilteredResources().length === 0 ? (
               <Card className="bg-white dark:bg-[#161233] border border-slate-100 dark:border-[#221c4e] rounded-3xl p-8 text-center shadow-sm">
                 <BookOpen className="h-12 w-12 text-slate-300 dark:text-slate-700 mx-auto mb-3" />
@@ -323,6 +325,7 @@ export default function Library() {
               </div>
             )}
           </div>
+          </SubscriptionGate>
         )}
 
         {/* STEP 4: FULL SCREEN EMBEDDED PDF VIEWER */}

@@ -18,8 +18,11 @@ import { PATHS } from "@/routes/paths";
 
 import { studentApi } from "@/lib/student-api";
 import { useStudentProfile } from "@/hooks/use-student";
+import { useSubscription } from "@/hooks/use-subscription";
+import SubscriptionGate, { type GatedFeature } from "@/components/subscription/SubscriptionGate";
 import StudentBottomNav from "@/features/student/components/layout/StudentBottomNav";
 import { toast } from "sonner";
+import { Crown, Sparkles, ChevronRight } from "lucide-react";
 
 type Chapter = { id?: string; name?: string } | string;
 
@@ -77,6 +80,9 @@ export default function AskDoubt() {
     setImagePreview("");
   };
 
+  const { isPremium, hasUsedTrial, planPrice } = useSubscription();
+  const [gatedFeature, setGatedFeature] = useState<GatedFeature | null>(null);
+
   const handleConnect = async () => {
     if (!selectedSubjectName) {
       toast.error("Please select a subject.");
@@ -96,6 +102,14 @@ export default function AskDoubt() {
     };
 
     const typeStr = getSessionTypeString(sessionType);
+    
+    // Feature Gate: Premium subscription required for Human Chat, Audio Call, and Video Call
+    if (typeStr !== "ai" && !isPremium) {
+      const featKey: GatedFeature = typeStr === "chat" ? "humanChat" : typeStr === "audio" ? "call" : "video";
+      setGatedFeature(featKey);
+      return;
+    }
+
     const studentProfile = (profile as any)?.data || profile;
     const studentCredits = studentProfile?.wallet?.humanChatCredits ?? 0;
     const studentClass = studentProfile?.class || studentProfile?.className || "10";
@@ -378,21 +392,33 @@ export default function AskDoubt() {
               title="Human Chat"
               desc="Expert Educator"
               active={sessionType === "Human Chat"}
-              onClick={() => setSessionType("Human Chat")}
+              isLocked={!isPremium}
+              onClick={() => {
+                setSessionType("Human Chat");
+                if (!isPremium) setGatedFeature("humanChat");
+              }}
             />
             <SessionCard
               icon={<Phone size={18} />}
               title="Audio Call"
               desc="Live Discussion"
               active={sessionType === "Audio Call"}
-              onClick={() => setSessionType("Audio Call")}
+              isLocked={!isPremium}
+              onClick={() => {
+                setSessionType("Audio Call");
+                if (!isPremium) setGatedFeature("call");
+              }}
             />
             <SessionCard
               icon={<Video size={18} />}
               title="Video Call"
               desc="Personalized Session"
               active={sessionType === "Video Call"}
-              onClick={() => setSessionType("Video Call")}
+              isLocked={!isPremium}
+              onClick={() => {
+                setSessionType("Video Call");
+                if (!isPremium) setGatedFeature("video");
+              }}
             />
           </div>
         </div>
@@ -410,25 +436,37 @@ export default function AskDoubt() {
       </main>
 
       <StudentBottomNav />
+
+      {/* Render Gated Feature Drop-up Modal if triggered */}
+      {gatedFeature && (
+        <SubscriptionGate feature={gatedFeature} onClose={() => setGatedFeature(null)}>
+          <div />
+        </SubscriptionGate>
+      )}
     </div>
   );
 }
 
 // ── Reusable Session Card ──
-function SessionCard({ icon, title, desc, active, onClick }: any) {
+function SessionCard({ icon, title, desc, active, isLocked, onClick }: any) {
   return (
     <Card
       onClick={onClick}
       className={cn(
-        "cursor-pointer flex-none w-[120px] shrink-0 rounded-2xl transition-all duration-300 border-slate-200/80 dark:border-slate-800 shadow-sm",
+        "cursor-pointer flex-none w-[120px] shrink-0 rounded-2xl transition-all duration-300 border-slate-200/80 dark:border-slate-800 shadow-sm relative overflow-hidden",
         active
           ? "bg-violet-50 dark:bg-violet-950/30 border-violet-400 dark:border-violet-500 text-violet-700 dark:text-violet-300 ring-1 ring-violet-400 dark:ring-violet-500"
           : "bg-white dark:bg-[#161233] hover:bg-slate-50 dark:hover:bg-slate-850 text-slate-600 dark:text-slate-400"
       )}
     >
+      {isLocked && (
+        <span className="absolute top-2 right-2 h-4 w-4 rounded-full bg-amber-500 text-white flex items-center justify-center shadow-sm z-10">
+          <Crown size={10} strokeWidth={2.5} fill="currentColor" />
+        </span>
+      )}
       <CardContent className="p-3 flex flex-col items-center text-center gap-2">
         <div className={cn(
-          "p-2.5 rounded-xl transition-colors",
+          "p-2.5 rounded-xl transition-colors relative",
           active ? "bg-violet-600 text-white shadow-md shadow-violet-500/20" : "bg-slate-100 dark:bg-slate-900 text-slate-400"
         )}>
           {icon}
